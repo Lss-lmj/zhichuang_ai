@@ -4,6 +4,7 @@ import type {
   GrowthProfile,
   LearningPlan,
   ProfileEvidence,
+  TeacherCandidateScreenResponse,
   TeamPoolStatus,
   TeamRecommendResponse,
   TeamRequestCard,
@@ -104,6 +105,24 @@ export function recommendCompetitions(
 
 export function fetchCompetitionCatalog(): Promise<CompetitionCatalogResponse> {
   return requestJson<CompetitionCatalogResponse>("/competitions");
+}
+
+export function screenTeacherCandidates(
+  token = "demo-token-teacher_001",
+): Promise<TeacherCandidateScreenResponse> {
+  return requestJson<TeacherCandidateScreenResponse>("/teacher/candidate-screening", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      target_name: "中国大学生计算机设计大赛",
+      target_type: "competition",
+      target_abilities: ["工程实践", "AI 与数据能力", "协作表达"],
+      class_id: "class_cs_2024_01",
+      min_score: 60,
+    }),
+  });
 }
 
 export function recommendTeam(studentId = "student_001"): Promise<TeamRecommendResponse> {

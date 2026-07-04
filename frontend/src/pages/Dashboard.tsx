@@ -14,6 +14,7 @@ import {
   recommendCompetitions,
   recommendTeam,
   reviseLearningPlan,
+  screenTeacherCandidates,
   updateTeamPoolStatus,
   upsertBasicProfile,
 } from "../shared/api/growth";
@@ -31,6 +32,7 @@ import type {
   GrowthProfile,
   LearningPlan,
   ProfileEvidence,
+  TeacherCandidateScreenResponse,
   TeamPoolStatus,
   TeamRecommendResponse,
   TeamRequestCard,
@@ -51,6 +53,8 @@ export function Dashboard() {
   const [competitionCatalog, setCompetitionCatalog] =
     useState<CompetitionCatalogResponse | null>(null);
   const [team, setTeam] = useState<TeamRecommendResponse | null>(null);
+  const [candidateScreening, setCandidateScreening] =
+    useState<TeacherCandidateScreenResponse | null>(null);
   const [teamRequest, setTeamRequest] = useState<TeamRequestCard | null>(null);
   const [teamStatus, setTeamStatus] = useState<TeamPoolStatus | null>(null);
   const [teamStatusLoading, setTeamStatusLoading] = useState(false);
@@ -91,6 +95,7 @@ export function Dashboard() {
           competitionCatalogData,
           competitionData,
           teamData,
+          candidateScreeningData,
           teamRequestData,
           teamStatusData,
           knowledgeData,
@@ -110,6 +115,7 @@ export function Dashboard() {
           fetchCompetitionCatalog(),
           recommendCompetitions(),
           recommendTeam(),
+          screenTeacherCandidates(),
           createTeamRequest(),
           fetchTeamPoolStatus(),
           fetchKnowledgeDocuments(),
@@ -131,6 +137,7 @@ export function Dashboard() {
           setCompetitionCatalog(competitionCatalogData);
           setCompetitions(competitionData);
           setTeam(teamData);
+          setCandidateScreening(candidateScreeningData);
           setTeamRequest(teamRequestData);
           setTeamStatus(teamStatusData);
           setKnowledgeDocs(knowledgeData);
@@ -227,7 +234,11 @@ export function Dashboard() {
       setReport(nextReport);
       if (session.account.role === "teacher" || session.account.role === "admin") {
         const nextDashboard = await fetchAssignmentDashboard(session.token);
+        const nextCandidateScreening = await screenTeacherCandidates(session.token);
         setDashboard(nextDashboard);
+        setCandidateScreening(nextCandidateScreening);
+      } else {
+        setCandidateScreening(null);
       }
       setMode(session.account.default_view);
     } catch (err) {
@@ -464,7 +475,7 @@ export function Dashboard() {
         {error && <div className="state-box error">接口未连接：{error}</div>}
 
         {!loading && !error && mode === "teacher" && dashboard && (
-          <TeacherDashboard dashboard={dashboard} />
+          <TeacherDashboard dashboard={dashboard} candidateScreening={candidateScreening} />
         )}
 
         {!loading && !error && mode === "student" && report && (
@@ -517,7 +528,13 @@ export function Dashboard() {
   );
 }
 
-function TeacherDashboard({ dashboard }: { dashboard: AssignmentDashboard }) {
+function TeacherDashboard({
+  dashboard,
+  candidateScreening,
+}: {
+  dashboard: AssignmentDashboard;
+  candidateScreening: TeacherCandidateScreenResponse | null;
+}) {
   return (
     <>
       <section className="summary-strip">
@@ -583,6 +600,47 @@ function TeacherDashboard({ dashboard }: { dashboard: AssignmentDashboard }) {
           ))}
         </div>
       </section>
+
+      {candidateScreening && (
+        <section className="panel candidate-panel">
+          <div className="panel-header">
+            <div>
+              <span className="section-label">竞赛梯队筛选</span>
+              <h2>{candidateScreening.target_name}</h2>
+            </div>
+            <span className="muted">{candidateScreening.source_note}</span>
+          </div>
+          <div className="candidate-grid">
+            {candidateScreening.candidates.map((candidate) => (
+              <div className="candidate-card" key={candidate.student_id}>
+                <div className="candidate-card-head">
+                  <div>
+                    <strong>{candidate.student_name}</strong>
+                    <span>{candidate.tier}</span>
+                  </div>
+                  <b>{candidate.match_score}</b>
+                </div>
+                <p>{candidate.match_reason}</p>
+                <div className="candidate-tags">
+                  {candidate.matched_abilities.map((ability) => (
+                    <small key={ability}>{ability}</small>
+                  ))}
+                </div>
+                <div className="candidate-evidence">
+                  {candidate.evidence.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </div>
+                <div className="candidate-gaps">
+                  {candidate.gap_reminders.map((gap) => (
+                    <em key={gap}>{gap}</em>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-header">

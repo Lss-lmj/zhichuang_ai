@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, HTTPException, status
 
 from app.schemas.growth import (
     BasicProfileUpsert,
@@ -11,6 +11,8 @@ from app.schemas.growth import (
     LearningPlanRevisionRequest,
     ProfileEvidence,
     ProfileEvidenceCreate,
+    TeacherCandidateScreenRequest,
+    TeacherCandidateScreenResponse,
     TeamPoolStatus,
     TeamPoolStatusUpdate,
     TeamRecommendRequest,
@@ -18,9 +20,11 @@ from app.schemas.growth import (
     TeamRequestCard,
     TeamRequestCreate,
 )
+from app.services.auth_service import AuthService
 from app.services.growth_service import GrowthService
 
 router = APIRouter()
+DEMO_CLASS_NAMES = {"class_cs_2024_01": "2024 级计算机科学与技术 1 班"}
 
 
 @router.get("/students/{student_id}/profile", response_model=GrowthProfileResponse)
@@ -61,6 +65,29 @@ def recommend_competitions(
 @router.get("/competitions", response_model=CompetitionCatalogResponse)
 def list_competitions() -> CompetitionCatalogResponse:
     return GrowthService().list_competitions()
+
+
+@router.post("/teacher/candidate-screening", response_model=TeacherCandidateScreenResponse)
+def screen_teacher_candidates(
+    payload: TeacherCandidateScreenRequest,
+    authorization: str | None = Header(default=None),
+) -> TeacherCandidateScreenResponse:
+    account = AuthService().current_account(authorization)
+    if account.role not in {"teacher", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers or admins can screen candidate cohorts",
+        )
+    class_name = DEMO_CLASS_NAMES.get(payload.class_id, payload.class_id)
+    if account.role == "teacher" and not (
+        payload.class_id in account.authorized_classes
+        or class_name in account.authorized_classes
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No access to this class candidate cohort",
+        )
+    return GrowthService().screen_teacher_candidates(payload)
 
 
 @router.post("/teams/recommend", response_model=TeamRecommendResponse)

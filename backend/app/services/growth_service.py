@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from app.schemas.growth import (
     BasicProfileSummary,
     BasicProfileUpsert,
@@ -17,6 +19,9 @@ from app.schemas.growth import (
     ProfileEvidence,
     ProfileEvidenceCreate,
     TeamCandidate,
+    TeacherCandidate,
+    TeacherCandidateScreenRequest,
+    TeacherCandidateScreenResponse,
     TeamPoolStatus,
     TeamPoolStatusUpdate,
     TeamRecommendRequest,
@@ -24,6 +29,14 @@ from app.schemas.growth import (
     TeamRequestCard,
     TeamRequestCreate,
 )
+
+
+class _ScreeningProfile(TypedDict):
+    student_id: str
+    student_name: str
+    abilities: dict[str, int]
+    evidence: list[str]
+    strength: str
 
 
 class GrowthService:
@@ -660,6 +673,25 @@ class GrowthService:
             ],
         )
 
+    def screen_teacher_candidates(
+        self,
+        payload: TeacherCandidateScreenRequest,
+    ) -> TeacherCandidateScreenResponse:
+        candidates = [
+            candidate
+            for candidate in self._screening_candidates(payload)
+            if candidate.match_score >= payload.min_score
+        ]
+        candidates.sort(key=lambda candidate: candidate.match_score, reverse=True)
+        return TeacherCandidateScreenResponse(
+            target_name=payload.target_name,
+            target_type=payload.target_type,
+            class_id=payload.class_id,
+            generated_at=self.generated_at,
+            source_note="结果基于授权班级内学生画像、作业证据和竞赛经历生成，仅作为教学和竞赛指导参考。",
+            candidates=candidates,
+        )
+
     def create_team_request(self, payload: TeamRequestCreate) -> TeamRequestCard:
         return TeamRequestCard(
             team_request_id=f"team_req_{payload.student_id}_ai_app",
@@ -733,6 +765,124 @@ class GrowthService:
                 evidence=["项目报告结构清晰", "擅长用户场景梳理"],
             ),
         ]
+
+    def _screening_candidates(
+        self,
+        payload: TeacherCandidateScreenRequest,
+    ) -> list[TeacherCandidate]:
+        student_profiles: list[_ScreeningProfile] = [
+            {
+                "student_id": "student_001",
+                "student_name": "林一舟",
+                "abilities": {
+                    "算法基础": 76,
+                    "工程实践": 84,
+                    "AI 与数据能力": 79,
+                    "协作表达": 73,
+                },
+                "evidence": ["Flask Web 作业报告", "RAG 文档问答 Demo", "蓝桥杯校内训练"],
+                "strength": "适合承担后端接口、RAG 集成和演示主线搭建。",
+            },
+            {
+                "student_id": "student_002",
+                "student_name": "陈星然",
+                "abilities": {
+                    "算法基础": 68,
+                    "工程实践": 80,
+                    "AI 与数据能力": 72,
+                    "协作表达": 86,
+                },
+                "evidence": ["React 课程项目", "项目路演材料", "用户场景说明"],
+                "strength": "适合承担前端交互、演示材料和用户流程表达。",
+            },
+            {
+                "student_id": "student_003",
+                "student_name": "周明远",
+                "abilities": {
+                    "算法基础": 88,
+                    "工程实践": 74,
+                    "AI 与数据能力": 70,
+                    "协作表达": 69,
+                },
+                "evidence": ["算法专题训练记录", "测试用例整理", "数据结构课程作业"],
+                "strength": "适合承担算法训练、评测样例和复杂度分析。",
+            },
+            {
+                "student_id": "student_004",
+                "student_name": "沈知夏",
+                "abilities": {
+                    "算法基础": 62,
+                    "工程实践": 70,
+                    "AI 与数据能力": 68,
+                    "协作表达": 82,
+                },
+                "evidence": ["项目报告结构清晰", "竞赛选题调研", "课堂汇报记录"],
+                "strength": "适合承担需求表达、调研材料和答辩结构。",
+            },
+            {
+                "student_id": "student_005",
+                "student_name": "许嘉木",
+                "abilities": {
+                    "算法基础": 70,
+                    "工程实践": 77,
+                    "AI 与数据能力": 83,
+                    "协作表达": 71,
+                },
+                "evidence": ["机器学习课程实验", "数据处理 Notebook", "FastAPI 小项目"],
+                "strength": "适合承担数据处理、模型调用和接口原型。",
+            },
+        ]
+        target_abilities = payload.target_abilities or ["工程实践", "AI 与数据能力", "协作表达"]
+        candidates: list[TeacherCandidate] = []
+
+        for profile in student_profiles:
+            abilities = profile["abilities"]
+            selected_scores = [
+                abilities.get(ability, self._fallback_ability_score(ability, abilities))
+                for ability in target_abilities
+            ]
+            match_score = round(sum(selected_scores) / len(selected_scores))
+            matched_abilities = [
+                ability
+                for ability in target_abilities
+                if abilities.get(ability, self._fallback_ability_score(ability, abilities)) >= 75
+            ]
+            gaps = [
+                f"{ability}需要补强"
+                for ability in target_abilities
+                if abilities.get(ability, self._fallback_ability_score(ability, abilities)) < 75
+            ]
+            candidates.append(
+                TeacherCandidate(
+                    student_id=str(profile["student_id"]),
+                    student_name=str(profile["student_name"]),
+                    tier=self._candidate_tier(match_score),
+                    match_score=match_score,
+                    matched_abilities=matched_abilities,
+                    match_reason=(
+                        f"{profile['strength']} 与“{payload.target_name}”的"
+                        f"{'、'.join(target_abilities[:3])}要求匹配。"
+                    ),
+                    gap_reminders=gaps[:3] or ["当前目标能力暂无明显短板，建议继续补充过程证据。"],
+                    evidence=profile["evidence"],
+                )
+            )
+
+        return candidates
+
+    def _fallback_ability_score(self, ability: str, abilities: dict[str, int]) -> int:
+        if ability == "AI 应用开发":
+            return abilities.get("AI 与数据能力", 0)
+        if ability == "表达与协作":
+            return abilities.get("协作表达", 0)
+        return abilities.get(ability, 0)
+
+    def _candidate_tier(self, match_score: int) -> str:
+        if match_score >= 82:
+            return "重点推荐"
+        if match_score >= 74:
+            return "可培养"
+        return "储备观察"
 
     def _is_team_pool_enabled(self, student_id: str) -> bool:
         return self.team_pool_enabled.get(student_id, False)

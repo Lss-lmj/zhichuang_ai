@@ -100,6 +100,27 @@ export type CompetitionRecommendResponse = {
   ai_generated: boolean;
 };
 
+export type TeacherCandidate = {
+  student_id: string;
+  student_name: string;
+  tier: string;
+  match_score: number;
+  matched_abilities: string[];
+  match_reason: string;
+  gap_reminders: string[];
+  evidence: string[];
+};
+
+export type TeacherCandidateScreenResponse = {
+  target_name: string;
+  target_type: string;
+  class_id: string;
+  generated_at: string;
+  source_note: string;
+  candidates: TeacherCandidate[];
+  ai_generated: boolean;
+};
+
 export type TeamCandidate = {
   student_id: string;
   name: string;

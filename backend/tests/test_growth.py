@@ -110,6 +110,46 @@ def test_learning_plan_and_recommendations() -> None:
     ]
 
 
+def test_teacher_candidate_screening_returns_cohort_tiers() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/api/teacher/candidate-screening",
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+        json={
+            "target_name": "中国大学生计算机设计大赛",
+            "target_type": "competition",
+            "target_abilities": ["工程实践", "AI 与数据能力", "协作表达"],
+            "class_id": "class_cs_2024_01",
+            "min_score": 60,
+        },
+    )
+    forbidden_response = client.post(
+        "/api/teacher/candidate-screening",
+        headers={"Authorization": "Bearer demo-token-student_001"},
+        json={"target_name": "中国大学生计算机设计大赛"},
+    )
+    class_forbidden_response = client.post(
+        "/api/teacher/candidate-screening",
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+        json={
+            "target_name": "中国大学生计算机设计大赛",
+            "class_id": "class_not_authorized",
+        },
+    )
+
+    assert response.status_code == 200
+    assert forbidden_response.status_code == 403
+    assert class_forbidden_response.status_code == 403
+    payload = response.json()
+    assert payload["target_name"] == "中国大学生计算机设计大赛"
+    assert "教学和竞赛指导参考" in payload["source_note"]
+    assert len(payload["candidates"]) >= 3
+    assert payload["candidates"][0]["tier"] in ["重点推荐", "可培养"]
+    assert all(candidate["match_reason"] for candidate in payload["candidates"])
+    assert all(candidate["gap_reminders"] for candidate in payload["candidates"])
+    assert all(candidate["evidence"] for candidate in payload["candidates"])
+
+
 def test_team_request_and_pool_status() -> None:
     client = TestClient(app)
     request_response = client.post(

@@ -500,11 +500,95 @@ h1 {
   margin-top: 16px;
 }
 
+.candidate-panel {
+  margin-top: 16px;
+}
+
 .teaching-suggestion-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-top: 18px;
+}
+
+.candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.candidate-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: 6px;
+}
+
+.candidate-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.candidate-card-head div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.candidate-card-head span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.candidate-card-head b {
+  color: var(--blue);
+  font-size: 24px;
+}
+
+.candidate-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.candidate-tags,
+.candidate-evidence,
+.candidate-gaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.candidate-tags small,
+.candidate-evidence span,
+.candidate-gaps em {
+  padding: 5px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.candidate-tags small {
+  color: var(--blue);
+  background: rgba(23, 78, 166, 0.09);
+}
+
+.candidate-evidence span {
+  color: var(--ink);
+  background: #e8edf3;
+}
+
+.candidate-gaps em {
+  color: var(--amber);
+  background: rgba(181, 106, 16, 0.1);
+  font-style: normal;
 }
 
 .teaching-suggestion {
@@ -1342,6 +1426,7 @@ h1 {
   .task-board,
   .competition-catalog,
   .student-grid,
+  .candidate-grid,
   .teaching-suggestion-list {
     grid-template-columns: 1fr;
   }

@@ -147,6 +147,37 @@ class CompetitionRecommendResponse(BaseModel):
     ai_generated: bool = True
 
 
+class TeacherCandidateScreenRequest(BaseModel):
+    target_name: str = "中国大学生计算机设计大赛"
+    target_type: str = "competition"
+    target_abilities: list[str] = Field(
+        default_factory=lambda: ["工程实践", "AI 与数据能力", "协作表达"]
+    )
+    class_id: str = "class_cs_2024_01"
+    min_score: int = 60
+
+
+class TeacherCandidate(BaseModel):
+    student_id: str
+    student_name: str
+    tier: str
+    match_score: int
+    matched_abilities: list[str] = Field(default_factory=list)
+    match_reason: str
+    gap_reminders: list[str] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+
+
+class TeacherCandidateScreenResponse(BaseModel):
+    target_name: str
+    target_type: str
+    class_id: str
+    generated_at: str
+    source_note: str
+    candidates: list[TeacherCandidate]
+    ai_generated: bool = True
+
+
 class TeamRecommendRequest(BaseModel):
     student_id: str = "student_001"
     project_goal: str = "做一个课程作业代码分析与教师看板 Demo"
