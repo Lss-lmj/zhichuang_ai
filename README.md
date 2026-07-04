@@ -76,6 +76,8 @@ docker compose up --build
 make smoke
 ```
 
+`make smoke` 会对公网或本地 Demo 做内容断言：演示账号、教师看板、学生报告、成长路径、竞赛推荐、教师梯队筛选、组队、任务复盘、知识库入库与检索、Agent 引用和前端入口。
+
 RAG 或 LangGraph 开发需要进入 `backend/` 安装额外依赖：
 
 ```bash
