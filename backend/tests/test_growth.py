@@ -122,6 +122,8 @@ def test_learning_plan_and_recommendations() -> None:
     assert all(milestone["official_basis"] for milestone in preparation_payload["milestones"])
     assert any("报名" in citation for citation in preparation_payload["citations"])
     assert len(team_response.json()["candidates"]) >= 2
+    assert team_response.json()["candidates"][0]["skill_complement_graph"]
+    assert team_response.json()["candidates"][0]["suggested_questions"]
     assert "student_004" not in [
         candidate["student_id"] for candidate in team_response.json()["candidates"]
     ]

@@ -806,6 +806,30 @@ function TeacherDashboard({
         </div>
       </section>
 
+      <section className="panel anomaly-panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">异常作业提示</span>
+            <h2>需要教师优先关注的提交</h2>
+          </div>
+          <span className="muted">F6-001</span>
+        </div>
+        <div className="anomaly-list">
+          {dashboard.anomalies.map((anomaly) => (
+            <article className={`anomaly-card ${anomaly.severity}`} key={anomaly.title}>
+              <div>
+                <strong>{anomaly.title}</strong>
+                <span>{anomaly.evidence}</span>
+              </div>
+              <p>{anomaly.suggested_action}</p>
+              {anomaly.affected_students.length > 0 && (
+                <small>{anomaly.affected_students.join(" / ")}</small>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="panel teaching-panel">
         <div className="panel-header">
           <div>
@@ -980,6 +1004,32 @@ function StudentReport({
             ))}
           </ol>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">代码证据片段</span>
+            <h2>关联到具体文件、模块和代码行</h2>
+          </div>
+          <span className="muted">F2-004</span>
+        </div>
+        <div className="snippet-grid">
+          {report.evidence_snippets.map((snippet) => (
+            <article
+              className="snippet-card"
+              key={`${snippet.path}-${snippet.line_start}-${snippet.capability}`}
+            >
+              <div>
+                <strong>{snippet.capability}</strong>
+                <span>
+                  {snippet.path} · {snippet.module} · L{snippet.line_start}
+                </span>
+              </div>
+              <code>{snippet.snippet}</code>
+            </article>
+          ))}
+        </div>
       </section>
     </>
   );
@@ -1428,6 +1478,16 @@ function GrowthPath({
               </div>
               <b>{candidate.match_score}</b>
               <p>{candidate.complement}</p>
+              <div className="team-graph">
+                {candidate.skill_complement_graph.map((item) => (
+                  <small key={item}>{item}</small>
+                ))}
+              </div>
+              <div className="team-questions">
+                {candidate.suggested_questions.map((question) => (
+                  <small key={question}>{question}</small>
+                ))}
+              </div>
               <small>{candidate.evidence.join(" / ")}</small>
             </div>
           ))}

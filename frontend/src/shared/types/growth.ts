@@ -150,6 +150,8 @@ export type TeamCandidate = {
   match_score: number;
   complement: string;
   evidence: string[];
+  skill_complement_graph: string[];
+  suggested_questions: string[];
 };
 
 export type TeamRecommendResponse = {

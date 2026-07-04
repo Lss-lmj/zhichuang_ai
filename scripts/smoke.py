@@ -103,6 +103,7 @@ def main() -> int:
     assert_true(dashboard["teaching_suggestions"], "teaching suggestions missing")
     assert_true(dashboard["class_profile"]["heatmap"], "class ability heatmap missing")
     assert_true(dashboard["class_profile"]["data_coverage"], "class data coverage missing")
+    assert_true(dashboard["anomalies"], "assignment anomalies missing")
 
     client.expect_forbidden(
         "GET",
@@ -116,6 +117,7 @@ def main() -> int:
     )
     assert_true(report["student_id"] == "student_001", "student report access failed")
     assert_true(report["code_structure"]["file_count"] >= 1, "code structure summary missing")
+    assert_true(report["evidence_snippets"], "code evidence snippets missing")
 
     profile = client.get_json("/students/student_001/profile")
     assert_true(len(profile["dimensions"]) >= 4, "growth profile dimensions missing")
@@ -165,6 +167,14 @@ def main() -> int:
         {"student_id": "student_001", "project_goal": "作业代码分析 Demo"},
     )
     assert_true(team["candidates"], "team recommendations missing")
+    assert_true(
+        team["candidates"][0]["skill_complement_graph"],
+        "team skill complement graph missing",
+    )
+    assert_true(
+        team["candidates"][0]["suggested_questions"],
+        "team suggested questions missing",
+    )
 
     task = client.post_json("/tasks", {"title": "Smoke 测试任务"})
     assert_true(task["title"] == "Smoke 测试任务", "task save failed")

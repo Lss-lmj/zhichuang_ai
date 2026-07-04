@@ -34,6 +34,10 @@ def test_assignment_analysis_returns_report() -> None:
     assert payload["code_structure"]["test_files"] == ["tests/test_app.py"]
     assert payload["code_structure"]["documentation_files"] == ["README.md"]
     assert payload["code_structure"]["risk_signals"] == []
+    assert payload["evidence_snippets"]
+    assert payload["evidence_snippets"][0]["path"] == "app.py"
+    assert payload["evidence_snippets"][0]["line_start"] >= 1
+    assert payload["evidence_snippets"][0]["snippet"]
 
 
 def test_assignment_dashboard_returns_teacher_view() -> None:
@@ -58,6 +62,9 @@ def test_assignment_dashboard_returns_teacher_view() -> None:
         for metric in payload["class_profile"]["data_coverage"]
     )
     assert payload["class_profile"]["common_weaknesses"]
+    assert payload["anomalies"]
+    assert payload["anomalies"][0]["title"]
+    assert payload["anomalies"][0]["suggested_action"]
     assert len(payload["teaching_suggestions"]) >= 2
     for suggestion in payload["teaching_suggestions"]:
         assert suggestion["knowledge_point"]

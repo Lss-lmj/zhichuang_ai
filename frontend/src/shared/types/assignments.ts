@@ -12,6 +12,15 @@ export type AssignmentFinding = {
   suggestion: string;
 };
 
+export type CodeEvidenceSnippet = {
+  path: string;
+  module: string;
+  capability: string;
+  line_start: number;
+  line_end: number;
+  snippet: string;
+};
+
 export type CapabilityEvidence = {
   dimension: string;
   evidence: string;
@@ -50,6 +59,7 @@ export type AssignmentReport = {
   code_structure: CodeStructureSummary;
   scores: AssignmentScore[];
   findings: AssignmentFinding[];
+  evidence_snippets: CodeEvidenceSnippet[];
   capability_evidence: CapabilityEvidence[];
   improvement_tasks: string[];
   citations: Citation[];
@@ -78,6 +88,14 @@ export type TeachingSuggestion = {
   suggested_activity: string;
   practice_task: string;
   expected_improvement: string;
+};
+
+export type AssignmentAnomaly = {
+  severity: "high" | "medium" | "low" | string;
+  title: string;
+  affected_students: string[];
+  evidence: string;
+  suggested_action: string;
 };
 
 export type AbilityHeatmapCell = {
@@ -123,6 +141,7 @@ export type AssignmentDashboard = {
   metrics: AssignmentDashboardMetric[];
   dimension_averages: AssignmentScore[];
   common_findings: AssignmentFinding[];
+  anomalies: AssignmentAnomaly[];
   teaching_suggestions: TeachingSuggestion[];
   class_profile: ClassAbilityProfile;
   reports: AssignmentReportSummary[];

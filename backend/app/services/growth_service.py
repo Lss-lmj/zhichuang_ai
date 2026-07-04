@@ -852,6 +852,16 @@ class GrowthService:
                 match_score=86,
                 complement="补足工作台界面、演示流程和移动端适配。",
                 evidence=["课程项目中负责过 React 页面", "表达材料完成度高"],
+                skill_complement_graph=[
+                    "林一舟: 后端接口/RAG 集成",
+                    "陈星然: React 页面/交互流程",
+                    "共同缺口: 移动端适配与演示脚本联调",
+                ],
+                suggested_questions=[
+                    "你能每周投入几小时完成前端页面和演示联调？",
+                    "你希望用 Web 优先，还是同步考虑鸿蒙端页面结构？",
+                    "哪些页面需要先做成比赛可演示闭环？",
+                ],
             ),
             TeamCandidate(
                 student_id="student_003",
@@ -860,6 +870,16 @@ class GrowthService:
                 match_score=81,
                 complement="补足代码分析规则、评测样例和算法竞赛路径。",
                 evidence=["算法专题训练稳定", "能整理测试用例"],
+                skill_complement_graph=[
+                    "林一舟: 应用集成/教师看板",
+                    "周明远: 评测样例/算法训练路径",
+                    "共同缺口: 代码分析规则与测试记录沉淀",
+                ],
+                suggested_questions=[
+                    "你能先维护哪些代码分析规则和评测用例？",
+                    "算法竞赛路径里哪些资料最适合做首批知识库？",
+                    "每周复盘时如何记录测试失败和修正依据？",
+                ],
             ),
             TeamCandidate(
                 student_id="student_004",
@@ -868,6 +888,16 @@ class GrowthService:
                 match_score=79,
                 complement="补足需求表达、场景材料和比赛答辩结构。",
                 evidence=["项目报告结构清晰", "擅长用户场景梳理"],
+                skill_complement_graph=[
+                    "林一舟: 技术原型/系统实现",
+                    "沈知夏: 需求表达/答辩材料",
+                    "共同缺口: 学校使用场景和演示叙事打磨",
+                ],
+                suggested_questions=[
+                    "你能负责哪几页作品方案和演示脚本？",
+                    "教师端学情诊断应该优先讲哪些真实教学价值？",
+                    "答辩中如何解释分数是基于证据的相对画像？",
+                ],
             ),
         ]
 

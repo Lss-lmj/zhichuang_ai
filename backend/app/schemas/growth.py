@@ -220,6 +220,8 @@ class TeamCandidate(BaseModel):
     match_score: int
     complement: str
     evidence: list[str] = Field(default_factory=list)
+    skill_complement_graph: list[str] = Field(default_factory=list)
+    suggested_questions: list[str] = Field(default_factory=list)
 
 
 class TeamRecommendResponse(BaseModel):

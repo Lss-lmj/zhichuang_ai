@@ -33,6 +33,15 @@ class AssignmentFinding(BaseModel):
     suggestion: str
 
 
+class CodeEvidenceSnippet(BaseModel):
+    path: str
+    module: str
+    capability: str
+    line_start: int
+    line_end: int
+    snippet: str
+
+
 class CapabilityEvidence(BaseModel):
     dimension: str
     evidence: str
@@ -79,6 +88,14 @@ class TeachingSuggestion(BaseModel):
     expected_improvement: str
 
 
+class AssignmentAnomaly(BaseModel):
+    severity: str
+    title: str
+    affected_students: list[str] = Field(default_factory=list)
+    evidence: str
+    suggested_action: str
+
+
 class AbilityHeatmapCell(BaseModel):
     student_id: str
     student_name: str
@@ -123,6 +140,7 @@ class AssignmentAnalysisResponse(BaseModel):
     code_structure: CodeStructureSummary
     scores: list[AssignmentScore]
     findings: list[AssignmentFinding]
+    evidence_snippets: list[CodeEvidenceSnippet] = Field(default_factory=list)
     capability_evidence: list[CapabilityEvidence]
     improvement_tasks: list[str]
     citations: list[Citation] = Field(default_factory=list)
@@ -144,6 +162,7 @@ class AssignmentDashboardResponse(BaseModel):
     metrics: list[AssignmentDashboardMetric]
     dimension_averages: list[AssignmentScore]
     common_findings: list[AssignmentFinding]
+    anomalies: list[AssignmentAnomaly] = Field(default_factory=list)
     teaching_suggestions: list[TeachingSuggestion]
     class_profile: ClassAbilityProfile
     reports: list[AssignmentReportSummary]

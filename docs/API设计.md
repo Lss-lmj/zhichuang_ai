@@ -147,6 +147,16 @@
       "suggestion": "在 README 中加入接口表、错误处理策略和测试覆盖范围。"
     }
   ],
+  "evidence_snippets": [
+    {
+      "path": "app.py",
+      "module": "app",
+      "capability": "路由入口",
+      "line_start": 3,
+      "line_end": 3,
+      "snippet": "@app.route('/todos', methods=['GET', 'POST'])"
+    }
+  ],
   "improvement_tasks": ["将本次报告中的能力证据同步到个人画像，用于后续路径和竞赛推荐。"],
   "access_scope": "teacher:authorized_course_class",
   "ai_generated": true
@@ -168,6 +178,7 @@
 - 提交统计。
 - 维度分布。
 - 共性问题。
+- 异常作业提示。
 - 班级能力画像：能力热力图、方向分布、数据覆盖率、共性短板。
 - 学生报告列表。
 - 讲评建议。
@@ -184,6 +195,15 @@
   "metrics": [],
   "dimension_averages": [],
   "common_findings": [],
+  "anomalies": [
+    {
+      "severity": "high",
+      "title": "缺少自动化测试证据",
+      "affected_students": ["陈星然"],
+      "evidence": "1 份提交未识别到测试文件。",
+      "suggested_action": "课堂讲评后要求补交接口测试或 service 层单元测试记录。"
+    }
+  ],
   "class_profile": {
     "heatmap": [
       {
@@ -553,6 +573,8 @@
 
 - 候选人列表。
 - 能力互补说明。
+- 技能互补图。
+- 建议沟通问题。
 - 合作建议。
 - 推荐证据。
 

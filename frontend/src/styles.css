@@ -496,6 +496,69 @@ h1 {
   border-left-color: var(--green);
 }
 
+.snippet-grid,
+.anomaly-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.snippet-card,
+.anomaly-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: 6px;
+}
+
+.snippet-card div,
+.anomaly-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.snippet-card span,
+.anomaly-card span,
+.anomaly-card p,
+.anomaly-card small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.snippet-card code {
+  display: block;
+  padding: 10px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  background: #eef3f8;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.anomaly-panel {
+  margin-top: 16px;
+}
+
+.anomaly-card.high {
+  border-left-color: var(--red);
+}
+
+.anomaly-card.medium {
+  border-left-color: var(--amber);
+}
+
+.anomaly-card.low {
+  border-left-color: var(--green);
+}
+
 .class-profile-panel {
   margin-top: 16px;
 }
@@ -1023,6 +1086,25 @@ h1 {
 .recommend-detail-list strong {
   color: var(--ink);
   font-size: 12px;
+}
+
+.team-graph,
+.team-questions {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.team-graph {
+  background: rgba(23, 78, 166, 0.08);
+  border-left: 3px solid var(--blue);
+}
+
+.team-questions {
+  background: rgba(28, 124, 84, 0.08);
+  border-left: 3px solid var(--green);
 }
 
 .competition-catalog {

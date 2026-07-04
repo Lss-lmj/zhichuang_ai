@@ -6,6 +6,8 @@ from fastapi import HTTPException, status
 
 from app.schemas.auth import DemoAccount
 from app.schemas.assignments import (
+    AbilityHeatmapCell,
+    AssignmentAnomaly,
     AssignmentDashboardMetric,
     AssignmentDashboardResponse,
     AssignmentAnalysisRequest,
@@ -15,8 +17,8 @@ from app.schemas.assignments import (
     AssignmentScore,
     CapabilityEvidence,
     Citation,
-    AbilityHeatmapCell,
     ClassAbilityProfile,
+    CodeEvidenceSnippet,
     CodeFile,
     CodeStructureSummary,
     DataCoverageMetric,
@@ -146,6 +148,7 @@ class AssignmentService:
                 suggestion="提供课程统一 README 模板，作为工程规范评分依据。",
             ),
         ]
+        anomalies = self._build_anomalies(reports)
         average_score = round(sum(self._overall_score(report) for report in reports) / len(reports))
         return AssignmentDashboardResponse(
             assignment_id=assignment_id,
@@ -166,6 +169,7 @@ class AssignmentService:
             ],
             dimension_averages=dimension_averages,
             common_findings=common_findings,
+            anomalies=anomalies,
             teaching_suggestions=self._build_teaching_suggestions(
                 common_findings,
                 dimension_averages,
@@ -185,6 +189,65 @@ class AssignmentService:
             ],
             access_scope=self._access_scope(account),
         )
+
+    def _build_anomalies(
+        self,
+        reports: list[AssignmentAnalysisResponse],
+    ) -> list[AssignmentAnomaly]:
+        missing_tests = [
+            report.student_name for report in reports if not report.code_structure.test_files
+        ]
+        missing_docs = [
+            report.student_name
+            for report in reports
+            if not report.code_structure.documentation_files
+        ]
+        risky_reports = [
+            report.student_name for report in reports if report.code_structure.risk_signals
+        ]
+
+        anomalies: list[AssignmentAnomaly] = []
+        if missing_tests:
+            anomalies.append(
+                AssignmentAnomaly(
+                    severity="high",
+                    title="缺少自动化测试证据",
+                    affected_students=missing_tests,
+                    evidence=f"{len(missing_tests)} 份提交未识别到测试文件。",
+                    suggested_action="课堂讲评后要求补交接口测试或 service 层单元测试记录。",
+                )
+            )
+        if missing_docs:
+            anomalies.append(
+                AssignmentAnomaly(
+                    severity="medium",
+                    title="缺少复现说明",
+                    affected_students=missing_docs,
+                    evidence=f"{len(missing_docs)} 份提交未识别到 README 或说明文档。",
+                    suggested_action="提供统一 README 模板，要求补充启动步骤、接口列表和数据初始化说明。",
+                )
+            )
+        if risky_reports:
+            anomalies.append(
+                AssignmentAnomaly(
+                    severity="medium",
+                    title="存在代码风险信号",
+                    affected_students=risky_reports,
+                    evidence=f"{len(risky_reports)} 份提交包含硬编码、过宽异常捕获或未完成标记。",
+                    suggested_action="要求学生在下一轮提交中说明风险信号修正依据。",
+                )
+            )
+        if not anomalies:
+            anomalies.append(
+                AssignmentAnomaly(
+                    severity="low",
+                    title="暂无高风险异常作业",
+                    affected_students=[],
+                    evidence="当前演示提交均具备入口、测试或文档等基础证据。",
+                    suggested_action="继续按班级维度跟踪测试覆盖、文档复现和风险信号变化。",
+                )
+            )
+        return anomalies[:3]
 
     def _build_class_profile(
         self,
@@ -357,6 +420,7 @@ class AssignmentService:
             ),
         ]
         findings = self._build_findings(structure)
+        evidence_snippets = self._build_evidence_snippets(files)
         improvement_tasks = self._build_improvement_tasks(structure)
 
         return AssignmentAnalysisResponse(
@@ -380,6 +444,7 @@ class AssignmentService:
                 *scores,
             ],
             findings=findings,
+            evidence_snippets=evidence_snippets,
             capability_evidence=[
                 CapabilityEvidence(
                     dimension="工程实践",
@@ -497,6 +562,66 @@ class AssignmentService:
             )
 
         return suggestions[:3]
+
+    def _build_evidence_snippets(self, files: list[CodeFile]) -> list[CodeEvidenceSnippet]:
+        snippets: list[CodeEvidenceSnippet] = []
+        for file in files:
+            path = file.path.strip()
+            if not path or not file.content:
+                continue
+            lowered_path = path.lower()
+            lines = file.content.splitlines()
+            for index, line in enumerate(lines, start=1):
+                capability = self._line_capability(line, lowered_path)
+                if not capability:
+                    continue
+                snippets.append(
+                    CodeEvidenceSnippet(
+                        path=path,
+                        module=self._module_name(path),
+                        capability=capability,
+                        line_start=index,
+                        line_end=index,
+                        snippet=line.strip()[:180],
+                    )
+                )
+                break
+            if len(snippets) >= 5:
+                break
+
+        if snippets:
+            return snippets
+        return [
+            CodeEvidenceSnippet(
+                path="未识别",
+                module="未识别",
+                capability="待补充代码证据",
+                line_start=0,
+                line_end=0,
+                snippet="当前提交未提供可抽取的关键代码片段。",
+            )
+        ]
+
+    def _line_capability(self, line: str, lowered_path: str) -> str | None:
+        lowered_line = line.lower()
+        if "@app.route" in lowered_line or "apirouter" in lowered_line or "route(" in lowered_line:
+            return "路由入口"
+        if "sqlite" in lowered_line or "sqlalchemy" in lowered_line or "select " in lowered_line:
+            return "数据访问"
+        if "pytest" in lowered_line or lowered_path.startswith("tests/") or "test_" in lowered_path:
+            return "自动化测试"
+        if "try:" in lowered_line or "except" in lowered_line:
+            return "异常处理"
+        if "react" in lowered_line or "tsx" in lowered_path or "jsx" in lowered_path:
+            return "页面交互"
+        if lowered_path.endswith(("readme.md", ".md", ".rst")):
+            return "文档表达"
+        return None
+
+    def _module_name(self, path: str) -> str:
+        if "/" not in path:
+            return path.rsplit(".", 1)[0]
+        return path.rsplit("/", 1)[0]
 
     def _analyze_files(self, files: list[CodeFile]) -> CodeStructureSummary:
         entry_files: list[str] = []
