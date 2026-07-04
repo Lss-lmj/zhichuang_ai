@@ -1,0 +1,38 @@
+.DS_Store
+**/.DS_Store
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and temporary outputs
+*.log
+tmp/
+temp/
+render-check/
+screenshots/
+
+# OS / archive leftovers
+Thumbs.db
