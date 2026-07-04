@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { askAgent } from "../shared/api/agent";
 import { analyzeDemoAssignment, fetchAssignmentDashboard } from "../shared/api/assignments";
+import type { ChatResponse } from "../shared/types/agent";
 import type { AssignmentDashboard, AssignmentReport } from "../shared/types/assignments";
 
-type ViewMode = "student" | "teacher";
+type ViewMode = "student" | "teacher" | "knowledge";
 
 export function Dashboard() {
   const [mode, setMode] = useState<ViewMode>("teacher");
   const [report, setReport] = useState<AssignmentReport | null>(null);
   const [dashboard, setDashboard] = useState<AssignmentDashboard | null>(null);
+  const [chatQuestion, setChatQuestion] = useState("如何准备算法竞赛？");
+  const [chatResponse, setChatResponse] = useState<ChatResponse | null>(null);
+  const [chatLoading, setChatLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +57,21 @@ export function Dashboard() {
     return Math.round(total / report.scores.length);
   }, [report]);
 
+  async function handleAskAgent(question = chatQuestion) {
+    try {
+      setChatLoading(true);
+      setError(null);
+      setChatQuestion(question);
+      const response = await askAgent(question);
+      setChatResponse(response);
+      setMode("knowledge");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "知识库问答加载失败");
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
   return (
     <main className="workspace">
       <aside className="sidebar">
@@ -70,6 +90,17 @@ export function Dashboard() {
           <button className={mode === "student" ? "active" : ""} onClick={() => setMode("student")}>
             学生报告
           </button>
+          <button
+            className={mode === "knowledge" ? "active" : ""}
+            onClick={() => {
+              setMode("knowledge");
+              if (!chatResponse) {
+                handleAskAgent();
+              }
+            }}
+          >
+            知识库问答
+          </button>
         </nav>
 
         <div className="side-note">
@@ -83,10 +114,19 @@ export function Dashboard() {
         <header className="topbar">
           <div>
             <p className="eyebrow">智创Agent·计算机学科垂类大模型与双创能力赋能平台</p>
-            <h1>{mode === "teacher" ? "课程作业学情诊断" : "学生作业分析报告"}</h1>
+            <h1>
+              {mode === "teacher"
+                ? "课程作业学情诊断"
+                : mode === "student"
+                  ? "学生作业分析报告"
+                  : "学科知识库问答"}
+            </h1>
           </div>
-          <button className="primary-action" onClick={() => window.location.reload()}>
-            重新分析
+          <button
+            className="primary-action"
+            onClick={() => (mode === "knowledge" ? handleAskAgent() : window.location.reload())}
+          >
+            {mode === "knowledge" ? "重新检索" : "重新分析"}
           </button>
         </header>
 
@@ -99,6 +139,16 @@ export function Dashboard() {
 
         {!loading && !error && mode === "student" && report && (
           <StudentReport report={report} averageScore={averageScore} />
+        )}
+
+        {!loading && !error && mode === "knowledge" && (
+          <KnowledgeAssistant
+            question={chatQuestion}
+            response={chatResponse}
+            loading={chatLoading}
+            onQuestionChange={setChatQuestion}
+            onAsk={handleAskAgent}
+          />
         )}
       </section>
     </main>
@@ -265,5 +315,81 @@ function ScoreBar({
         <span style={{ width: `${score}%` }} />
       </div>
     </div>
+  );
+}
+
+function KnowledgeAssistant({
+  question,
+  response,
+  loading,
+  onQuestionChange,
+  onAsk,
+}: {
+  question: string;
+  response: ChatResponse | null;
+  loading: boolean;
+  onQuestionChange: (question: string) => void;
+  onAsk: (question?: string) => void;
+}) {
+  const examples = ["如何准备算法竞赛？", "教师怎么看本次代码作业共性问题？", "AI 应用开发首个 Demo 做什么？"];
+
+  return (
+    <>
+      <section className="ask-panel">
+        <div>
+          <span className="section-label">RAG 知识库</span>
+          <h2>围绕课程、作业、竞赛和项目案例给出可追溯回答</h2>
+        </div>
+        <div className="ask-box">
+          <input
+            value={question}
+            onChange={(event) => onQuestionChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                onAsk();
+              }
+            }}
+            aria-label="知识库问题"
+          />
+          <button onClick={() => onAsk()} disabled={loading || !question.trim()}>
+            {loading ? "检索中" : "提问"}
+          </button>
+        </div>
+        <div className="quick-questions">
+          {examples.map((example) => (
+            <button key={example} onClick={() => onAsk(example)}>
+              {example}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel-grid">
+        <article className="panel wide">
+          <span className="section-label">回答</span>
+          <div className="answer-box">
+            {response ? (
+              response.answer.split("\n").map((line) => <p key={line}>{line}</p>)
+            ) : (
+              <p>选择一个问题，系统会从首批知识库资料中检索并生成回答。</p>
+            )}
+          </div>
+        </article>
+
+        <article className="panel">
+          <span className="section-label">引用来源</span>
+          <div className="citation-list">
+            {response?.citations.map((citation) => (
+              <div className="citation-card" key={`${citation.title}-${citation.source_type}`}>
+                <strong>{citation.title}</strong>
+                <span>{citation.source_type}</span>
+                <p>{citation.snippet}</p>
+              </div>
+            ))}
+            {!response && <p className="muted">等待检索结果。</p>}
+          </div>
+        </article>
+      </section>
+    </>
   );
 }

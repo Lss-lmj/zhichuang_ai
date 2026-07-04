@@ -73,7 +73,9 @@ body {
 }
 
 .nav-list button,
-.primary-action {
+.primary-action,
+.ask-box button,
+.quick-questions button {
   border: 0;
   cursor: pointer;
   font: inherit;
@@ -340,6 +342,100 @@ h1 {
   line-height: 1.6;
 }
 
+.ask-panel {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+  padding: 24px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.ask-panel h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
+
+.ask-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 10px;
+}
+
+.ask-box input {
+  min-height: 46px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.ask-box button {
+  color: #fff;
+  background: var(--ink);
+  border-radius: 6px;
+}
+
+.ask-box button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.quick-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-questions button {
+  padding: 8px 10px;
+  color: var(--blue);
+  background: rgba(23, 78, 166, 0.08);
+  border-radius: 6px;
+}
+
+.answer-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.answer-box p,
+.citation-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.citation-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.citation-card {
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.citation-card strong,
+.citation-card span {
+  display: block;
+}
+
+.citation-card span {
+  margin: 4px 0 8px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .state-box {
   margin-top: 28px;
   padding: 24px;
@@ -368,6 +464,10 @@ h1 {
   .report-row {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .ask-box {
+    grid-template-columns: 1fr;
   }
 }
 

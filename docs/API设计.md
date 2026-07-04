@@ -36,8 +36,14 @@
 
 ```json
 {
-  "answer": "建议先完成基础算法专题...",
-  "citations": [],
+  "answer": "如果目标是算法竞赛准备，建议按训练路径拆成阶段任务...",
+  "citations": [
+    {
+      "title": "算法竞赛训练路径",
+      "source_type": "competition_material",
+      "snippet": "算法竞赛准备建议按基础语法、常用数据结构、搜索、动态规划、图论和真题复盘推进。"
+    }
+  ],
   "ai_generated": true
 }
 ```
