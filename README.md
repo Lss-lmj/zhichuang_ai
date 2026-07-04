@@ -15,6 +15,8 @@
 - `docs/API设计.md`：首版 API 草案
 - `docs/数据模型.md`：首版数据模型草案
 - `docs/知识库资料清单.md`：首批知识库资料需求
+- `docs/公网Demo部署.md`：公网 Demo 部署说明
+- `docs/演示脚本.md`：比赛和学校试用演示脚本
 - `backend/`：FastAPI 后端骨架
 - `frontend/`：React + Vite 前端骨架
 - `harmony/`：鸿蒙端 P1 客户端规划
@@ -57,6 +59,13 @@ make dev-frontend
 
 ```bash
 make check
+```
+
+Docker Demo：
+
+```bash
+docker compose up --build
+make smoke
 ```
 
 RAG 或 LangGraph 开发需要进入 `backend/` 安装额外依赖：

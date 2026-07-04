@@ -1,4 +1,4 @@
-.PHONY: help init dev-backend dev-frontend test lint format check docker-up docker-down
+.PHONY: help init dev-backend dev-frontend test lint format check smoke docker-up docker-down
 
 help:
 	@echo "智创Agent development commands"
@@ -7,6 +7,7 @@ help:
 	@echo "  make dev-frontend  Run Vite frontend"
 	@echo "  make test          Run backend tests"
 	@echo "  make check         Run repository checks"
+	@echo "  make smoke         Run deployed demo smoke checks"
 	@echo "  make docker-up     Start compose services"
 	@echo "  make docker-down   Stop compose services"
 
@@ -32,6 +33,9 @@ format:
 
 check:
 	./scripts/check.sh
+
+smoke:
+	./scripts/smoke.sh
 
 docker-up:
 	docker compose up --build

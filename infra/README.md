@@ -21,3 +21,8 @@ Public Demo target:
 - PostgreSQL + pgvector.
 - Redis.
 - Demo accounts and sample course data.
+
+See also:
+
+- `docs/公网Demo部署.md`
+- `docs/演示脚本.md`
