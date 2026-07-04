@@ -4,7 +4,7 @@ from app.models.course import ClassGroup, Course, CourseMembership
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.models.plan import Competition, LearningPlan, TeamRecommendation
 from app.models.profile import CapabilityEvidence, CapabilityProfile
-from app.models.task import AgentTask
+from app.models.task import AgentTask, LearningTaskRecord
 from app.models.user import User
 
 __all__ = [
@@ -20,6 +20,7 @@ __all__ = [
     "KnowledgeChunk",
     "KnowledgeDocument",
     "LearningPlan",
+    "LearningTaskRecord",
     "Rubric",
     "Submission",
     "TeamRecommendation",

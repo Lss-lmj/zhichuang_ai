@@ -21,3 +21,19 @@ class AgentTask(Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class LearningTaskRecord(Base):
+    __tablename__ = "learning_tasks"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    student_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    source: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="todo", index=True)
+    priority: Mapped[str] = mapped_column(String(32), default="medium", index=True)
+    due_date: Mapped[str] = mapped_column(String(32), nullable=False)
+    evidence_required: Mapped[str] = mapped_column(Text, nullable=False)
+    progress: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
