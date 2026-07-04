@@ -7,6 +7,8 @@ from app.schemas.growth import (
     GrowthProfileResponse,
     LearningPlanRequest,
     LearningPlanResponse,
+    ProfileEvidence,
+    ProfileEvidenceCreate,
     TeamPoolStatus,
     TeamRecommendRequest,
     TeamRecommendResponse,
@@ -21,6 +23,11 @@ router = APIRouter()
 @router.get("/students/{student_id}/profile", response_model=GrowthProfileResponse)
 def get_student_profile(student_id: str) -> GrowthProfileResponse:
     return GrowthService().get_profile(student_id)
+
+
+@router.post("/students/{student_id}/profile/evidence", response_model=ProfileEvidence)
+def add_profile_evidence(student_id: str, payload: ProfileEvidenceCreate) -> ProfileEvidence:
+    return GrowthService().add_profile_evidence(student_id, payload)
 
 
 @router.post("/plans/generate", response_model=LearningPlanResponse)

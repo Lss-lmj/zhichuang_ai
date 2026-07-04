@@ -3,6 +3,7 @@ import type {
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
+  ProfileEvidence,
   TeamPoolStatus,
   TeamRecommendResponse,
   TeamRequestCard,
@@ -28,6 +29,19 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchGrowthProfile(studentId = "student_001"): Promise<GrowthProfile> {
   return requestJson<GrowthProfile>(`/students/${studentId}/profile`);
+}
+
+export function addProfileEvidence(studentId = "student_001"): Promise<ProfileEvidence> {
+  return requestJson<ProfileEvidence>(`/students/${studentId}/profile/evidence`, {
+    method: "POST",
+    body: JSON.stringify({
+      dimension: "工程实践",
+      source_type: "student_self_report",
+      source_title: "学生补充自评",
+      evidence_text: "补充了 Flask 作业测试截图和 README 运行说明。",
+      confidence: 0.42,
+    }),
+  });
 }
 
 export function generateLearningPlan(studentId = "student_001"): Promise<LearningPlan> {

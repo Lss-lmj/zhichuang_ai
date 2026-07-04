@@ -6,11 +6,25 @@ from app.main import app
 def test_student_profile_returns_capability_dimensions() -> None:
     client = TestClient(app)
     response = client.get("/api/students/student_001/profile")
+    evidence_response = client.post(
+        "/api/students/student_001/profile/evidence",
+        json={
+            "dimension": "工程实践",
+            "source_type": "student_self_report",
+            "source_title": "学生补充自评",
+            "evidence_text": "补充了 Flask 作业测试截图和 README 运行说明。",
+            "confidence": 0.42,
+        },
+    )
 
     assert response.status_code == 200
+    assert evidence_response.status_code == 200
     payload = response.json()
     assert payload["student_name"] == "林一舟"
     assert len(payload["dimensions"]) == 4
+    assert all(dimension["evidence_items"] for dimension in payload["dimensions"])
+    assert evidence_response.json()["dimension"] == "工程实践"
+    assert evidence_response.json()["source_type"] == "student_self_report"
 
 
 def test_learning_plan_and_recommendations() -> None:

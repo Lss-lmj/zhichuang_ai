@@ -3,12 +3,23 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class ProfileEvidence(BaseModel):
+    evidence_id: str
+    dimension: str
+    source_type: str
+    source_title: str
+    evidence_text: str
+    confidence: float
+    created_at: str
+
+
 class CapabilityDimension(BaseModel):
     dimension: str
     score: int
     confidence: float
     summary: str
     evidence: list[str] = Field(default_factory=list)
+    evidence_items: list[ProfileEvidence] = Field(default_factory=list)
 
 
 class GrowthProfileResponse(BaseModel):
@@ -21,6 +32,14 @@ class GrowthProfileResponse(BaseModel):
     risks: list[str]
     next_actions: list[str]
     ai_generated: bool = True
+
+
+class ProfileEvidenceCreate(BaseModel):
+    dimension: str = "工程实践"
+    source_type: str = "student_self_report"
+    source_title: str = "学生补充自评"
+    evidence_text: str = "补充了 Flask 作业测试截图和 README 运行说明。"
+    confidence: float = 0.42
 
 
 class LearningPlanRequest(BaseModel):

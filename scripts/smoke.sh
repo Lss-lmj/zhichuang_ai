@@ -7,6 +7,7 @@ WEB_BASE="${2:-http://localhost:5173}"
 echo "Smoke check API: ${API_BASE}"
 curl -fsS "${API_BASE}/health" >/dev/null
 curl -fsS "${API_BASE}/auth/demo-accounts" >/dev/null
+curl -fsS "${API_BASE}/students/student_001/profile" >/dev/null
 curl -fsS "${API_BASE}/assignments/assignment_flask_mvp/dashboard" >/dev/null
 curl -fsS "${API_BASE}/evaluations/dashboard" >/dev/null
 curl -fsS "${API_BASE}/competitions" >/dev/null

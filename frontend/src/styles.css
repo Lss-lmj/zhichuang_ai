@@ -353,6 +353,38 @@ h1 {
   margin-top: 6px;
 }
 
+.profile-evidence-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.profile-evidence-list small {
+  padding: 5px 7px;
+  color: var(--ink);
+  background: #e8edf3;
+  border-radius: 999px;
+}
+
+.profile-evidence-card {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 18px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: 6px;
+}
+
+.profile-evidence-card p,
+.profile-evidence-card small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .finding-item,
 .evidence-list div {
   padding: 14px;

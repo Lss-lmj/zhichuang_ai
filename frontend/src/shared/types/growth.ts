@@ -4,6 +4,17 @@ export type CapabilityDimension = {
   confidence: number;
   summary: string;
   evidence: string[];
+  evidence_items: ProfileEvidence[];
+};
+
+export type ProfileEvidence = {
+  evidence_id: string;
+  dimension: string;
+  source_type: string;
+  source_title: string;
+  evidence_text: string;
+  confidence: number;
+  created_at: string;
 };
 
 export type GrowthProfile = {

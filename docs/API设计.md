@@ -214,6 +214,26 @@
 - 最近作业表现。
 - 推荐提升方向。
 
+每个能力维度包含结构化 `evidence_items`，记录来源类型、来源标题、证据摘要和置信度。
+
+### `POST /students/{student_id}/profile/evidence`
+
+学生补充自评或证据材料，用于后续画像更新。
+
+请求：
+
+```json
+{
+  "dimension": "工程实践",
+  "source_type": "student_self_report",
+  "source_title": "学生补充自评",
+  "evidence_text": "补充了 Flask 作业测试截图和 README 运行说明。",
+  "confidence": 0.42
+}
+```
+
+响应返回已记录的证据项。学生自评证据可用于冷启动或补充说明，置信度低于作业报告、竞赛证书、教师评价等可验证证据。
+
 演示接口返回字段：
 
 ```json

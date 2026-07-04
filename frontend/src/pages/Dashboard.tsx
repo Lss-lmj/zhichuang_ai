@@ -5,6 +5,7 @@ import { fetchClasses, fetchCourses, fetchStudents } from "../shared/api/academi
 import { analyzeDemoAssignment, fetchAssignmentDashboard } from "../shared/api/assignments";
 import { createDemoSession, fetchDemoAccounts } from "../shared/api/auth";
 import {
+  addProfileEvidence,
   createTeamRequest,
   fetchCompetitionCatalog,
   fetchTeamPoolStatus,
@@ -26,6 +27,7 @@ import type {
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
+  ProfileEvidence,
   TeamPoolStatus,
   TeamRecommendResponse,
   TeamRequestCard,
@@ -39,6 +41,7 @@ export function Dashboard() {
   const [report, setReport] = useState<AssignmentReport | null>(null);
   const [dashboard, setDashboard] = useState<AssignmentDashboard | null>(null);
   const [profile, setProfile] = useState<GrowthProfile | null>(null);
+  const [profileEvidence, setProfileEvidence] = useState<ProfileEvidence | null>(null);
   const [plan, setPlan] = useState<LearningPlan | null>(null);
   const [competitions, setCompetitions] = useState<CompetitionRecommendResponse | null>(null);
   const [competitionCatalog, setCompetitionCatalog] =
@@ -77,6 +80,7 @@ export function Dashboard() {
           reportData,
           dashboardData,
           profileData,
+          profileEvidenceData,
           planData,
           competitionCatalogData,
           competitionData,
@@ -95,6 +99,7 @@ export function Dashboard() {
           analyzeDemoAssignment(),
           fetchAssignmentDashboard(),
           fetchGrowthProfile(),
+          addProfileEvidence(),
           generateLearningPlan(),
           fetchCompetitionCatalog(),
           recommendCompetitions(),
@@ -115,6 +120,7 @@ export function Dashboard() {
           setReport(reportData);
           setDashboard(dashboardData);
           setProfile(profileData);
+          setProfileEvidence(profileEvidenceData);
           setPlan(planData);
           setCompetitionCatalog(competitionCatalogData);
           setCompetitions(competitionData);
@@ -163,13 +169,23 @@ export function Dashboard() {
     !error &&
     mode === "growth" &&
     profile &&
+    profileEvidence &&
     plan &&
     competitionCatalog &&
     competitions &&
     team &&
     teamRequest &&
     teamStatus
-      ? { profile, plan, competitionCatalog, competitions, team, teamRequest, teamStatus }
+      ? {
+          profile,
+          profileEvidence,
+          plan,
+          competitionCatalog,
+          competitions,
+          team,
+          teamRequest,
+          teamStatus,
+        }
       : null;
 
   async function handleAskAgent(question = chatQuestion) {
@@ -679,6 +695,7 @@ function KnowledgeAssistant({
 
 function GrowthPath({
   profile,
+  profileEvidence,
   plan,
   competitionCatalog,
   competitions,
@@ -687,6 +704,7 @@ function GrowthPath({
   teamStatus,
 }: {
   profile: GrowthProfile;
+  profileEvidence: ProfileEvidence;
   plan: LearningPlan;
   competitionCatalog: CompetitionCatalogResponse;
   competitions: CompetitionRecommendResponse;
@@ -720,12 +738,27 @@ function GrowthPath({
               <div className="score-detail" key={dimension.dimension}>
                 <ScoreBar label={dimension.dimension} score={dimension.score} />
                 <p>{dimension.summary}</p>
+                <div className="profile-evidence-list">
+                  {dimension.evidence_items.map((item) => (
+                    <small key={item.evidence_id}>
+                      {item.source_title} · 置信度 {Math.round(item.confidence * 100)}%
+                    </small>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         </article>
 
         <article className="panel">
+          <span className="section-label">补充证据</span>
+          <div className="profile-evidence-card">
+            <strong>{profileEvidence.dimension}</strong>
+            <p>{profileEvidence.evidence_text}</p>
+            <small>
+              {profileEvidence.source_title} · 置信度 {Math.round(profileEvidence.confidence * 100)}%
+            </small>
+          </div>
           <span className="section-label">风险提醒</span>
           <div className="risk-list">
             {profile.risks.map((risk) => (

@@ -11,6 +11,8 @@ from app.schemas.growth import (
     LearningPlanRequest,
     LearningPlanResponse,
     PlanTask,
+    ProfileEvidence,
+    ProfileEvidenceCreate,
     TeamCandidate,
     TeamPoolStatus,
     TeamRecommendRequest,
@@ -25,8 +27,10 @@ class GrowthService:
     team_created_at = "2026-07-05T11:20:00+08:00"
     competition_updated_at = "2026-07-05T11:40:00+08:00"
     competition_source_note = "系统内置首批竞赛清单，管理员可根据官方通知维护更新。"
+    evidence_created_at = "2026-07-05T11:55:00+08:00"
 
     def get_profile(self, student_id: str) -> GrowthProfileResponse:
+        evidence_items = self._profile_evidence(student_id)
         return GrowthProfileResponse(
             student_id=student_id,
             student_name="林一舟",
@@ -39,6 +43,9 @@ class GrowthService:
                     confidence=0.72,
                     summary="能完成基础题和常见数据结构应用，动态规划和图论需要继续训练。",
                     evidence=["课程作业中能拆解主流程", "算法竞赛训练记录显示基础专题完成度较高"],
+                    evidence_items=[
+                        item for item in evidence_items if item.dimension == "算法基础"
+                    ],
                 ),
                 CapabilityDimension(
                     dimension="工程实践",
@@ -46,6 +53,9 @@ class GrowthService:
                     confidence=0.81,
                     summary="具备 Web 项目搭建和接口联调能力，工程边界意识正在形成。",
                     evidence=["Flask 作业完成了页面、接口和数据流闭环", "README 有基本运行说明"],
+                    evidence_items=[
+                        item for item in evidence_items if item.dimension == "工程实践"
+                    ],
                 ),
                 CapabilityDimension(
                     dimension="AI 应用开发",
@@ -53,6 +63,9 @@ class GrowthService:
                     confidence=0.68,
                     summary="理解 RAG 和 Agent 应用形态，仍需补评测和部署经验。",
                     evidence=["能描述知识库问答流程", "项目计划包含 RAG、引用和评测任务"],
+                    evidence_items=[
+                        item for item in evidence_items if item.dimension == "AI 应用开发"
+                    ],
                 ),
                 CapabilityDimension(
                     dimension="表达与协作",
@@ -60,6 +73,9 @@ class GrowthService:
                     confidence=0.64,
                     summary="能说明项目目标，但对接口、分工和复盘记录表达还不稳定。",
                     evidence=["项目说明有目标和运行步骤", "缺少稳定的周复盘记录"],
+                    evidence_items=[
+                        item for item in evidence_items if item.dimension == "表达与协作"
+                    ],
                 ),
             ],
             strengths=["工程实践推进快", "适合承担后端接口和 Demo 集成", "能把作业产出转成项目案例"],
@@ -69,6 +85,59 @@ class GrowthService:
                 "两周内完成一个带引用的 RAG 问答 Demo。",
                 "每周至少保留 3 次算法专题训练记录。",
             ],
+        )
+
+    def _profile_evidence(self, student_id: str) -> list[ProfileEvidence]:
+        return [
+            ProfileEvidence(
+                evidence_id=f"evidence_{student_id}_algorithm_001",
+                dimension="算法基础",
+                source_type="training_record",
+                source_title="算法竞赛训练记录",
+                evidence_text="完成基础语法、数组和搜索专题训练，动态规划仍需补题。",
+                confidence=0.72,
+                created_at=self.generated_at,
+            ),
+            ProfileEvidence(
+                evidence_id=f"evidence_{student_id}_engineering_001",
+                dimension="工程实践",
+                source_type="assignment_report",
+                source_title="Flask Web 作业分析报告",
+                evidence_text="提交物包含页面、接口和数据流闭环，测试覆盖仍需补齐。",
+                confidence=0.81,
+                created_at=self.generated_at,
+            ),
+            ProfileEvidence(
+                evidence_id=f"evidence_{student_id}_ai_001",
+                dimension="AI 应用开发",
+                source_type="project_plan",
+                source_title="RAG 知识库问答 Demo 计划",
+                evidence_text="计划包含文档入库、检索、引用展示和评测记录。",
+                confidence=0.68,
+                created_at=self.generated_at,
+            ),
+            ProfileEvidence(
+                evidence_id=f"evidence_{student_id}_collab_001",
+                dimension="表达与协作",
+                source_type="project_document",
+                source_title="项目说明与复盘记录",
+                evidence_text="已有目标和运行步骤说明，但缺少稳定周复盘记录。",
+                confidence=0.64,
+                created_at=self.generated_at,
+            ),
+        ]
+
+    def add_profile_evidence(
+        self, student_id: str, payload: ProfileEvidenceCreate
+    ) -> ProfileEvidence:
+        return ProfileEvidence(
+            evidence_id=f"evidence_{student_id}_manual_{abs(hash(payload.evidence_text)) % 10000}",
+            dimension=payload.dimension,
+            source_type=payload.source_type,
+            source_title=payload.source_title,
+            evidence_text=payload.evidence_text,
+            confidence=payload.confidence,
+            created_at=self.evidence_created_at,
         )
 
     def generate_plan(self, payload: LearningPlanRequest) -> LearningPlanResponse:
