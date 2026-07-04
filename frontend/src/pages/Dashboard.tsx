@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { askAgent } from "../shared/api/agent";
 import { fetchClasses, fetchCourses, fetchStudents } from "../shared/api/academic";
-import { analyzeDemoAssignment, fetchAssignmentDashboard } from "../shared/api/assignments";
+import {
+  analyzeDemoAssignment,
+  fetchAssignmentDashboard,
+  uploadAssignmentArchive,
+} from "../shared/api/assignments";
 import { createDemoSession, fetchDemoAccounts } from "../shared/api/auth";
 import {
   addProfileEvidence,
@@ -62,6 +66,8 @@ export function Dashboard() {
   const [mode, setMode] = useState<ViewMode>("teacher");
   const [report, setReport] = useState<AssignmentReport | null>(null);
   const [dashboard, setDashboard] = useState<AssignmentDashboard | null>(null);
+  const [archiveUploadLoading, setArchiveUploadLoading] = useState(false);
+  const [archiveUploadResult, setArchiveUploadResult] = useState<string | null>(null);
   const [profile, setProfile] = useState<GrowthProfile | null>(null);
   const [profileEvidence, setProfileEvidence] = useState<ProfileEvidence | null>(null);
   const [plan, setPlan] = useState<LearningPlan | null>(null);
@@ -420,6 +426,41 @@ export function Dashboard() {
     }
   }
 
+  async function handleArchiveUpload(payload: {
+    assignmentTitle: string;
+    studentId: string;
+    description: string;
+    archive: File;
+  }) {
+    try {
+      setArchiveUploadLoading(true);
+      setArchiveUploadResult(null);
+      setError(null);
+      const uploadedReport = await uploadAssignmentArchive(
+        {
+          assignmentTitle: payload.assignmentTitle,
+          studentId: payload.studentId,
+          courseId: dashboard?.course_id ?? "course_web_2026",
+          classId: dashboard?.class_id ?? "class_cs_2024_01",
+          description: payload.description,
+          archive: payload.archive,
+        },
+        currentToken,
+      );
+      const nextDashboard = await fetchAssignmentDashboard(currentToken);
+      setReport(uploadedReport);
+      setDashboard(nextDashboard);
+      setArchiveUploadResult(
+        `${uploadedReport.student_name} 的 ${uploadedReport.code_structure.file_count} 个文件已分析`,
+      );
+      setMode("teacher");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "作业压缩包上传失败");
+    } finally {
+      setArchiveUploadLoading(false);
+    }
+  }
+
   async function handleGenerateReview() {
     try {
       setTaskLoading(true);
@@ -635,7 +676,13 @@ export function Dashboard() {
         {error && <div className="state-box error">接口未连接：{error}</div>}
 
         {!loading && !error && mode === "teacher" && dashboard && (
-          <TeacherDashboard dashboard={dashboard} candidateScreening={candidateScreening} />
+          <TeacherDashboard
+            dashboard={dashboard}
+            candidateScreening={candidateScreening}
+            uploadLoading={archiveUploadLoading}
+            uploadResult={archiveUploadResult}
+            onArchiveUpload={handleArchiveUpload}
+          />
         )}
 
         {!loading && !error && mode === "student" && report && (
@@ -701,9 +748,20 @@ export function Dashboard() {
 function TeacherDashboard({
   dashboard,
   candidateScreening,
+  uploadLoading,
+  uploadResult,
+  onArchiveUpload,
 }: {
   dashboard: AssignmentDashboard;
   candidateScreening: TeacherCandidateScreenResponse | null;
+  uploadLoading: boolean;
+  uploadResult: string | null;
+  onArchiveUpload: (payload: {
+    assignmentTitle: string;
+    studentId: string;
+    description: string;
+    archive: File;
+  }) => void;
 }) {
   return (
     <>
@@ -718,6 +776,12 @@ function TeacherDashboard({
       </section>
       <AccessScopeBadge value={dashboard.access_scope} />
       <AiGeneratedNotice text="本页班级诊断和讲评建议为 AI 生成，仅供参考；需结合课程要求和作业提交物核验。" />
+      <AssignmentArchiveUploader
+        dashboard={dashboard}
+        loading={uploadLoading}
+        result={uploadResult}
+        onUpload={onArchiveUpload}
+      />
 
       <section className="panel-grid">
         <article className="panel wide">
@@ -916,6 +980,84 @@ function TeacherDashboard({
         </div>
       </section>
     </>
+  );
+}
+
+function AssignmentArchiveUploader({
+  dashboard,
+  loading,
+  result,
+  onUpload,
+}: {
+  dashboard: AssignmentDashboard;
+  loading: boolean;
+  result: string | null;
+  onUpload: (payload: {
+    assignmentTitle: string;
+    studentId: string;
+    description: string;
+    archive: File;
+  }) => void;
+}) {
+  const [assignmentTitle, setAssignmentTitle] = useState(dashboard.assignment_title);
+  const [studentId, setStudentId] = useState("student_006");
+  const [description, setDescription] = useState("学生提交 zip 作业包，系统提取代码、测试、文档和配置文件生成分析报告。");
+  const [archive, setArchive] = useState<File | null>(null);
+
+  return (
+    <section className="panel upload-panel">
+      <div className="panel-header">
+        <div>
+          <span className="section-label">作业上传分析</span>
+          <h2>上传学生 zip 作业包</h2>
+        </div>
+        <span className="muted">{dashboard.course_name}</span>
+      </div>
+      <div className="upload-form">
+        <label>
+          <span>作业标题</span>
+          <input
+            value={assignmentTitle}
+            onChange={(event) => setAssignmentTitle(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>学生 ID</span>
+          <input value={studentId} onChange={(event) => setStudentId(event.target.value)} />
+        </label>
+        <label className="upload-description">
+          <span>提交说明</span>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            rows={3}
+          />
+        </label>
+        <label className="file-picker">
+          <span>{archive ? archive.name : "选择 zip 文件"}</span>
+          <input
+            type="file"
+            accept=".zip,application/zip"
+            onChange={(event) => setArchive(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <button
+          onClick={() => {
+            if (!archive) return;
+            onUpload({ assignmentTitle, studentId, description, archive });
+          }}
+          disabled={loading || !archive || !studentId.trim() || !assignmentTitle.trim()}
+        >
+          {loading ? "分析中" : "上传并分析"}
+        </button>
+      </div>
+      <div className="upload-rules">
+        <span>zip 最大 5MB</span>
+        <span>最多 80 个文本文件</span>
+        <span>新增学生会进入看板</span>
+        {result && <strong>{result}</strong>}
+      </div>
+    </section>
   );
 }
 

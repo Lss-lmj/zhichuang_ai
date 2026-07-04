@@ -1,4 +1,8 @@
-import type { AssignmentDashboard, AssignmentReport } from "../types/assignments";
+import type {
+  AssignmentDashboard,
+  AssignmentReport,
+  AssignmentUploadArchivePayload,
+} from "../types/assignments";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -55,4 +59,31 @@ export function fetchAssignmentDashboard(token?: string): Promise<AssignmentDash
   return requestJson<AssignmentDashboard>("/assignments/assignment_flask_mvp/dashboard", {
     headers: authHeaders(token),
   });
+}
+
+export async function uploadAssignmentArchive(
+  payload: AssignmentUploadArchivePayload,
+  token?: string,
+): Promise<AssignmentReport> {
+  const form = new FormData();
+  form.append("assignment_title", payload.assignmentTitle);
+  form.append("archive", payload.archive);
+  if (payload.courseId) form.append("course_id", payload.courseId);
+  if (payload.classId) form.append("class_id", payload.classId);
+  if (payload.studentId) form.append("student_id", payload.studentId);
+  if (payload.rubricId) form.append("rubric_id", payload.rubricId);
+  if (payload.repositoryUrl) form.append("repository_url", payload.repositoryUrl);
+  if (payload.description) form.append("description", payload.description);
+
+  const response = await fetch(`${apiBaseUrl}/assignments/upload-archive`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: form,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<AssignmentReport>;
 }

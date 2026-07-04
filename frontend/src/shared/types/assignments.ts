@@ -148,3 +148,14 @@ export type AssignmentDashboard = {
   access_scope: string;
   ai_generated: boolean;
 };
+
+export type AssignmentUploadArchivePayload = {
+  assignmentTitle: string;
+  archive: File;
+  courseId?: string;
+  classId?: string;
+  studentId?: string;
+  rubricId?: string;
+  repositoryUrl?: string;
+  description?: string;
+};
