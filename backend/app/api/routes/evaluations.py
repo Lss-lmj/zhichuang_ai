@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from sqlalchemy.orm import Session
 
+from app.db.session import get_db
 from app.schemas.evaluations import (
     EvaluationCase,
     EvaluationCaseCreate,
@@ -15,36 +17,44 @@ router = APIRouter()
 
 
 @router.get("/dashboard", response_model=EvaluationDashboardResponse)
-def get_evaluation_dashboard() -> EvaluationDashboardResponse:
-    return EvaluationService().dashboard()
+def get_evaluation_dashboard(
+    db: Session = Depends(get_db),
+) -> EvaluationDashboardResponse:
+    return EvaluationService(db).dashboard()
 
 
 @router.get("/cases", response_model=list[EvaluationCase])
-def list_evaluation_cases() -> list[EvaluationCase]:
-    return EvaluationService().list_cases()
+def list_evaluation_cases(
+    db: Session = Depends(get_db),
+) -> list[EvaluationCase]:
+    return EvaluationService(db).list_cases()
 
 
 @router.post("/cases", response_model=EvaluationUpsertResponse)
 def create_evaluation_case(
     payload: EvaluationCaseCreate,
     authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> EvaluationUpsertResponse:
     _ensure_admin(authorization)
-    return EvaluationService().create_case(payload)
+    return EvaluationService(db).create_case(payload)
 
 
 @router.get("/records", response_model=list[EvaluationRecord])
-def list_evaluation_records() -> list[EvaluationRecord]:
-    return EvaluationService().list_records()
+def list_evaluation_records(
+    db: Session = Depends(get_db),
+) -> list[EvaluationRecord]:
+    return EvaluationService(db).list_records()
 
 
 @router.post("/records", response_model=EvaluationUpsertResponse)
 def create_evaluation_record(
     payload: EvaluationRecordCreate,
     authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> EvaluationUpsertResponse:
     _ensure_admin(authorization)
-    return EvaluationService().create_record(payload)
+    return EvaluationService(db).create_record(payload)
 
 
 def _ensure_admin(authorization: str | None) -> None:

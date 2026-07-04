@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
+from hashlib import sha1
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db.base import Base
+from app.models.evaluation import EvaluationCaseRecord, EvaluationRecordItem
 from app.schemas.evaluations import (
     EvaluationCase,
     EvaluationCaseCreate,
@@ -145,60 +153,231 @@ class EvaluationService:
         ),
     ]
 
+    def __init__(self, db: Session | None = None) -> None:
+        self.db = db
+        if self.db is not None:
+            Base.metadata.create_all(bind=self.db.get_bind())
+            self._ensure_seed_data()
+
     def dashboard(self) -> EvaluationDashboardResponse:
+        cases = self.list_cases()
+        records = self.list_records()
         average_score = round(
-            sum(record.manual_score for record in self.records) / len(self.records)
-        )
-        passed = len([record for record in self.records if record.manual_score >= 80])
+            sum(record.manual_score for record in records) / len(records)
+        ) if records else 0
+        passed = len([record for record in records if record.manual_score >= 80])
+        pass_rate = round(passed / len(records) * 100) if records else 0
 
         return EvaluationDashboardResponse(
             summary=EvaluationSummary(
-                total_cases=len(self.cases),
-                completed_records=len(self.records),
+                total_cases=len(cases),
+                completed_records=len(records),
                 average_score=average_score,
-                pass_rate=round(passed / len(self.records) * 100),
+                pass_rate=pass_rate,
             ),
-            cases=self.cases,
-            records=self.records,
+            cases=cases,
+            records=records,
         )
 
     def list_cases(self) -> list[EvaluationCase]:
-        return self.cases
+        if self.db is None:
+            return self.cases
+        records = self.db.scalars(
+            select(EvaluationCaseRecord).order_by(
+                EvaluationCaseRecord.created_at.asc(),
+                EvaluationCaseRecord.id.asc(),
+            )
+        ).all()
+        return [self._case_from_record(record) for record in records]
 
     def list_records(self) -> list[EvaluationRecord]:
-        return self.records
+        if self.db is None:
+            return self.records
+        records = self.db.scalars(
+            select(EvaluationRecordItem).order_by(
+                EvaluationRecordItem.evaluated_at.asc(),
+                EvaluationRecordItem.id.asc(),
+            )
+        ).all()
+        return [self._record_from_item(record) for record in records]
 
     def create_case(self, payload: EvaluationCaseCreate) -> EvaluationUpsertResponse:
-        case_id = f"eval_custom_{len(self.cases) + 1:03d}"
-        self.cases.append(
-            EvaluationCase(
-                case_id=case_id,
-                scenario=payload.scenario,
-                input_question=payload.input_question,
-                expected_focus=payload.expected_focus,
-                priority=payload.priority,
-                status=payload.status,
+        case_id = self._case_id(payload)
+        if self.db is None:
+            self.cases.append(
+                EvaluationCase(
+                    case_id=case_id,
+                    scenario=payload.scenario,
+                    input_question=payload.input_question,
+                    expected_focus=payload.expected_focus,
+                    priority=payload.priority,
+                    status=payload.status,
+                )
             )
-        )
+            return EvaluationUpsertResponse(item_id=case_id, message="测试案例已记录。")
+
+        existing = self.db.get(EvaluationCaseRecord, case_id)
+        if existing is None:
+            self.db.add(self._case_record(case_id, payload))
+        else:
+            existing.scenario = payload.scenario
+            existing.input_question = payload.input_question
+            existing.expected_focus_json = payload.expected_focus
+            existing.priority = payload.priority
+            existing.status = payload.status
+        self.db.commit()
         return EvaluationUpsertResponse(item_id=case_id, message="测试案例已记录。")
 
     def create_record(self, payload: EvaluationRecordCreate) -> EvaluationUpsertResponse:
-        record_id = f"record_custom_{len(self.records) + 1:03d}"
-        self.records.append(
-            EvaluationRecord(
-                record_id=record_id,
-                case_id=payload.case_id,
-                scenario=payload.scenario,
-                input_question=payload.input_question,
-                system_output=payload.system_output,
-                citations=payload.citations or self._default_citations(payload.scenario),
-                manual_score=payload.manual_score,
-                issue_notes=payload.issue_notes,
-                reviewer=payload.reviewer,
-                evaluated_at=self.evaluated_at,
+        record_id = self._record_id(payload)
+        if self.db is None:
+            self.records.append(
+                EvaluationRecord(
+                    record_id=record_id,
+                    case_id=payload.case_id,
+                    scenario=payload.scenario,
+                    input_question=payload.input_question,
+                    system_output=payload.system_output,
+                    citations=payload.citations or self._default_citations(payload.scenario),
+                    manual_score=payload.manual_score,
+                    issue_notes=payload.issue_notes,
+                    reviewer=payload.reviewer,
+                    evaluated_at=self.evaluated_at,
+                )
             )
-        )
+            return EvaluationUpsertResponse(item_id=record_id, message="测试输出记录已保存。")
+
+        existing = self.db.get(EvaluationRecordItem, record_id)
+        if existing is None:
+            self.db.add(self._record_item(record_id, payload))
+        else:
+            existing.case_id = payload.case_id
+            existing.scenario = payload.scenario
+            existing.input_question = payload.input_question
+            existing.system_output = payload.system_output
+            existing.citations_json = [
+                citation.model_dump(mode="json")
+                for citation in (payload.citations or self._default_citations(payload.scenario))
+            ]
+            existing.manual_score = payload.manual_score
+            existing.issue_notes = payload.issue_notes
+            existing.reviewer = payload.reviewer
+            existing.evaluated_at = datetime.utcnow()
+        self.db.commit()
         return EvaluationUpsertResponse(item_id=record_id, message="测试输出记录已保存。")
+
+    def _ensure_seed_data(self) -> None:
+        if self.db is None:
+            return
+        for item in self.cases:
+            if self.db.get(EvaluationCaseRecord, item.case_id) is None:
+                self.db.add(
+                    EvaluationCaseRecord(
+                        id=item.case_id,
+                        scenario=item.scenario,
+                        input_question=item.input_question,
+                        expected_focus_json=item.expected_focus,
+                        priority=item.priority,
+                        status=item.status,
+                        created_at=datetime.utcnow(),
+                    )
+                )
+        for item in self.records:
+            if self.db.get(EvaluationRecordItem, item.record_id) is None:
+                self.db.add(
+                    EvaluationRecordItem(
+                        id=item.record_id,
+                        case_id=item.case_id,
+                        scenario=item.scenario,
+                        input_question=item.input_question,
+                        system_output=item.system_output,
+                        citations_json=[
+                            citation.model_dump(mode="json") for citation in item.citations
+                        ],
+                        manual_score=item.manual_score,
+                        issue_notes=item.issue_notes,
+                        reviewer=item.reviewer,
+                        evaluated_at=self._parse_datetime(item.evaluated_at),
+                    )
+                )
+        self.db.commit()
+
+    def _case_id(self, payload: EvaluationCaseCreate) -> str:
+        raw = f"{payload.scenario}:{payload.input_question}".encode("utf-8")
+        return f"eval_custom_{sha1(raw).hexdigest()[:10]}"
+
+    def _record_id(self, payload: EvaluationRecordCreate) -> str:
+        raw = (
+            f"{payload.case_id}:{payload.scenario}:{payload.input_question}:"
+            f"{payload.system_output}"
+        ).encode("utf-8")
+        return f"record_custom_{sha1(raw).hexdigest()[:10]}"
+
+    def _case_record(
+        self,
+        case_id: str,
+        payload: EvaluationCaseCreate,
+    ) -> EvaluationCaseRecord:
+        return EvaluationCaseRecord(
+            id=case_id,
+            scenario=payload.scenario,
+            input_question=payload.input_question,
+            expected_focus_json=payload.expected_focus,
+            priority=payload.priority,
+            status=payload.status,
+            created_at=datetime.utcnow(),
+        )
+
+    def _record_item(
+        self,
+        record_id: str,
+        payload: EvaluationRecordCreate,
+    ) -> EvaluationRecordItem:
+        citations = payload.citations or self._default_citations(payload.scenario)
+        return EvaluationRecordItem(
+            id=record_id,
+            case_id=payload.case_id,
+            scenario=payload.scenario,
+            input_question=payload.input_question,
+            system_output=payload.system_output,
+            citations_json=[citation.model_dump(mode="json") for citation in citations],
+            manual_score=payload.manual_score,
+            issue_notes=payload.issue_notes,
+            reviewer=payload.reviewer,
+            evaluated_at=datetime.utcnow(),
+        )
+
+    def _case_from_record(self, record: EvaluationCaseRecord) -> EvaluationCase:
+        return EvaluationCase(
+            case_id=record.id,
+            scenario=record.scenario,
+            input_question=record.input_question,
+            expected_focus=list(record.expected_focus_json or []),
+            priority=record.priority,
+            status=record.status,
+        )
+
+    def _record_from_item(self, record: EvaluationRecordItem) -> EvaluationRecord:
+        return EvaluationRecord(
+            record_id=record.id,
+            case_id=record.case_id,
+            scenario=record.scenario,
+            input_question=record.input_question,
+            system_output=record.system_output,
+            citations=[
+                EvaluationCitation(**citation) for citation in list(record.citations_json or [])
+            ],
+            manual_score=record.manual_score,
+            issue_notes=record.issue_notes,
+            reviewer=record.reviewer,
+            evaluated_at=record.evaluated_at.isoformat(),
+        )
+
+    def _parse_datetime(self, value: str) -> datetime:
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return datetime.utcnow()
 
     def _default_citations(self, scenario: str) -> list[EvaluationCitation]:
         return [

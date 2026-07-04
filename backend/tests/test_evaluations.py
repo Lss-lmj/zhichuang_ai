@@ -1,6 +1,10 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.main import app
+from app.schemas.evaluations import EvaluationCaseCreate, EvaluationRecordCreate
+from app.services.evaluation_service import EvaluationService
 
 
 def test_evaluation_dashboard_contains_three_records() -> None:
@@ -59,3 +63,43 @@ def test_admin_can_create_evaluation_case_and_record() -> None:
         record["record_id"] == record_response.json()["item_id"]
         for record in dashboard_response.json()["records"]
     )
+
+
+def test_evaluation_case_and_record_persist_in_sqlite_session(tmp_path) -> None:
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'evaluations.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    with SessionLocal() as first_session:
+        service = EvaluationService(first_session)
+        case = service.create_case(
+            EvaluationCaseCreate(
+                scenario="教师看板稳定性",
+                input_question="验证作业分析报告是否能跨服务实例读取",
+                expected_focus=["报告持久化", "教师看板", "访问控制"],
+                priority="P0",
+                status="已记录",
+            )
+        )
+        record = service.create_record(
+            EvaluationRecordCreate(
+                case_id=case.item_id,
+                scenario="教师看板稳定性",
+                input_question="验证作业分析报告是否能跨服务实例读取",
+                system_output="报告已写入 SQLite，教师看板可汇总已分析报告。",
+                manual_score=91,
+                issue_notes="持久化链路可复现。",
+                reviewer="项目评测组",
+            )
+        )
+
+    with SessionLocal() as second_session:
+        dashboard = EvaluationService(second_session).dashboard()
+
+    assert any(item.case_id == case.item_id for item in dashboard.cases)
+    assert any(item.record_id == record.item_id for item in dashboard.records)
+    assert dashboard.summary.total_cases >= 4
+    assert dashboard.summary.completed_records >= 4
+    assert dashboard.summary.average_score >= 80
