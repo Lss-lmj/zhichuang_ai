@@ -9,13 +9,17 @@ import type {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
+function authHeaders(token?: string): HeadersInit {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
     headers: {
       "Content-Type": "application/json",
       ...init?.headers,
     },
-    ...init,
   });
 
   if (!response.ok) {
@@ -36,13 +40,11 @@ export function searchKnowledge(query: string, limit = 5): Promise<KnowledgeSear
 
 export function createKnowledgeDocument(
   payload: KnowledgeDocumentCreate,
-  token = "demo-token-admin_001",
+  token?: string,
 ): Promise<KnowledgeDocumentUpsertResponse> {
   return requestJson<KnowledgeDocumentUpsertResponse>("/knowledge/documents", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: authHeaders(token),
     body: JSON.stringify(payload),
   });
 }
@@ -50,28 +52,24 @@ export function createKnowledgeDocument(
 export function updateKnowledgeDocument(
   documentId: string,
   payload: KnowledgeDocumentUpdate,
-  token = "demo-token-admin_001",
+  token?: string,
 ): Promise<KnowledgeDocumentUpsertResponse> {
   return requestJson<KnowledgeDocumentUpsertResponse>(`/knowledge/documents/${documentId}`, {
     method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: authHeaders(token),
     body: JSON.stringify(payload),
   });
 }
 
 export function offlineKnowledgeDocument(
   documentId: string,
-  token = "demo-token-admin_001",
+  token?: string,
 ): Promise<KnowledgeDocumentUpsertResponse> {
   return requestJson<KnowledgeDocumentUpsertResponse>(
     `/knowledge/documents/${documentId}/status`,
     {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: authHeaders(token),
       body: JSON.stringify({
         status: "已下线",
         maintainer: "平台管理员",

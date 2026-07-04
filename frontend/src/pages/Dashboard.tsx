@@ -86,6 +86,7 @@ export function Dashboard() {
   const [knowledgeCreateLoading, setKnowledgeCreateLoading] = useState(false);
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   const [currentAccount, setCurrentAccount] = useState<DemoAccount | null>(null);
+  const [currentToken, setCurrentToken] = useState("demo-token-teacher_001");
   const [taskList, setTaskList] = useState<TaskListResponse | null>(null);
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
@@ -173,6 +174,7 @@ export function Dashboard() {
             accountsData.accounts.find((account) => account.role === "teacher") ??
               accountsData.accounts[0],
           );
+          setCurrentToken("demo-token-teacher_001");
           setTaskList(taskData);
           setEvaluationDashboard(evaluationData);
           setCourses(coursesData);
@@ -258,6 +260,7 @@ export function Dashboard() {
       setError(null);
       const session = await createDemoSession(userId);
       setCurrentAccount(session.account);
+      setCurrentToken(session.token);
       const nextReport = await analyzeDemoAssignment(session.token);
       setReport(nextReport);
       if (session.account.role === "teacher" || session.account.role === "admin") {
@@ -301,7 +304,7 @@ export function Dashboard() {
         content: "课程项目复盘需要记录目标、完成情况、阻塞问题、下周任务和证据链接。",
         source_url: "https://example.edu/templates/review",
       };
-      await createKnowledgeDocument(payload);
+      await createKnowledgeDocument(payload, currentToken);
       const [documents, search] = await Promise.all([
         fetchKnowledgeDocuments(),
         searchKnowledge(payload.title),
@@ -339,7 +342,7 @@ export function Dashboard() {
         tags: ["复盘", "项目文档", "版本管理"],
         content: "课程项目复盘模板 v2 增加版本记录、维护人、最近更新时间和下线状态说明。",
         maintainer: "平台管理员",
-      });
+      }, currentToken);
       const [documents, search, versions] = await Promise.all([
         fetchKnowledgeDocuments(),
         searchKnowledge(title),
@@ -368,7 +371,7 @@ export function Dashboard() {
     try {
       setKnowledgeCreateLoading(true);
       setError(null);
-      const response = await offlineKnowledgeDocument(editableDocument.document_id);
+      const response = await offlineKnowledgeDocument(editableDocument.document_id, currentToken);
       const [documents, versions] = await Promise.all([
         fetchKnowledgeDocuments(),
         fetchKnowledgeDocumentVersions(response.document.document_id),
@@ -457,22 +460,28 @@ export function Dashboard() {
     try {
       setEvaluationLoading(true);
       setError(null);
-      const caseResponse = await createEvaluationCase({
-        scenario: "竞赛准备计划",
-        input_question: "为中国大学生计算机设计大赛生成 4 周准备计划",
-        expected_focus: ["时间节点", "官方依据", "交付物"],
-        priority: "P0",
-        status: "已记录",
-      });
-      await createEvaluationRecord({
-        case_id: caseResponse.item_id,
-        scenario: "竞赛准备计划",
-        input_question: "为中国大学生计算机设计大赛生成 4 周准备计划",
-        system_output: "系统生成 4 周准备计划，包含报名节点、作品交付物和官方依据。",
-        manual_score: 88,
-        issue_notes: "计划结构完整，引用依据明确。",
-        reviewer: "项目评测组",
-      });
+      const caseResponse = await createEvaluationCase(
+        {
+          scenario: "竞赛准备计划",
+          input_question: "为中国大学生计算机设计大赛生成 4 周准备计划",
+          expected_focus: ["时间节点", "官方依据", "交付物"],
+          priority: "P0",
+          status: "已记录",
+        },
+        currentToken,
+      );
+      await createEvaluationRecord(
+        {
+          case_id: caseResponse.item_id,
+          scenario: "竞赛准备计划",
+          input_question: "为中国大学生计算机设计大赛生成 4 周准备计划",
+          system_output: "系统生成 4 周准备计划，包含报名节点、作品交付物和官方依据。",
+          manual_score: 88,
+          issue_notes: "计划结构完整，引用依据明确。",
+          reviewer: "项目评测组",
+        },
+        currentToken,
+      );
       setEvaluationDashboard(await fetchEvaluationDashboard());
       setMode("evaluations");
     } catch (err) {
@@ -675,6 +684,7 @@ export function Dashboard() {
         {!loading && !error && mode === "evaluations" && evaluationDashboard && (
           <EvaluationDashboard
             dashboard={evaluationDashboard}
+            isAdmin={currentAccount?.role === "admin"}
             loading={evaluationLoading}
             onCreateArtifact={handleCreateEvaluationArtifact}
           />
@@ -1662,10 +1672,12 @@ function TaskCard({ task }: { task: LearningTask }) {
 
 function EvaluationDashboard({
   dashboard,
+  isAdmin,
   loading,
   onCreateArtifact,
 }: {
   dashboard: EvaluationDashboardResponse;
+  isAdmin: boolean;
   loading: boolean;
   onCreateArtifact: () => void;
 }) {
@@ -1728,13 +1740,15 @@ function EvaluationDashboard({
             <p>每条记录保留输入、系统输出、引用来源、人工评分和问题记录。</p>
             <p>事实性内容重点检查是否可追溯，推荐类内容重点检查是否解释适合原因与短板。</p>
           </div>
-          <div className="evaluation-admin-card">
-            <strong>维护评测样例</strong>
-            <span>新增竞赛准备计划测试案例和输出记录。</span>
-            <button onClick={onCreateArtifact} disabled={loading}>
-              {loading ? "保存中" : "新增案例与记录"}
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="evaluation-admin-card">
+              <strong>维护评测样例</strong>
+              <span>新增竞赛准备计划测试案例和输出记录。</span>
+              <button onClick={onCreateArtifact} disabled={loading}>
+                {loading ? "保存中" : "新增案例与记录"}
+              </button>
+            </div>
+          )}
         </article>
       </section>
 
