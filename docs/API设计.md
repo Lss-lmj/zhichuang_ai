@@ -376,7 +376,57 @@
 }
 ```
 
-## 10. 任务状态
+## 10. 测试评测
+
+### `GET /evaluations/dashboard`
+
+查询评测看板，包含典型测试案例、系统输出记录、引用来源、人工评价和问题记录。
+
+响应：
+
+```json
+{
+  "summary": {
+    "total_cases": 3,
+    "completed_records": 3,
+    "average_score": 87,
+    "pass_rate": 100
+  },
+  "cases": [
+    {
+      "case_id": "eval_rag_algorithm_path",
+      "scenario": "知识库问答",
+      "input_question": "如何准备算法竞赛？",
+      "expected_focus": ["引用课程与竞赛资料", "给出阶段任务"],
+      "priority": "P0",
+      "status": "已记录"
+    }
+  ],
+  "records": [
+    {
+      "record_id": "record_001",
+      "case_id": "eval_rag_algorithm_path",
+      "scenario": "知识库问答",
+      "system_output": "建议先按搜索、动态规划、图论和数学基础建立题单...",
+      "manual_score": 86,
+      "issue_notes": "路径拆解清晰；后续需要补更多官方赛事链接和年份信息。",
+      "ai_generated": true
+    }
+  ]
+}
+```
+
+### `GET /evaluations/cases`
+
+查询典型测试案例清单。
+
+### `GET /evaluations/records`
+
+查询测试输出记录清单。
+
+当前演示版本至少提供 3 个典型测试案例和 3 条完整输出记录。
+
+## 11. 任务状态
 
 ### `GET /tasks/{task_id}`
 

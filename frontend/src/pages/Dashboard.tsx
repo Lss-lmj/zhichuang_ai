@@ -10,12 +10,14 @@ import {
   recommendCompetitions,
   recommendTeam,
 } from "../shared/api/growth";
+import { fetchEvaluationDashboard } from "../shared/api/evaluations";
 import { fetchKnowledgeDocuments, searchKnowledge } from "../shared/api/knowledge";
 import { fetchStudentTasks, generateReview, saveTask } from "../shared/api/tasks";
 import type { ChatResponse } from "../shared/types/agent";
 import type { ClassListResponse, CourseListResponse, StudentListResponse } from "../shared/types/academic";
 import type { AssignmentDashboard, AssignmentReport } from "../shared/types/assignments";
 import type { DemoAccount } from "../shared/types/auth";
+import type { EvaluationDashboardResponse } from "../shared/types/evaluations";
 import type {
   CompetitionRecommendResponse,
   GrowthProfile,
@@ -43,6 +45,8 @@ export function Dashboard() {
   const [taskList, setTaskList] = useState<TaskListResponse | null>(null);
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
+  const [evaluationDashboard, setEvaluationDashboard] =
+    useState<EvaluationDashboardResponse | null>(null);
   const [courses, setCourses] = useState<CourseListResponse | null>(null);
   const [classes, setClasses] = useState<ClassListResponse | null>(null);
   const [students, setStudents] = useState<StudentListResponse | null>(null);
@@ -70,6 +74,7 @@ export function Dashboard() {
           searchData,
           accountsData,
           taskData,
+          evaluationData,
           coursesData,
           classesData,
           studentsData,
@@ -84,6 +89,7 @@ export function Dashboard() {
           searchKnowledge("作业 Rubric"),
           fetchDemoAccounts(),
           fetchStudentTasks(),
+          fetchEvaluationDashboard(),
           fetchCourses(),
           fetchClasses(),
           fetchStudents(),
@@ -104,6 +110,7 @@ export function Dashboard() {
               accountsData.accounts[0],
           );
           setTaskList(taskData);
+          setEvaluationDashboard(evaluationData);
           setCourses(coursesData);
           setClasses(classesData);
           setStudents(studentsData);
@@ -234,6 +241,12 @@ export function Dashboard() {
             任务复盘
           </button>
           <button
+            className={mode === "evaluations" ? "active" : ""}
+            onClick={() => setMode("evaluations")}
+          >
+            测试评测
+          </button>
+          <button
             className={mode === "academic" ? "active" : ""}
             onClick={() => setMode("academic")}
           >
@@ -297,11 +310,13 @@ export function Dashboard() {
                     ? "学生成长路径"
                     : mode === "tasks"
                       ? "任务中心与定期复盘"
-                      : mode === "academic"
-                        ? "课程班级与学生列表"
-                        : mode === "kb"
-                          ? "知识库资料管理"
-                          : "学科知识库问答"}
+                      : mode === "evaluations"
+                        ? "测试评测与输出记录"
+                        : mode === "academic"
+                          ? "课程班级与学生列表"
+                          : mode === "kb"
+                            ? "知识库资料管理"
+                            : "学科知识库问答"}
             </h1>
           </div>
           <button
@@ -316,7 +331,7 @@ export function Dashboard() {
           >
             {mode === "knowledge" || mode === "kb"
               ? "重新检索"
-              : mode === "academic"
+              : mode === "academic" || mode === "evaluations"
                 ? "刷新数据"
                 : "重新分析"}
           </button>
@@ -371,6 +386,10 @@ export function Dashboard() {
             onSaveTask={handleSaveTask}
             onGenerateReview={handleGenerateReview}
           />
+        )}
+
+        {!loading && !error && mode === "evaluations" && evaluationDashboard && (
+          <EvaluationDashboard dashboard={evaluationDashboard} />
         )}
 
         {!loading && !error && mode === "academic" && courses && classes && students && (
@@ -919,6 +938,109 @@ function TaskCard({ task }: { task: LearningTask }) {
       <p>{task.evidence_required}</p>
       <small>{task.due_date}</small>
     </article>
+  );
+}
+
+function EvaluationDashboard({ dashboard }: { dashboard: EvaluationDashboardResponse }) {
+  return (
+    <>
+      <section className="summary-strip">
+        <article className="metric">
+          <span>测试案例</span>
+          <strong>{dashboard.summary.total_cases}</strong>
+          <small>典型问题</small>
+        </article>
+        <article className="metric">
+          <span>输出记录</span>
+          <strong>{dashboard.summary.completed_records}</strong>
+          <small>含引用与评价</small>
+        </article>
+        <article className="metric">
+          <span>平均评分</span>
+          <strong>{dashboard.summary.average_score}</strong>
+          <small>人工评价</small>
+        </article>
+        <article className="metric">
+          <span>通过率</span>
+          <strong>{dashboard.summary.pass_rate}%</strong>
+          <small>80 分以上</small>
+        </article>
+      </section>
+      <AiGeneratedNotice text="测试输出为 AI 生成，仅供评测和复现使用；人工评价用于记录问题，不作为最终教学结论。" />
+
+      <section className="panel-grid">
+        <article className="panel wide">
+          <div className="panel-header">
+            <div>
+              <span className="section-label">测试案例</span>
+              <h2>覆盖问答、作业分析和推荐闭环</h2>
+            </div>
+            <span className="muted">F7-001</span>
+          </div>
+          <div className="eval-case-list">
+            {dashboard.cases.map((item) => (
+              <article className="eval-case" key={item.case_id}>
+                <div>
+                  <strong>{item.scenario}</strong>
+                  <span>{item.priority} · {item.status}</span>
+                </div>
+                <p>{item.input_question}</p>
+                <div>
+                  {item.expected_focus.map((focus) => (
+                    <small key={focus}>{focus}</small>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <span className="section-label">评测口径</span>
+          <div className="evaluation-rubric">
+            <p>每条记录保留输入、系统输出、引用来源、人工评分和问题记录。</p>
+            <p>事实性内容重点检查是否可追溯，推荐类内容重点检查是否解释适合原因与短板。</p>
+          </div>
+        </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">输出记录</span>
+            <h2>完整评测样例</h2>
+          </div>
+          <span className="muted">F7-002</span>
+        </div>
+        <div className="eval-record-list">
+          {dashboard.records.map((record) => (
+            <article className="eval-record" key={record.record_id}>
+              <div className="eval-record-head">
+                <div>
+                  <strong>{record.scenario}</strong>
+                  <span>{record.input_question}</span>
+                </div>
+                <b>{record.manual_score}</b>
+              </div>
+              <p>{record.system_output}</p>
+              <div className="eval-citations">
+                {record.citations.map((citation) => (
+                  <small key={`${record.record_id}-${citation.title}`}>
+                    {citation.title} · {citation.path}
+                  </small>
+                ))}
+              </div>
+              <footer>
+                <span>{record.issue_notes}</span>
+                <small>
+                  {record.reviewer} · {record.evaluated_at}
+                </small>
+              </footer>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 

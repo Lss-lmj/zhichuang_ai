@@ -5,4 +5,5 @@ export type ViewMode =
   | "growth"
   | "kb"
   | "tasks"
+  | "evaluations"
   | "academic";

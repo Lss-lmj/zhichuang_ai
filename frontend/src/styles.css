@@ -730,6 +730,100 @@ h1 {
   border-radius: 999px;
 }
 
+.eval-case-list,
+.eval-record-list,
+.evaluation-rubric {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.eval-case,
+.eval-record {
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.eval-case {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.55fr) minmax(0, 1fr) minmax(180px, 0.7fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.eval-case strong,
+.eval-case span,
+.eval-case small,
+.eval-record-head span,
+.eval-record footer small {
+  display: block;
+}
+
+.eval-case span,
+.eval-record-head span,
+.eval-record footer,
+.evaluation-rubric p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.eval-case p,
+.eval-record p,
+.evaluation-rubric p {
+  margin: 0;
+}
+
+.eval-case div:last-child,
+.eval-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.eval-case small,
+.eval-citations small {
+  padding: 5px 7px;
+  color: var(--blue);
+  background: rgba(23, 78, 166, 0.08);
+  border-radius: 999px;
+}
+
+.eval-record {
+  display: grid;
+  gap: 12px;
+}
+
+.eval-record-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eval-record-head b {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: #fff;
+  background: var(--green);
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.eval-record p {
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+.eval-record footer {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
 .task-list {
   padding-left: 20px;
   color: var(--ink);
@@ -896,6 +990,11 @@ h1 {
   .task-board,
   .student-grid {
     grid-template-columns: 1fr;
+  }
+
+  .eval-case,
+  .eval-record-head {
+    display: grid;
   }
 
   .task-hero {
