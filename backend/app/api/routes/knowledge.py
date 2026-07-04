@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
+from app.db.session import get_db
 from app.schemas.knowledge import (
     KnowledgeDocumentCreate,
     KnowledgeDocumentStatusUpdate,
@@ -16,17 +18,18 @@ router = APIRouter()
 
 
 @router.get("/documents", response_model=KnowledgeDocumentsResponse)
-def list_documents() -> KnowledgeDocumentsResponse:
-    return KnowledgeService().list_documents()
+def list_documents(db: Session = Depends(get_db)) -> KnowledgeDocumentsResponse:
+    return KnowledgeService(db).list_documents()
 
 
 @router.post("/documents", response_model=KnowledgeDocumentUpsertResponse)
 def create_document(
     payload: KnowledgeDocumentCreate,
     authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> KnowledgeDocumentUpsertResponse:
     _ensure_admin(authorization)
-    return KnowledgeService().create_document(payload)
+    return KnowledgeService(db).create_document(payload)
 
 
 @router.put("/documents/{document_id}", response_model=KnowledgeDocumentUpsertResponse)
@@ -34,10 +37,11 @@ def update_document(
     document_id: str,
     payload: KnowledgeDocumentUpdate,
     authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> KnowledgeDocumentUpsertResponse:
     _ensure_admin(authorization)
     try:
-        return KnowledgeService().update_document(document_id, payload)
+        return KnowledgeService(db).update_document(document_id, payload)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
@@ -47,18 +51,22 @@ def update_document_status(
     document_id: str,
     payload: KnowledgeDocumentStatusUpdate,
     authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> KnowledgeDocumentUpsertResponse:
     _ensure_admin(authorization)
     try:
-        return KnowledgeService().update_document_status(document_id, payload)
+        return KnowledgeService(db).update_document_status(document_id, payload)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.get("/documents/{document_id}/versions", response_model=KnowledgeDocumentVersionsResponse)
-def list_document_versions(document_id: str) -> KnowledgeDocumentVersionsResponse:
+def list_document_versions(
+    document_id: str,
+    db: Session = Depends(get_db),
+) -> KnowledgeDocumentVersionsResponse:
     try:
-        return KnowledgeService().list_versions(document_id)
+        return KnowledgeService(db).list_versions(document_id)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
@@ -67,8 +75,9 @@ def list_document_versions(document_id: str) -> KnowledgeDocumentVersionsRespons
 def search_knowledge(
     q: str = Query(min_length=1),
     limit: int = Query(default=5, ge=1, le=20),
+    db: Session = Depends(get_db),
 ) -> KnowledgeSearchResponse:
-    return KnowledgeService().search(q, limit)
+    return KnowledgeService(db).search(q, limit)
 
 
 def _ensure_admin(authorization: str | None) -> None:

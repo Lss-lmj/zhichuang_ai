@@ -1,6 +1,10 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.main import app
+from app.schemas.knowledge import KnowledgeDocumentCreate
+from app.services.knowledge_service import KnowledgeService
 
 
 def test_knowledge_documents_and_search() -> None:
@@ -130,3 +134,36 @@ def test_only_admin_can_maintain_knowledge_documents() -> None:
     )
 
     assert student_response.status_code == 403
+
+
+def test_knowledge_document_persists_in_sqlite_session(tmp_path) -> None:
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'knowledge.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    with SessionLocal() as first_session:
+        created = KnowledgeService(first_session).create_document(
+            KnowledgeDocumentCreate(
+                title="SQLite 持久化知识库资料",
+                source_type="project_case",
+                path="软件项目实践",
+                tags=["SQLite", "持久化"],
+                content="SQLite 持久化知识库资料用于验证管理员维护资料可以跨服务实例读取。",
+                maintainer="平台管理员",
+            )
+        )
+
+    with SessionLocal() as second_session:
+        service = KnowledgeService(second_session)
+        documents = service.list_documents()
+        search = service.search("SQLite 持久化")
+        versions = service.list_versions(created.document.document_id)
+
+    assert any(
+        item.document_id == created.document.document_id
+        for item in documents.documents
+    )
+    assert any(item.title == "SQLite 持久化知识库资料" for item in search.results)
+    assert [item.action for item in versions.versions] == ["create"]
