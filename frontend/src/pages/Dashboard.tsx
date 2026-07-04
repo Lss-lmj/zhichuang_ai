@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { askAgent } from "../shared/api/agent";
+import { fetchClasses, fetchCourses, fetchStudents } from "../shared/api/academic";
 import { analyzeDemoAssignment, fetchAssignmentDashboard } from "../shared/api/assignments";
 import { createDemoSession, fetchDemoAccounts } from "../shared/api/auth";
 import {
@@ -12,6 +13,7 @@ import {
 import { fetchKnowledgeDocuments, searchKnowledge } from "../shared/api/knowledge";
 import { fetchStudentTasks, generateReview, saveTask } from "../shared/api/tasks";
 import type { ChatResponse } from "../shared/types/agent";
+import type { ClassListResponse, CourseListResponse, StudentListResponse } from "../shared/types/academic";
 import type { AssignmentDashboard, AssignmentReport } from "../shared/types/assignments";
 import type { DemoAccount } from "../shared/types/auth";
 import type {
@@ -41,6 +43,9 @@ export function Dashboard() {
   const [taskList, setTaskList] = useState<TaskListResponse | null>(null);
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
+  const [courses, setCourses] = useState<CourseListResponse | null>(null);
+  const [classes, setClasses] = useState<ClassListResponse | null>(null);
+  const [students, setStudents] = useState<StudentListResponse | null>(null);
   const [chatQuestion, setChatQuestion] = useState("如何准备算法竞赛？");
   const [chatResponse, setChatResponse] = useState<ChatResponse | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -65,6 +70,9 @@ export function Dashboard() {
           searchData,
           accountsData,
           taskData,
+          coursesData,
+          classesData,
+          studentsData,
         ] = await Promise.all([
           analyzeDemoAssignment(),
           fetchAssignmentDashboard(),
@@ -76,6 +84,9 @@ export function Dashboard() {
           searchKnowledge("作业 Rubric"),
           fetchDemoAccounts(),
           fetchStudentTasks(),
+          fetchCourses(),
+          fetchClasses(),
+          fetchStudents(),
         ]);
 
         if (mounted) {
@@ -93,6 +104,9 @@ export function Dashboard() {
               accountsData.accounts[0],
           );
           setTaskList(taskData);
+          setCourses(coursesData);
+          setClasses(classesData);
+          setStudents(studentsData);
         }
       } catch (err) {
         if (mounted) {
@@ -219,6 +233,12 @@ export function Dashboard() {
           <button className={mode === "tasks" ? "active" : ""} onClick={() => setMode("tasks")}>
             任务复盘
           </button>
+          <button
+            className={mode === "academic" ? "active" : ""}
+            onClick={() => setMode("academic")}
+          >
+            课程班级
+          </button>
           <button className={mode === "kb" ? "active" : ""} onClick={() => setMode("kb")}>
             知识库管理
           </button>
@@ -277,9 +297,11 @@ export function Dashboard() {
                     ? "学生成长路径"
                     : mode === "tasks"
                       ? "任务中心与定期复盘"
-                    : mode === "kb"
-                      ? "知识库资料管理"
-                      : "学科知识库问答"}
+                      : mode === "academic"
+                        ? "课程班级与学生列表"
+                        : mode === "kb"
+                          ? "知识库资料管理"
+                          : "学科知识库问答"}
             </h1>
           </div>
           <button
@@ -292,7 +314,11 @@ export function Dashboard() {
                   : window.location.reload()
             }
           >
-            {mode === "knowledge" || mode === "kb" ? "重新检索" : "重新分析"}
+            {mode === "knowledge" || mode === "kb"
+              ? "重新检索"
+              : mode === "academic"
+                ? "刷新数据"
+                : "重新分析"}
           </button>
         </header>
 
@@ -345,6 +371,10 @@ export function Dashboard() {
             onSaveTask={handleSaveTask}
             onGenerateReview={handleGenerateReview}
           />
+        )}
+
+        {!loading && !error && mode === "academic" && courses && classes && students && (
+          <AcademicDirectory courses={courses} classes={classes} students={students} />
         )}
       </section>
     </main>
@@ -875,5 +905,91 @@ function TaskCard({ task }: { task: LearningTask }) {
       <p>{task.evidence_required}</p>
       <small>{task.due_date}</small>
     </article>
+  );
+}
+
+function AcademicDirectory({
+  courses,
+  classes,
+  students,
+}: {
+  courses: CourseListResponse;
+  classes: ClassListResponse;
+  students: StudentListResponse;
+}) {
+  return (
+    <>
+      <section className="academic-hero">
+        <div>
+          <span className="section-label">课程与班级</span>
+          <h2>学校真实使用的基础数据入口</h2>
+          <p>课程、班级和学生列表共同构成教师看板、作业报告和学生画像的授权边界。</p>
+        </div>
+        <div className="academic-metrics">
+          <article className="metric">
+            <span>课程</span>
+            <strong>{courses.courses.length}</strong>
+            <small>演示课程</small>
+          </article>
+          <article className="metric">
+            <span>学生</span>
+            <strong>{students.students.length}</strong>
+            <small>演示学生</small>
+          </article>
+        </div>
+      </section>
+
+      <section className="panel-grid">
+        <article className="panel">
+          <span className="section-label">课程</span>
+          <div className="academic-list">
+            {courses.courses.map((course) => (
+              <div className="academic-card" key={course.course_id}>
+                <strong>{course.name}</strong>
+                <span>{course.term} · {course.teacher_name}</span>
+                <p>{course.description}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <span className="section-label">班级</span>
+          <div className="academic-list">
+            {classes.classes.map((classItem) => (
+              <div className="academic-card" key={`${classItem.course_id}-${classItem.class_id}`}>
+                <strong>{classItem.name}</strong>
+                <span>{classItem.major} · {classItem.grade}</span>
+                <p>{classItem.student_count} 名学生</p>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">学生列表</span>
+            <h2>能力方向与标签</h2>
+          </div>
+          <span className="muted">{students.class_id}</span>
+        </div>
+        <div className="student-grid">
+          {students.students.map((student) => (
+            <article className="student-card" key={student.student_id}>
+              <strong>{student.name}</strong>
+              <span>{student.student_no}</span>
+              <p>{student.target_path}</p>
+              <div>
+                {student.tags.map((tag) => (
+                  <small key={tag}>{tag}</small>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
