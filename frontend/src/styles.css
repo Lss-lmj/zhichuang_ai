@@ -166,6 +166,13 @@ h1 {
   margin: 28px 0 16px;
 }
 
+.kb-overview {
+  display: grid;
+  grid-template-columns: 180px 220px minmax(0, 1fr);
+  gap: 12px;
+  margin: 28px 0 16px;
+}
+
 .metric,
 .panel,
 .report-hero,
@@ -514,6 +521,15 @@ h1 {
   cursor: not-allowed;
 }
 
+.kb-search {
+  align-self: stretch;
+  padding: 18px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
 .quick-questions {
   display: flex;
   flex-wrap: wrap;
@@ -565,6 +581,29 @@ h1 {
   font-weight: 800;
 }
 
+.doc-table {
+  display: grid;
+  margin-top: 18px;
+}
+
+.doc-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) 120px 140px 80px minmax(180px, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+}
+
+.doc-row:first-child {
+  border-top: 0;
+}
+
+.doc-row span,
+.doc-row small {
+  color: var(--muted);
+}
+
 .state-box {
   margin-top: 28px;
   padding: 24px;
@@ -586,6 +625,7 @@ h1 {
   }
 
   .summary-strip,
+  .kb-overview,
   .panel-grid,
   .growth-hero,
   .timeline {
@@ -595,6 +635,11 @@ h1 {
   .report-row {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .doc-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .ask-box {

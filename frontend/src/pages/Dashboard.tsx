@@ -8,6 +8,7 @@ import {
   recommendCompetitions,
   recommendTeam,
 } from "../shared/api/growth";
+import { fetchKnowledgeDocuments, searchKnowledge } from "../shared/api/knowledge";
 import type { ChatResponse } from "../shared/types/agent";
 import type { AssignmentDashboard, AssignmentReport } from "../shared/types/assignments";
 import type {
@@ -16,8 +17,9 @@ import type {
   LearningPlan,
   TeamRecommendResponse,
 } from "../shared/types/growth";
+import type { KnowledgeDocumentsResponse, KnowledgeSearchResponse } from "../shared/types/knowledge";
 
-type ViewMode = "student" | "teacher" | "knowledge" | "growth";
+type ViewMode = "student" | "teacher" | "knowledge" | "growth" | "kb";
 
 export function Dashboard() {
   const [mode, setMode] = useState<ViewMode>("teacher");
@@ -27,6 +29,10 @@ export function Dashboard() {
   const [plan, setPlan] = useState<LearningPlan | null>(null);
   const [competitions, setCompetitions] = useState<CompetitionRecommendResponse | null>(null);
   const [team, setTeam] = useState<TeamRecommendResponse | null>(null);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocumentsResponse | null>(null);
+  const [knowledgeSearch, setKnowledgeSearch] = useState<KnowledgeSearchResponse | null>(null);
+  const [knowledgeQuery, setKnowledgeQuery] = useState("作业 Rubric");
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("如何准备算法竞赛？");
   const [chatResponse, setChatResponse] = useState<ChatResponse | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -40,14 +46,24 @@ export function Dashboard() {
       try {
         setLoading(true);
         setError(null);
-        const [reportData, dashboardData, profileData, planData, competitionData, teamData] =
-          await Promise.all([
+        const [
+          reportData,
+          dashboardData,
+          profileData,
+          planData,
+          competitionData,
+          teamData,
+          knowledgeData,
+          searchData,
+        ] = await Promise.all([
             analyzeDemoAssignment(),
             fetchAssignmentDashboard(),
             fetchGrowthProfile(),
             generateLearningPlan(),
             recommendCompetitions(),
             recommendTeam(),
+            fetchKnowledgeDocuments(),
+            searchKnowledge("作业 Rubric"),
           ]);
 
         if (mounted) {
@@ -57,6 +73,8 @@ export function Dashboard() {
           setPlan(planData);
           setCompetitions(competitionData);
           setTeam(teamData);
+          setKnowledgeDocs(knowledgeData);
+          setKnowledgeSearch(searchData);
         }
       } catch (err) {
         if (mounted) {
@@ -97,6 +115,21 @@ export function Dashboard() {
     }
   }
 
+  async function handleKnowledgeSearch(query = knowledgeQuery) {
+    try {
+      setKnowledgeLoading(true);
+      setError(null);
+      setKnowledgeQuery(query);
+      const response = await searchKnowledge(query);
+      setKnowledgeSearch(response);
+      setMode("kb");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "知识库检索失败");
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }
+
   return (
     <main className="workspace">
       <aside className="sidebar">
@@ -117,6 +150,9 @@ export function Dashboard() {
           </button>
           <button className={mode === "growth" ? "active" : ""} onClick={() => setMode("growth")}>
             成长路径
+          </button>
+          <button className={mode === "kb" ? "active" : ""} onClick={() => setMode("kb")}>
+            知识库管理
           </button>
           <button
             className={mode === "knowledge" ? "active" : ""}
@@ -149,14 +185,22 @@ export function Dashboard() {
                   ? "学生作业分析报告"
                   : mode === "growth"
                     ? "学生成长路径"
-                    : "学科知识库问答"}
+                    : mode === "kb"
+                      ? "知识库资料管理"
+                      : "学科知识库问答"}
             </h1>
           </div>
           <button
             className="primary-action"
-            onClick={() => (mode === "knowledge" ? handleAskAgent() : window.location.reload())}
+            onClick={() =>
+              mode === "knowledge"
+                ? handleAskAgent()
+                : mode === "kb"
+                  ? handleKnowledgeSearch()
+                  : window.location.reload()
+            }
           >
-            {mode === "knowledge" ? "重新检索" : "重新分析"}
+            {mode === "knowledge" || mode === "kb" ? "重新检索" : "重新分析"}
           </button>
         </header>
 
@@ -187,6 +231,17 @@ export function Dashboard() {
             plan={plan}
             competitions={competitions}
             team={team}
+          />
+        )}
+
+        {!loading && !error && mode === "kb" && knowledgeDocs && (
+          <KnowledgeAdmin
+            documents={knowledgeDocs}
+            search={knowledgeSearch}
+            query={knowledgeQuery}
+            loading={knowledgeLoading}
+            onQueryChange={setKnowledgeQuery}
+            onSearch={handleKnowledgeSearch}
           />
         )}
       </section>
@@ -544,6 +599,95 @@ function GrowthPath({
                 <small>{candidate.evidence.join(" / ")}</small>
               </div>
             ))}
+          </div>
+        </article>
+      </section>
+    </>
+  );
+}
+
+function KnowledgeAdmin({
+  documents,
+  search,
+  query,
+  loading,
+  onQueryChange,
+  onSearch,
+}: {
+  documents: KnowledgeDocumentsResponse;
+  search: KnowledgeSearchResponse | null;
+  query: string;
+  loading: boolean;
+  onQueryChange: (query: string) => void;
+  onSearch: (query?: string) => void;
+}) {
+  const paths = Array.from(new Set(documents.documents.map((document) => document.path)));
+
+  return (
+    <>
+      <section className="kb-overview">
+        <article className="metric">
+          <span>资料总数</span>
+          <strong>{documents.total}</strong>
+          <small>首批知识库样例</small>
+        </article>
+        <article className="metric">
+          <span>重点路径</span>
+          <strong>{paths.length}</strong>
+          <small>{paths.join(" / ")}</small>
+        </article>
+        <div className="ask-box kb-search">
+          <input
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                onSearch();
+              }
+            }}
+            aria-label="知识库检索"
+          />
+          <button onClick={() => onSearch()} disabled={loading || !query.trim()}>
+            {loading ? "检索中" : "检索"}
+          </button>
+        </div>
+      </section>
+
+      <section className="panel-grid">
+        <article className="panel wide">
+          <div className="panel-header">
+            <div>
+              <span className="section-label">资料清单</span>
+              <h2>首批知识库资料</h2>
+            </div>
+            <span className="muted">课程 / 竞赛 / 项目案例</span>
+          </div>
+          <div className="doc-table">
+            {documents.documents.map((document) => (
+              <div className="doc-row" key={document.document_id}>
+                <strong>{document.title}</strong>
+                <span>{document.path}</span>
+                <span>{document.source_type}</span>
+                <span>{document.status}</span>
+                <small>{document.tags.join(" / ")}</small>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <span className="section-label">检索命中</span>
+          <div className="citation-list">
+            {search?.results.map((result) => (
+              <div className="citation-card" key={`${result.title}-${result.score}`}>
+                <strong>{result.title}</strong>
+                <span>
+                  {result.path} · {result.score}
+                </span>
+                <p>{result.snippet}</p>
+              </div>
+            ))}
+            {!search && <p className="muted">输入关键词检索知识库。</p>}
           </div>
         </article>
       </section>

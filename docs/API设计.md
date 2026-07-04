@@ -225,6 +225,29 @@
 
 上传知识库资料。
 
+当前演示版本提供资料清单查询：
+
+### `GET /knowledge/documents`
+
+响应：
+
+```json
+{
+  "total": 6,
+  "documents": [
+    {
+      "document_id": "doc_001",
+      "title": "Web 应用开发课程作业 Rubric",
+      "source_type": "rubric",
+      "path": "软件项目实践",
+      "tags": ["作业分析", "Rubric", "Web"],
+      "chunk_count": 1,
+      "status": "已入库"
+    }
+  ]
+}
+```
+
 ### `POST /knowledge/documents/{document_id}/ingest`
 
 解析、切分并入向量库。
@@ -241,6 +264,24 @@
 - `limit`
 
 响应包含命中文本、来源、引用元数据。
+
+当前演示接口返回字段：
+
+```json
+{
+  "query": "作业 Rubric",
+  "total": 1,
+  "results": [
+    {
+      "title": "Web 应用开发课程作业 Rubric",
+      "source_type": "rubric",
+      "path": "软件项目实践",
+      "snippet": "课程作业评分参考功能完成度、代码结构、工程规范、测试意识和文档表达。",
+      "score": 0.5
+    }
+  ]
+}
+```
 
 ## 10. 任务状态
 
