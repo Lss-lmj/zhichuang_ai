@@ -6,10 +6,24 @@ FastAPI backend for 智创Agent.
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:app --reload
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/uvicorn app.main:app --reload
+```
+
+Run tests from the repository root:
+
+```bash
+make test
+```
+
+`make test` uses `backend/.venv` when available. If a network is slow, install the
+minimum test dependencies first and run the same command:
+
+```bash
+backend/.venv/bin/python -m pip install fastapi "uvicorn[standard]" pydantic \
+  pydantic-settings sqlalchemy alembic python-multipart pytest httpx
+make test
 ```
 
 LangGraph or RAG work needs optional dependencies:

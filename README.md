@@ -46,6 +46,10 @@ open 立项/智创Agent_立项PPT/index.html
 
 ```bash
 make init
+cd backend
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+cd ..
 make dev-backend
 ```
 
@@ -58,8 +62,12 @@ make dev-frontend
 检查：
 
 ```bash
+make test
 make check
 ```
+
+`make test` 和 `make check` 会优先使用 `backend/.venv`。如果本机暂时无法安装
+`ruff`，`make check` 会继续执行后端测试和前端构建，并明确提示跳过后端 lint。
 
 Docker Demo：
 

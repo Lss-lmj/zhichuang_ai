@@ -17,19 +17,35 @@ init:
 	@echo "Local env prepared."
 
 dev-backend:
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	@if [ -x backend/.venv/bin/uvicorn ]; then \
+		cd backend && .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000; \
+	else \
+		cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000; \
+	fi
 
 dev-frontend:
 	cd frontend && npm run dev
 
 test:
-	cd backend && pytest
+	@if [ -x backend/.venv/bin/python ]; then \
+		cd backend && .venv/bin/python -m pytest; \
+	else \
+		cd backend && python3.11 -m pytest; \
+	fi
 
 lint:
-	cd backend && ruff check app tests
+	@if [ -x backend/.venv/bin/ruff ]; then \
+		cd backend && .venv/bin/ruff check app tests; \
+	else \
+		cd backend && ruff check app tests; \
+	fi
 
 format:
-	cd backend && ruff format app tests
+	@if [ -x backend/.venv/bin/ruff ]; then \
+		cd backend && .venv/bin/ruff format app tests; \
+	else \
+		cd backend && ruff format app tests; \
+	fi
 
 check:
 	./scripts/check.sh
