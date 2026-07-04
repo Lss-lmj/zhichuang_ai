@@ -1022,6 +1022,18 @@ function GrowthPath({
                 </div>
                 <b>{item.match_score}</b>
                 <p>{item.reason}</p>
+                <div className="recommend-detail-list">
+                  <strong>适合原因</strong>
+                  {item.fit_reasons.map((reason) => (
+                    <small key={reason}>{reason}</small>
+                  ))}
+                </div>
+                <div className="recommend-detail-list warning">
+                  <strong>需要补足</strong>
+                  {item.gap_abilities.map((gap) => (
+                    <small key={gap}>{gap}</small>
+                  ))}
+                </div>
                 <small>{item.risk}</small>
               </div>
             ))}

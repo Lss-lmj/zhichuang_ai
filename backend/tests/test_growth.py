@@ -100,6 +100,10 @@ def test_learning_plan_and_recommendations() -> None:
     assert catalog_response.json()["total"] >= 8
     assert catalog_response.json()["competitions"][0]["official_url"]
     assert len(competition_response.json()["recommendations"]) >= 2
+    assert all(
+        recommendation["fit_reasons"] and recommendation["gap_abilities"]
+        for recommendation in competition_response.json()["recommendations"]
+    )
     assert len(team_response.json()["candidates"]) >= 2
     assert "student_004" not in [
         candidate["student_id"] for candidate in team_response.json()["candidates"]

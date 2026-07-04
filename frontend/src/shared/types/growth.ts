@@ -67,6 +67,8 @@ export type CompetitionRecommendation = {
   category: string;
   match_score: number;
   reason: string;
+  fit_reasons: string[];
+  gap_abilities: string[];
   preparation: string[];
   risk: string;
 };

@@ -134,6 +134,8 @@ class CompetitionRecommendation(BaseModel):
     category: str
     match_score: int
     reason: str
+    fit_reasons: list[str] = Field(default_factory=list)
+    gap_abilities: list[str] = Field(default_factory=list)
     preparation: list[str]
     risk: str
 
