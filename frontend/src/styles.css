@@ -974,6 +974,53 @@ h1 {
   gap: 12px;
 }
 
+.academic-import-panel {
+  margin-top: 16px;
+}
+
+.academic-import-panel .panel-header button {
+  min-height: 40px;
+  padding: 0 14px;
+  color: #fff;
+  background: var(--blue);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.academic-import-panel .panel-header button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.academic-import-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.academic-import-grid div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: 6px;
+}
+
+.academic-import-grid span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.academic-import-result {
+  border-left-color: var(--green) !important;
+}
+
 .task-hero h2 {
   margin: 4px 0 8px;
   font-size: 26px;
@@ -1889,6 +1936,7 @@ h1 {
   .task-hero,
   .academic-hero,
   .academic-metrics,
+  .academic-import-grid,
   .timeline,
   .task-board,
   .competition-catalog,

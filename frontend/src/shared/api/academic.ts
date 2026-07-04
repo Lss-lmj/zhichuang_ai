@@ -1,9 +1,32 @@
-import type { ClassListResponse, CourseListResponse, StudentListResponse } from "../types/academic";
+import type {
+  AcademicImportRequest,
+  AcademicImportResponse,
+  ClassListResponse,
+  CourseListResponse,
+  StudentListResponse,
+} from "../types/academic";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
 async function requestJson<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`);
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function postJson<T>(path: string, payload: unknown, token?: string): Promise<T> {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
 
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
@@ -22,4 +45,11 @@ export function fetchClasses(courseId = "course_web_2026"): Promise<ClassListRes
 
 export function fetchStudents(classId = "class_cs_2024_01"): Promise<StudentListResponse> {
   return requestJson<StudentListResponse>(`/classes/${classId}/students`);
+}
+
+export function importAcademicData(
+  payload: AcademicImportRequest,
+  token?: string,
+): Promise<AcademicImportResponse> {
+  return postJson<AcademicImportResponse>("/academic/import", payload, token);
 }

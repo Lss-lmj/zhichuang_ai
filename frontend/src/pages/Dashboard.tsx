@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { askAgent } from "../shared/api/agent";
-import { fetchClasses, fetchCourses, fetchStudents } from "../shared/api/academic";
+import { fetchClasses, fetchCourses, fetchStudents, importAcademicData } from "../shared/api/academic";
 import {
   analyzeDemoAssignment,
   fetchAssignmentDashboard,
@@ -102,6 +102,8 @@ export function Dashboard() {
   const [courses, setCourses] = useState<CourseListResponse | null>(null);
   const [classes, setClasses] = useState<ClassListResponse | null>(null);
   const [students, setStudents] = useState<StudentListResponse | null>(null);
+  const [academicImportLoading, setAcademicImportLoading] = useState(false);
+  const [academicImportResult, setAcademicImportResult] = useState<string | null>(null);
   const [chatQuestion, setChatQuestion] = useState("如何准备算法竞赛？");
   const [chatResponse, setChatResponse] = useState<ChatResponse | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -532,6 +534,67 @@ export function Dashboard() {
     }
   }
 
+  async function handleAcademicImportSample() {
+    const courseId = "course_school_ai_2026";
+    const classId = "class_school_ai_2024_01";
+    try {
+      setAcademicImportLoading(true);
+      setAcademicImportResult(null);
+      setError(null);
+      const response = await importAcademicData(
+        {
+          courses: [
+            {
+              course_id: courseId,
+              name: "AI 应用开发",
+              term: "2025-2026 春季学期",
+              teacher_id: "teacher_school_001",
+              teacher_name: "王老师",
+              teacher_no: "T-SCHOOL-001",
+              description: "面向课程项目、RAG 应用和智能体协作完成综合实践。",
+            },
+          ],
+          classes: [
+            {
+              class_id: classId,
+              course_id: courseId,
+              name: "2024 级人工智能 1 班",
+              grade: "2024",
+              major: "人工智能",
+            },
+          ],
+          students: [
+            {
+              student_id: "student_school_001",
+              name: "赵清河",
+              student_no: "2024019901",
+              class_id: classId,
+              target_path: "AI 应用开发",
+              tags: ["RAG", "智能体", "项目实践"],
+            },
+          ],
+        },
+        currentToken,
+      );
+      const [nextCourses, nextClasses, nextStudents] = await Promise.all([
+        fetchCourses(),
+        fetchClasses(courseId),
+        fetchStudents(classId),
+      ]);
+      setCourses(nextCourses);
+      setClasses(nextClasses);
+      setStudents(nextStudents);
+      setAcademicImportResult(
+        `${response.imported_courses} 门课程 / ${response.imported_classes} 个班级 / ${response.imported_students} 名学生已处理`,
+      );
+      setMode("academic");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "教学基础数据导入失败");
+    } finally {
+      setAcademicImportLoading(false);
+    }
+  }
+
   return (
     <main className="workspace">
       <aside className="sidebar">
@@ -738,7 +801,15 @@ export function Dashboard() {
         )}
 
         {!loading && !error && mode === "academic" && courses && classes && students && (
-          <AcademicDirectory courses={courses} classes={classes} students={students} />
+          <AcademicDirectory
+            courses={courses}
+            classes={classes}
+            students={students}
+            isAdmin={currentAccount?.role === "admin"}
+            importLoading={academicImportLoading}
+            importResult={academicImportResult}
+            onImportSample={handleAcademicImportSample}
+          />
         )}
       </section>
     </main>
@@ -2001,10 +2072,18 @@ function AcademicDirectory({
   courses,
   classes,
   students,
+  isAdmin,
+  importLoading,
+  importResult,
+  onImportSample,
 }: {
   courses: CourseListResponse;
   classes: ClassListResponse;
   students: StudentListResponse;
+  isAdmin: boolean;
+  importLoading: boolean;
+  importResult: string | null;
+  onImportSample: () => void;
 }) {
   return (
     <>
@@ -2027,6 +2106,40 @@ function AcademicDirectory({
           </article>
         </div>
       </section>
+
+      {isAdmin && (
+        <section className="panel academic-import-panel">
+          <div className="panel-header">
+            <div>
+              <span className="section-label">教学基础数据导入</span>
+              <h2>管理员导入课程、班级、教师和学生</h2>
+            </div>
+            <button onClick={onImportSample} disabled={importLoading}>
+              {importLoading ? "导入中" : "导入样例数据"}
+            </button>
+          </div>
+          <div className="academic-import-grid">
+            <div>
+              <strong>课程</strong>
+              <span>AI 应用开发 · 2025-2026 春季学期</span>
+            </div>
+            <div>
+              <strong>班级</strong>
+              <span>2024 级人工智能 1 班</span>
+            </div>
+            <div>
+              <strong>学生</strong>
+              <span>赵清河 · AI 应用开发</span>
+            </div>
+            {importResult && (
+              <div className="academic-import-result">
+                <strong>导入结果</strong>
+                <span>{importResult}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="panel-grid">
         <article className="panel">
