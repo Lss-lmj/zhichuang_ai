@@ -79,6 +79,35 @@ class TeachingSuggestion(BaseModel):
     expected_improvement: str
 
 
+class AbilityHeatmapCell(BaseModel):
+    student_id: str
+    student_name: str
+    dimension: str
+    score: int
+    level: str
+
+
+class DirectionDistributionItem(BaseModel):
+    direction: str
+    count: int
+    ratio: float
+
+
+class DataCoverageMetric(BaseModel):
+    label: str
+    covered: int
+    total: int
+    ratio: float
+
+
+class ClassAbilityProfile(BaseModel):
+    heatmap: list[AbilityHeatmapCell] = Field(default_factory=list)
+    direction_distribution: list[DirectionDistributionItem] = Field(default_factory=list)
+    data_coverage: list[DataCoverageMetric] = Field(default_factory=list)
+    common_weaknesses: list[str] = Field(default_factory=list)
+    summary: str
+
+
 class AssignmentAnalysisResponse(BaseModel):
     report_id: str
     assignment_id: str
@@ -116,6 +145,7 @@ class AssignmentDashboardResponse(BaseModel):
     dimension_averages: list[AssignmentScore]
     common_findings: list[AssignmentFinding]
     teaching_suggestions: list[TeachingSuggestion]
+    class_profile: ClassAbilityProfile
     reports: list[AssignmentReportSummary]
     access_scope: str = "demo"
     ai_generated: bool = True

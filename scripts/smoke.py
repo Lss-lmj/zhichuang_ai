@@ -101,6 +101,8 @@ def main() -> int:
     )
     assert_true(dashboard["submitted_count"] >= 1, "assignment dashboard has no submissions")
     assert_true(dashboard["teaching_suggestions"], "teaching suggestions missing")
+    assert_true(dashboard["class_profile"]["heatmap"], "class ability heatmap missing")
+    assert_true(dashboard["class_profile"]["data_coverage"], "class data coverage missing")
 
     client.expect_forbidden(
         "GET",

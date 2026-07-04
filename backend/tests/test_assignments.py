@@ -49,6 +49,15 @@ def test_assignment_dashboard_returns_teacher_view() -> None:
     assert payload["total_students"] == 32
     assert len(payload["reports"]) == 5
     assert payload["access_scope"] == "teacher:authorized_course_class"
+    assert payload["class_profile"]["heatmap"]
+    assert len(payload["class_profile"]["heatmap"]) == 25
+    assert payload["class_profile"]["direction_distribution"]
+    assert payload["class_profile"]["data_coverage"]
+    assert any(
+        metric["label"] == "测试证据"
+        for metric in payload["class_profile"]["data_coverage"]
+    )
+    assert payload["class_profile"]["common_weaknesses"]
     assert len(payload["teaching_suggestions"]) >= 2
     for suggestion in payload["teaching_suggestions"]:
         assert suggestion["knowledge_point"]

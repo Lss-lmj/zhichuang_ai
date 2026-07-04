@@ -496,6 +496,106 @@ h1 {
   border-left-color: var(--green);
 }
 
+.class-profile-panel {
+  margin-top: 16px;
+}
+
+.class-profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.ability-heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 8px;
+}
+
+.ability-cell {
+  display: grid;
+  gap: 3px;
+  min-height: 74px;
+  padding: 9px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--green);
+  border-radius: 6px;
+}
+
+.ability-cell.stable {
+  border-left-color: var(--blue);
+}
+
+.ability-cell.weak {
+  border-left-color: var(--amber);
+}
+
+.ability-cell span,
+.ability-cell small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ability-cell b {
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.class-profile-side {
+  display: grid;
+  gap: 12px;
+}
+
+.class-profile-block {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.distribution-row,
+.coverage-row {
+  display: grid;
+  gap: 5px;
+}
+
+.distribution-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.distribution-row span,
+.coverage-row span,
+.distribution-row small,
+.coverage-row small,
+.class-profile-block p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.coverage-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.coverage-row div {
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+  background: #e8edf3;
+  border-radius: 999px;
+}
+
+.coverage-row i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  border-radius: inherit;
+}
+
 .teaching-panel {
   margin-top: 16px;
 }
@@ -1568,6 +1668,7 @@ h1 {
   .summary-strip,
   .kb-overview,
   .panel-grid,
+  .class-profile-layout,
   .growth-hero,
   .task-hero,
   .academic-hero,

@@ -80,6 +80,35 @@ export type TeachingSuggestion = {
   expected_improvement: string;
 };
 
+export type AbilityHeatmapCell = {
+  student_id: string;
+  student_name: string;
+  dimension: string;
+  score: number;
+  level: "strong" | "stable" | "weak" | string;
+};
+
+export type DirectionDistributionItem = {
+  direction: string;
+  count: number;
+  ratio: number;
+};
+
+export type DataCoverageMetric = {
+  label: string;
+  covered: number;
+  total: number;
+  ratio: number;
+};
+
+export type ClassAbilityProfile = {
+  heatmap: AbilityHeatmapCell[];
+  direction_distribution: DirectionDistributionItem[];
+  data_coverage: DataCoverageMetric[];
+  common_weaknesses: string[];
+  summary: string;
+};
+
 export type AssignmentDashboard = {
   assignment_id: string;
   assignment_title: string;
@@ -95,6 +124,7 @@ export type AssignmentDashboard = {
   dimension_averages: AssignmentScore[];
   common_findings: AssignmentFinding[];
   teaching_suggestions: TeachingSuggestion[];
+  class_profile: ClassAbilityProfile;
   reports: AssignmentReportSummary[];
   access_scope: string;
   ai_generated: boolean;

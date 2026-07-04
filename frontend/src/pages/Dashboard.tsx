@@ -700,6 +700,64 @@ function TeacherDashboard({
         </article>
       </section>
 
+      <section className="panel class-profile-panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">班级能力画像</span>
+            <h2>能力热力图、方向分布和数据覆盖率</h2>
+          </div>
+          <span className="muted">{dashboard.class_profile.summary}</span>
+        </div>
+        <div className="class-profile-layout">
+          <div className="ability-heatmap">
+            {dashboard.class_profile.heatmap.map((cell) => (
+              <div
+                className={`ability-cell ${cell.level}`}
+                key={`${cell.student_id}-${cell.dimension}`}
+                title={`${cell.student_name} · ${cell.dimension} · ${cell.score}`}
+              >
+                <span>{cell.student_name.slice(0, 1)}</span>
+                <small>{cell.dimension.slice(0, 2)}</small>
+                <b>{cell.score}</b>
+              </div>
+            ))}
+          </div>
+          <div className="class-profile-side">
+            <div className="class-profile-block">
+              <strong>方向分布</strong>
+              {dashboard.class_profile.direction_distribution.map((item) => (
+                <div className="distribution-row" key={item.direction}>
+                  <span>{item.direction}</span>
+                  <small>
+                    {item.count} 人 · {Math.round(item.ratio * 100)}%
+                  </small>
+                </div>
+              ))}
+            </div>
+            <div className="class-profile-block">
+              <strong>数据覆盖率</strong>
+              {dashboard.class_profile.data_coverage.map((metric) => (
+                <div className="coverage-row" key={metric.label}>
+                  <span>{metric.label}</span>
+                  <small>
+                    {metric.covered}/{metric.total}
+                  </small>
+                  <div>
+                    <i style={{ width: `${Math.round(metric.ratio * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="class-profile-block">
+              <strong>共性短板</strong>
+              {dashboard.class_profile.common_weaknesses.map((weakness) => (
+                <p key={weakness}>{weakness}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="panel teaching-panel">
         <div className="panel-header">
           <div>

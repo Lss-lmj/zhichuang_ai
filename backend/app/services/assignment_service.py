@@ -15,8 +15,12 @@ from app.schemas.assignments import (
     AssignmentScore,
     CapabilityEvidence,
     Citation,
+    AbilityHeatmapCell,
+    ClassAbilityProfile,
     CodeFile,
     CodeStructureSummary,
+    DataCoverageMetric,
+    DirectionDistributionItem,
     TeachingSuggestion,
 )
 
@@ -42,6 +46,13 @@ class AssignmentService:
         "student_003": "周明远",
         "student_004": "沈知夏",
         "student_005": "许嘉木",
+    }
+    student_directions = {
+        "student_001": "AI 应用开发",
+        "student_002": "前端交互",
+        "student_003": "算法竞赛",
+        "student_004": "产品与答辩",
+        "student_005": "数据与后端",
     }
 
     def analyze(
@@ -160,6 +171,7 @@ class AssignmentService:
                 dimension_averages,
                 submitted_count=len(reports),
             ),
+            class_profile=self._build_class_profile(reports, dimension_averages),
             reports=[
                 AssignmentReportSummary(
                     report_id=report.report_id,
@@ -172,6 +184,77 @@ class AssignmentService:
                 for report in reports
             ],
             access_scope=self._access_scope(account),
+        )
+
+    def _build_class_profile(
+        self,
+        reports: list[AssignmentAnalysisResponse],
+        dimension_averages: list[AssignmentScore],
+    ) -> ClassAbilityProfile:
+        heatmap = [
+            AbilityHeatmapCell(
+                student_id=report.student_id,
+                student_name=report.student_name,
+                dimension=score.dimension,
+                score=score.score,
+                level=self._score_level(score.score),
+            )
+            for report in reports
+            for score in report.scores
+        ]
+        direction_counts: dict[str, int] = {}
+        for report in reports:
+            direction = self.student_directions.get(report.student_id, "软件项目实践")
+            direction_counts[direction] = direction_counts.get(direction, 0) + 1
+        submitted_count = len(reports)
+        test_covered = len([report for report in reports if report.code_structure.test_files])
+        doc_covered = len([report for report in reports if report.code_structure.documentation_files])
+        common_weaknesses = [
+            f"{score.dimension}均分 {score.score}，需要重点跟进"
+            for score in dimension_averages
+            if score.score < 78
+        ]
+        return ClassAbilityProfile(
+            heatmap=heatmap,
+            direction_distribution=[
+                DirectionDistributionItem(
+                    direction=direction,
+                    count=count,
+                    ratio=round(count / submitted_count, 2),
+                )
+                for direction, count in direction_counts.items()
+            ],
+            data_coverage=[
+                DataCoverageMetric(
+                    label="作业提交覆盖",
+                    covered=submitted_count,
+                    total=32,
+                    ratio=round(submitted_count / 32, 2),
+                ),
+                DataCoverageMetric(
+                    label="代码结构证据",
+                    covered=len([report for report in reports if report.code_structure.file_count > 0]),
+                    total=submitted_count,
+                    ratio=1.0,
+                ),
+                DataCoverageMetric(
+                    label="测试证据",
+                    covered=test_covered,
+                    total=submitted_count,
+                    ratio=round(test_covered / submitted_count, 2),
+                ),
+                DataCoverageMetric(
+                    label="文档证据",
+                    covered=doc_covered,
+                    total=submitted_count,
+                    ratio=round(doc_covered / submitted_count, 2),
+                ),
+            ],
+            common_weaknesses=common_weaknesses or ["当前维度均分稳定，建议继续补充可验证过程证据。"],
+            summary=(
+                f"已基于 {submitted_count} 份作业报告生成班级能力分布，"
+                "覆盖作业提交、代码结构、测试和文档证据。"
+            ),
         )
 
     def _build_report(
@@ -342,6 +425,13 @@ class AssignmentService:
         if score >= 75:
             return f"{dimension}达到课程阶段要求，但仍有集中改进空间。"
         return f"{dimension}低于预期，需要在下一次作业中重点跟进。"
+
+    def _score_level(self, score: int) -> str:
+        if score >= 85:
+            return "strong"
+        if score >= 75:
+            return "stable"
+        return "weak"
 
     def _build_teaching_suggestions(
         self,

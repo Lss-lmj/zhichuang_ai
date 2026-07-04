@@ -168,6 +168,7 @@
 - 提交统计。
 - 维度分布。
 - 共性问题。
+- 班级能力画像：能力热力图、方向分布、数据覆盖率、共性短板。
 - 学生报告列表。
 - 讲评建议。
 
@@ -183,6 +184,21 @@
   "metrics": [],
   "dimension_averages": [],
   "common_findings": [],
+  "class_profile": {
+    "heatmap": [
+      {
+        "student_id": "student_001",
+        "student_name": "林一舟",
+        "dimension": "测试意识",
+        "score": 71,
+        "level": "weak"
+      }
+    ],
+    "direction_distribution": [{"direction": "AI 应用开发", "count": 1, "ratio": 0.2}],
+    "data_coverage": [{"label": "测试证据", "covered": 5, "total": 5, "ratio": 1.0}],
+    "common_weaknesses": ["测试意识均分 71，需要重点跟进"],
+    "summary": "已基于 5 份作业报告生成班级能力分布。"
+  },
   "teaching_suggestions": [
     {
       "knowledge_point": "接口测试与业务逻辑测试",
