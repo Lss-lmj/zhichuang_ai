@@ -95,6 +95,22 @@
 - 学生报告列表。
 - 讲评建议。
 
+当前演示接口返回字段：
+
+```json
+{
+  "assignment_id": "assignment_flask_mvp",
+  "assignment_title": "Flask Web 项目实践",
+  "submitted_count": 5,
+  "total_students": 32,
+  "average_score": 80,
+  "metrics": [],
+  "dimension_averages": [],
+  "common_findings": [],
+  "reports": []
+}
+```
+
 ## 4. 课程与班级
 
 ### `GET /courses`
