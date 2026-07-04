@@ -6,6 +6,7 @@ import { analyzeDemoAssignment, fetchAssignmentDashboard } from "../shared/api/a
 import { createDemoSession, fetchDemoAccounts } from "../shared/api/auth";
 import {
   createTeamRequest,
+  fetchCompetitionCatalog,
   fetchTeamPoolStatus,
   fetchGrowthProfile,
   generateLearningPlan,
@@ -21,6 +22,7 @@ import type { AssignmentDashboard, AssignmentReport } from "../shared/types/assi
 import type { DemoAccount } from "../shared/types/auth";
 import type { EvaluationDashboardResponse } from "../shared/types/evaluations";
 import type {
+  CompetitionCatalogResponse,
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
@@ -39,6 +41,8 @@ export function Dashboard() {
   const [profile, setProfile] = useState<GrowthProfile | null>(null);
   const [plan, setPlan] = useState<LearningPlan | null>(null);
   const [competitions, setCompetitions] = useState<CompetitionRecommendResponse | null>(null);
+  const [competitionCatalog, setCompetitionCatalog] =
+    useState<CompetitionCatalogResponse | null>(null);
   const [team, setTeam] = useState<TeamRecommendResponse | null>(null);
   const [teamRequest, setTeamRequest] = useState<TeamRequestCard | null>(null);
   const [teamStatus, setTeamStatus] = useState<TeamPoolStatus | null>(null);
@@ -74,6 +78,7 @@ export function Dashboard() {
           dashboardData,
           profileData,
           planData,
+          competitionCatalogData,
           competitionData,
           teamData,
           teamRequestData,
@@ -91,6 +96,7 @@ export function Dashboard() {
           fetchAssignmentDashboard(),
           fetchGrowthProfile(),
           generateLearningPlan(),
+          fetchCompetitionCatalog(),
           recommendCompetitions(),
           recommendTeam(),
           createTeamRequest(),
@@ -110,6 +116,7 @@ export function Dashboard() {
           setDashboard(dashboardData);
           setProfile(profileData);
           setPlan(planData);
+          setCompetitionCatalog(competitionCatalogData);
           setCompetitions(competitionData);
           setTeam(teamData);
           setTeamRequest(teamRequestData);
@@ -157,11 +164,12 @@ export function Dashboard() {
     mode === "growth" &&
     profile &&
     plan &&
+    competitionCatalog &&
     competitions &&
     team &&
     teamRequest &&
     teamStatus
-      ? { profile, plan, competitions, team, teamRequest, teamStatus }
+      ? { profile, plan, competitionCatalog, competitions, team, teamRequest, teamStatus }
       : null;
 
   async function handleAskAgent(question = chatQuestion) {
@@ -672,6 +680,7 @@ function KnowledgeAssistant({
 function GrowthPath({
   profile,
   plan,
+  competitionCatalog,
   competitions,
   team,
   teamRequest,
@@ -679,6 +688,7 @@ function GrowthPath({
 }: {
   profile: GrowthProfile;
   plan: LearningPlan;
+  competitionCatalog: CompetitionCatalogResponse;
   competitions: CompetitionRecommendResponse;
   team: TeamRecommendResponse;
   teamRequest: TeamRequestCard;
@@ -754,6 +764,28 @@ function GrowthPath({
       </section>
 
       <section className="panel-grid">
+        <article className="panel wide">
+          <div className="panel-header">
+            <div>
+              <span className="section-label">竞赛信息库</span>
+              <h2>首批 {competitionCatalog.total} 个计算机相关竞赛或赛道</h2>
+            </div>
+            <span className="muted">更新 {competitionCatalog.updated_at}</span>
+          </div>
+          <div className="competition-catalog">
+            {competitionCatalog.competitions.map((item) => (
+              <article className="competition-card" key={item.competition_id}>
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.category}</span>
+                </div>
+                <p>{item.registration_time}</p>
+                <small>{item.tracks.join(" / ")}</small>
+              </article>
+            ))}
+          </div>
+        </article>
+
         <article className="panel">
           <span className="section-label">竞赛推荐</span>
           <div className="recommend-list">

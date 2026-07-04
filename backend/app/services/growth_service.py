@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from app.schemas.growth import (
     CapabilityDimension,
+    CompetitionCatalogResponse,
+    CompetitionInfo,
     CompetitionRecommendation,
     CompetitionRecommendRequest,
     CompetitionRecommendResponse,
@@ -21,6 +23,8 @@ from app.schemas.growth import (
 class GrowthService:
     generated_at = "2026-07-05T09:00:00+08:00"
     team_created_at = "2026-07-05T11:20:00+08:00"
+    competition_updated_at = "2026-07-05T11:40:00+08:00"
+    competition_source_note = "系统内置首批竞赛清单，管理员可根据官方通知维护更新。"
 
     def get_profile(self, student_id: str) -> GrowthProfileResponse:
         return GrowthProfileResponse(
@@ -161,6 +165,132 @@ class GrowthService:
                     risk="与项目开发争抢时间，需要固定训练节奏。",
                 ),
             ],
+        )
+
+    def list_competitions(self) -> CompetitionCatalogResponse:
+        competitions = [
+            CompetitionInfo(
+                competition_id="competition_c4",
+                name="中国大学生计算机设计大赛",
+                organizer="中国大学生计算机设计大赛组织委员会",
+                category="工程开发类",
+                tracks=["软件应用", "AI 应用", "数字媒体"],
+                registration_time="以当年官方通知为准",
+                participant_requirements=(
+                    "普通高校在校学生组队参赛，具体组别以官方通知为准。"
+                ),
+                work_requirements="提交可运行作品、说明材料、演示视频和证明材料。",
+                official_url="https://jsjds.blcu.edu.cn/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+            CompetitionInfo(
+                competition_id="competition_cy",
+                name="中国国际大学生创新大赛",
+                organizer="教育部等单位",
+                category="创新创业类",
+                tracks=["高教主赛道", "青年红色筑梦之旅", "产业命题"],
+                registration_time="以当年官方通知为准",
+                participant_requirements=(
+                    "高校学生团队参赛，负责人和成员要求以官方通知为准。"
+                ),
+                work_requirements="提交项目计划书、路演材料、佐证材料和展示 Demo。",
+                official_url="https://cy.ncss.cn/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+            CompetitionInfo(
+                competition_id="competition_lanqiao",
+                name="蓝桥杯全国软件和信息技术专业人才大赛",
+                organizer="工业和信息化部人才交流中心等单位",
+                category="算法类",
+                tracks=["软件类", "电子类", "视觉艺术类"],
+                registration_time="以当年官方通知为准",
+                participant_requirements=(
+                    "在校学生可按组别报名，具体科目和资格以官方通知为准。"
+                ),
+                work_requirements="按赛项完成在线编程、算法题或相关作品提交。",
+                official_url="https://dasai.lanqiao.cn/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+            CompetitionInfo(
+                competition_id="competition_icpc",
+                name="ICPC 国际大学生程序设计竞赛",
+                organizer="ICPC Foundation 及区域赛承办单位",
+                category="算法类",
+                tracks=["区域赛", "邀请赛", "校内选拔"],
+                registration_time="以各赛站官方通知为准",
+                participant_requirements="通常为高校学生三人组队参赛，资格以赛站规则为准。",
+                work_requirements="在限定时间内完成算法编程题目。",
+                official_url="https://icpc.global/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+            CompetitionInfo(
+                competition_id="competition_challenge_cup",
+                name="挑战杯大学生课外学术科技作品竞赛",
+                organizer="共青团中央、中国科协、教育部等单位",
+                category="创新创业类",
+                tracks=["自然科学类", "科技发明制作", "哲学社会科学类"],
+                registration_time="以当届官方通知为准",
+                participant_requirements=(
+                    "高校学生团队或个人参赛，具体要求以官方通知为准。"
+                ),
+                work_requirements="提交学术科技作品、研究报告、证明材料和答辩材料。",
+                official_url="https://www.tiaozhanbei.net/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+            CompetitionInfo(
+                competition_id="competition_service_outsourcing",
+                name="中国大学生服务外包创新创业大赛",
+                organizer="教育部、商务部等相关单位指导",
+                category="工程开发类",
+                tracks=["企业命题", "创业实践", "软件服务"],
+                registration_time="以当年官方通知为准",
+                participant_requirements="高校学生组队参赛，命题和资格以官方通知为准。",
+                work_requirements="围绕命题提交解决方案、系统原型、演示视频和文档。",
+                official_url="https://www.fwwb.org.cn/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+            CompetitionInfo(
+                competition_id="competition_ai_challenge",
+                name="人工智能创新挑战赛",
+                organizer="赛事主办单位或产业平台",
+                category="AI 类",
+                tracks=["机器学习", "智能应用", "行业算法"],
+                registration_time="以对应赛事官方通知为准",
+                participant_requirements=(
+                    "学生或团队按赛题要求报名，数据使用规则以官方说明为准。"
+                ),
+                work_requirements="提交模型方案、实验结果、代码说明和应用展示。",
+                official_url="https://www.datafountain.cn/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+            CompetitionInfo(
+                competition_id="competition_data_mining",
+                name="数据挖掘与大数据挑战赛",
+                organizer="高校、学会或产业数据竞赛平台",
+                category="AI 类",
+                tracks=["数据分析", "预测建模", "大数据应用"],
+                registration_time="以具体赛题官方通知为准",
+                participant_requirements=(
+                    "按赛题平台注册参赛，团队人数和数据规则以官方说明为准。"
+                ),
+                work_requirements="提交预测结果、方法报告、代码说明和复现实验记录。",
+                official_url="https://www.datafountain.cn/",
+                updated_at=self.competition_updated_at,
+                source_note=self.competition_source_note,
+            ),
+        ]
+
+        return CompetitionCatalogResponse(
+            total=len(competitions),
+            updated_at=self.competition_updated_at,
+            competitions=competitions,
         )
 
     def recommend_team(self, payload: TeamRecommendRequest) -> TeamRecommendResponse:

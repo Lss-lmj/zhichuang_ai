@@ -45,6 +45,26 @@ export type CompetitionRecommendation = {
   risk: string;
 };
 
+export type CompetitionInfo = {
+  competition_id: string;
+  name: string;
+  organizer: string;
+  category: string;
+  tracks: string[];
+  registration_time: string;
+  participant_requirements: string;
+  work_requirements: string;
+  official_url: string;
+  updated_at: string;
+  source_note: string;
+};
+
+export type CompetitionCatalogResponse = {
+  total: number;
+  updated_at: string;
+  competitions: CompetitionInfo[];
+};
+
 export type CompetitionRecommendResponse = {
   student_id: string;
   target: string;

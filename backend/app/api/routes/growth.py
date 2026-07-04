@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.schemas.growth import (
+    CompetitionCatalogResponse,
     CompetitionRecommendRequest,
     CompetitionRecommendResponse,
     GrowthProfileResponse,
@@ -32,6 +33,11 @@ def recommend_competitions(
     payload: CompetitionRecommendRequest,
 ) -> CompetitionRecommendResponse:
     return GrowthService().recommend_competitions(payload)
+
+
+@router.get("/competitions", response_model=CompetitionCatalogResponse)
+def list_competitions() -> CompetitionCatalogResponse:
+    return GrowthService().list_competitions()
 
 
 @router.post("/teams/recommend", response_model=TeamRecommendResponse)

@@ -607,6 +607,41 @@ h1 {
   margin: 0;
 }
 
+.competition-catalog {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.competition-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.competition-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.competition-card span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.competition-card p,
+.competition-card small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .team-request-card,
 .team-privacy {
   display: grid;
@@ -1035,6 +1070,7 @@ h1 {
   .academic-metrics,
   .timeline,
   .task-board,
+  .competition-catalog,
   .student-grid {
     grid-template-columns: 1fr;
   }

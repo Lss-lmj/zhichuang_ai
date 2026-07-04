@@ -53,6 +53,26 @@ class CompetitionRecommendRequest(BaseModel):
     available_weeks: int = 8
 
 
+class CompetitionInfo(BaseModel):
+    competition_id: str
+    name: str
+    organizer: str
+    category: str
+    tracks: list[str] = Field(default_factory=list)
+    registration_time: str
+    participant_requirements: str
+    work_requirements: str
+    official_url: str
+    updated_at: str
+    source_note: str
+
+
+class CompetitionCatalogResponse(BaseModel):
+    total: int
+    updated_at: str
+    competitions: list[CompetitionInfo]
+
+
 class CompetitionRecommendation(BaseModel):
     name: str
     category: str

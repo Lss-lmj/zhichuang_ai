@@ -1,4 +1,5 @@
 import type {
+  CompetitionCatalogResponse,
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
@@ -51,6 +52,10 @@ export function recommendCompetitions(
       available_weeks: 8,
     }),
   });
+}
+
+export function fetchCompetitionCatalog(): Promise<CompetitionCatalogResponse> {
+  return requestJson<CompetitionCatalogResponse>("/competitions");
 }
 
 export function recommendTeam(studentId = "student_001"): Promise<TeamRecommendResponse> {

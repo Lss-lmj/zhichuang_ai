@@ -16,6 +16,7 @@ def test_student_profile_returns_capability_dimensions() -> None:
 def test_learning_plan_and_recommendations() -> None:
     client = TestClient(app)
     plan_response = client.post("/api/plans/generate", json={"student_id": "student_001", "weeks": 4})
+    catalog_response = client.get("/api/competitions")
     competition_response = client.post(
         "/api/competitions/recommend",
         json={"student_id": "student_001", "target": "AI 应用开发"},
@@ -26,9 +27,12 @@ def test_learning_plan_and_recommendations() -> None:
     )
 
     assert plan_response.status_code == 200
+    assert catalog_response.status_code == 200
     assert competition_response.status_code == 200
     assert team_response.status_code == 200
     assert len(plan_response.json()["tasks"]) == 4
+    assert catalog_response.json()["total"] >= 8
+    assert catalog_response.json()["competitions"][0]["official_url"]
     assert len(competition_response.json()["recommendations"]) >= 2
     assert len(team_response.json()["candidates"]) >= 2
 
