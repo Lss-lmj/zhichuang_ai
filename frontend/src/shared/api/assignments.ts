@@ -18,9 +18,14 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function analyzeDemoAssignment(): Promise<AssignmentReport> {
+function authHeaders(token?: string): HeadersInit {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function analyzeDemoAssignment(token?: string): Promise<AssignmentReport> {
   return requestJson<AssignmentReport>("/assignments/analyze", {
     method: "POST",
+    headers: authHeaders(token),
     body: JSON.stringify({
       assignment_title: "Flask Web 项目实践",
       course_id: "course_web_2026",
@@ -34,7 +39,10 @@ export function analyzeDemoAssignment(): Promise<AssignmentReport> {
           content:
             "from flask import Flask, render_template\napp = Flask(__name__)\n@app.route('/todos')\ndef todos(): return render_template('todos.html')",
         },
-        { path: "services/todo_service.py", content: "import sqlite3\ndef create_todo(title): return sqlite3.connect('demo.db')" },
+        {
+          path: "services/todo_service.py",
+          content: "import sqlite3\ndef create_todo(title): return sqlite3.connect('demo.db')",
+        },
         { path: "tests/test_app.py", content: "def test_todos_page(): assert True" },
         { path: "requirements.txt", content: "flask\npytest" },
         { path: "README.md", content: "Flask Web 项目实践" },
@@ -43,6 +51,8 @@ export function analyzeDemoAssignment(): Promise<AssignmentReport> {
   });
 }
 
-export function fetchAssignmentDashboard(): Promise<AssignmentDashboard> {
-  return requestJson<AssignmentDashboard>("/assignments/assignment_flask_mvp/dashboard");
+export function fetchAssignmentDashboard(token?: string): Promise<AssignmentDashboard> {
+  return requestJson<AssignmentDashboard>("/assignments/assignment_flask_mvp/dashboard", {
+    headers: authHeaders(token),
+  });
 }

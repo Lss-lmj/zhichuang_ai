@@ -2,6 +2,8 @@
 
 接口前缀：`/api`
 
+鉴权约定：公网 Demo 使用 `POST /auth/demo-session` 返回的演示 token。需要角色或授权范围控制的接口通过 `Authorization: Bearer <token>` 传入账号身份；未传 token 时，作业分析相关接口默认使用教师演示账号，便于本地快速演示。越权访问返回 `403`。
+
 ## 1. 健康检查
 
 ### `GET /health`
@@ -33,6 +35,7 @@
 ```
 
 响应包含演示 token、账号角色、授权课程、授权班级和可访问模块。
+示例 token 格式为 `demo-token-teacher_001`，仅用于 Demo 和本地开发。
 
 ### 2.2 智能体对话
 
@@ -145,6 +148,7 @@
     }
   ],
   "improvement_tasks": ["将本次报告中的能力证据同步到个人画像，用于后续路径和竞赛推荐。"],
+  "access_scope": "teacher:authorized_course_class",
   "ai_generated": true
 }
 ```
@@ -152,10 +156,12 @@
 ### `GET /assignments/{assignment_id}/reports/{student_id}`
 
 查看某个学生的作业分析报告。
+学生只能查看自己的报告；教师只能查看授权课程和班级下的学生报告；管理员可查看演示范围内报告。
 
 ### `GET /assignments/{assignment_id}/dashboard`
 
 教师查看某次作业的班级分析看板。
+学生账号访问班级看板会返回 `403`。
 
 响应包含：
 

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import re
 
+from fastapi import HTTPException, status
+
+from app.schemas.auth import DemoAccount
 from app.schemas.assignments import (
     AssignmentDashboardMetric,
     AssignmentDashboardResponse,
@@ -40,20 +43,36 @@ class AssignmentService:
         "student_005": "许嘉木",
     }
 
-    def analyze(self, payload: AssignmentAnalysisRequest) -> AssignmentAnalysisResponse:
+    def analyze(
+        self,
+        payload: AssignmentAnalysisRequest,
+        account: DemoAccount | None = None,
+    ) -> AssignmentAnalysisResponse:
+        account = account or self._demo_teacher_account()
         student_id = payload.student_id or "student_001"
+        course_id = payload.course_id or self.course["id"]
+        class_id = payload.class_id or self.class_group["id"]
+        self._ensure_report_access(account, course_id, class_id, student_id)
         return self._build_report(
             student_id=student_id,
             assignment_title=payload.assignment_title,
-            course_id=payload.course_id or self.course["id"],
-            class_id=payload.class_id or self.class_group["id"],
+            course_id=course_id,
+            class_id=class_id,
             repository_url=payload.repository_url,
             description=payload.description,
             files=payload.files,
+            access_scope=self._access_scope(account),
         )
 
-    def get_report(self, assignment_id: str, student_id: str) -> AssignmentAnalysisResponse:
+    def get_report(
+        self,
+        assignment_id: str,
+        student_id: str,
+        account: DemoAccount | None = None,
+    ) -> AssignmentAnalysisResponse:
+        account = account or self._demo_teacher_account()
         title = self.assignment["title"] if assignment_id == self.assignment["id"] else assignment_id
+        self._ensure_report_access(account, self.course["id"], self.class_group["id"], student_id)
         return self._build_report(
             student_id=student_id,
             assignment_title=title,
@@ -62,10 +81,20 @@ class AssignmentService:
             repository_url="https://example.edu/demo/flask-project",
             description="示例作业包含 Flask 路由、SQLite 数据访问、README 和基础测试。",
             files=self._demo_files(),
+            access_scope=self._access_scope(account),
         )
 
-    def get_dashboard(self, assignment_id: str) -> AssignmentDashboardResponse:
-        reports = [self.get_report(assignment_id, student_id) for student_id in self.students]
+    def get_dashboard(
+        self,
+        assignment_id: str,
+        account: DemoAccount | None = None,
+    ) -> AssignmentDashboardResponse:
+        account = account or self._demo_teacher_account()
+        self._ensure_dashboard_access(account, self.course["id"], self.class_group["id"])
+        reports = [
+            self.get_report(assignment_id, student_id, account=account)
+            for student_id in self.students
+        ]
         dimension_names = [score.dimension for score in reports[0].scores]
         dimension_averages = []
         for dimension in dimension_names:
@@ -135,6 +164,7 @@ class AssignmentService:
                 )
                 for report in reports
             ],
+            access_scope=self._access_scope(account),
         )
 
     def _build_report(
@@ -146,6 +176,7 @@ class AssignmentService:
         repository_url: str | None,
         description: str | None,
         files: list[CodeFile],
+        access_scope: str,
     ) -> AssignmentAnalysisResponse:
         student_name = self.students.get(student_id, "演示学生")
         structure = self._analyze_files(files)
@@ -292,6 +323,7 @@ class AssignmentService:
                     snippet="项目报告应包含需求背景、架构设计、接口设计、测试和可扩展方向。",
                 ),
             ],
+            access_scope=access_scope,
         )
 
     def _overall_score(self, report: AssignmentAnalysisResponse) -> int:
@@ -461,6 +493,74 @@ class AssignmentService:
 
     def _has_any(self, items: list[str], targets: list[str]) -> bool:
         return any(target in items for target in targets)
+
+    def _ensure_report_access(
+        self,
+        account: DemoAccount,
+        course_id: str,
+        class_id: str,
+        student_id: str,
+    ) -> None:
+        if account.role == "admin":
+            return
+        if account.role == "student" and account.user_id == student_id:
+            return
+        if account.role == "teacher" and self._has_course_class_access(account, course_id, class_id):
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No access to this assignment report",
+        )
+
+    def _ensure_dashboard_access(
+        self,
+        account: DemoAccount,
+        course_id: str,
+        class_id: str,
+    ) -> None:
+        if account.role == "admin":
+            return
+        if account.role == "teacher" and self._has_course_class_access(account, course_id, class_id):
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No access to this assignment dashboard",
+        )
+
+    def _has_course_class_access(
+        self,
+        account: DemoAccount,
+        course_id: str,
+        class_id: str,
+    ) -> bool:
+        course_allowed = (
+            self.course["name"] in account.authorized_courses
+            or course_id in account.authorized_courses
+        )
+        class_allowed = (
+            self.class_group["name"] in account.authorized_classes
+            or class_id in account.authorized_classes
+        )
+        return course_allowed and class_allowed
+
+    def _access_scope(self, account: DemoAccount) -> str:
+        if account.role == "admin":
+            return "admin:all_demo_courses"
+        if account.role == "teacher":
+            return "teacher:authorized_course_class"
+        return "student:self"
+
+    def _demo_teacher_account(self) -> DemoAccount:
+        return DemoAccount(
+            user_id="teacher_001",
+            name="周老师",
+            role="teacher",
+            title="教师演示账号",
+            default_view="teacher",
+            authorized_courses=[self.course["name"]],
+            authorized_classes=[self.class_group["name"]],
+            modules=["教师看板", "学生报告", "知识库问答"],
+        )
 
     def _demo_files(self) -> list[CodeFile]:
         return [

@@ -89,6 +89,7 @@ class AssignmentAnalysisResponse(BaseModel):
     capability_evidence: list[CapabilityEvidence]
     improvement_tasks: list[str]
     citations: list[Citation] = Field(default_factory=list)
+    access_scope: str = "demo"
     ai_generated: bool = True
 
 
@@ -107,4 +108,5 @@ class AssignmentDashboardResponse(BaseModel):
     dimension_averages: list[AssignmentScore]
     common_findings: list[AssignmentFinding]
     reports: list[AssignmentReportSummary]
+    access_scope: str = "demo"
     ai_generated: bool = True

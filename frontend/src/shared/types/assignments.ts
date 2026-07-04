@@ -53,6 +53,7 @@ export type AssignmentReport = {
   capability_evidence: CapabilityEvidence[];
   improvement_tasks: string[];
   citations: Citation[];
+  access_scope: string;
   ai_generated: boolean;
 };
 
@@ -86,5 +87,6 @@ export type AssignmentDashboard = {
   dimension_averages: AssignmentScore[];
   common_findings: AssignmentFinding[];
   reports: AssignmentReportSummary[];
+  access_scope: string;
   ai_generated: boolean;
 };

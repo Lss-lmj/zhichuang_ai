@@ -38,13 +38,17 @@ def test_assignment_analysis_returns_report() -> None:
 
 def test_assignment_dashboard_returns_teacher_view() -> None:
     client = TestClient(app)
-    response = client.get("/api/assignments/assignment_flask_mvp/dashboard")
+    response = client.get(
+        "/api/assignments/assignment_flask_mvp/dashboard",
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+    )
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["submitted_count"] == 5
     assert payload["total_students"] == 32
     assert len(payload["reports"]) == 5
+    assert payload["access_scope"] == "teacher:authorized_course_class"
 
 
 def test_assignment_analysis_flags_missing_tests_from_uploaded_files() -> None:
@@ -70,3 +74,29 @@ def test_assignment_analysis_flags_missing_tests_from_uploaded_files() -> None:
     assert payload["findings"][0]["severity"] == "high"
     assert payload["findings"][0]["title"] == "测试覆盖不足"
     assert "自动化测试" in payload["improvement_tasks"][0]
+
+
+def test_student_can_only_access_own_assignment_report() -> None:
+    client = TestClient(app)
+    own_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_001",
+        headers={"Authorization": "Bearer demo-token-student_001"},
+    )
+    other_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_002",
+        headers={"Authorization": "Bearer demo-token-student_001"},
+    )
+
+    assert own_response.status_code == 200
+    assert own_response.json()["access_scope"] == "student:self"
+    assert other_response.status_code == 403
+
+
+def test_student_cannot_access_assignment_dashboard() -> None:
+    client = TestClient(app)
+    response = client.get(
+        "/api/assignments/assignment_flask_mvp/dashboard",
+        headers={"Authorization": "Bearer demo-token-student_001"},
+    )
+
+    assert response.status_code == 403

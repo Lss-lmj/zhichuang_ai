@@ -97,8 +97,8 @@ export function Dashboard() {
           classesData,
           studentsData,
         ] = await Promise.all([
-          analyzeDemoAssignment(),
-          fetchAssignmentDashboard(),
+          analyzeDemoAssignment("demo-token-teacher_001"),
+          fetchAssignmentDashboard("demo-token-teacher_001"),
           fetchGrowthProfile(),
           addProfileEvidence(),
           generateLearningPlan(),
@@ -214,6 +214,12 @@ export function Dashboard() {
       setError(null);
       const session = await createDemoSession(userId);
       setCurrentAccount(session.account);
+      const nextReport = await analyzeDemoAssignment(session.token);
+      setReport(nextReport);
+      if (session.account.role === "teacher" || session.account.role === "admin") {
+        const nextDashboard = await fetchAssignmentDashboard(session.token);
+        setDashboard(nextDashboard);
+      }
       setMode(session.account.default_view);
     } catch (err) {
       setError(err instanceof Error ? err.message : "演示账号切换失败");
@@ -233,6 +239,10 @@ export function Dashboard() {
     } finally {
       setKnowledgeLoading(false);
     }
+  }
+
+  function canAccessModule(module: string) {
+    return currentAccount?.modules.includes(module) ?? true;
   }
 
   async function handleGenerateReview() {
@@ -283,15 +293,30 @@ export function Dashboard() {
         </div>
 
         <nav className="nav-list" aria-label="主导航">
-          <button className={mode === "teacher" ? "active" : ""} onClick={() => setMode("teacher")}>
-            教师看板
-          </button>
-          <button className={mode === "student" ? "active" : ""} onClick={() => setMode("student")}>
-            学生报告
-          </button>
-          <button className={mode === "growth" ? "active" : ""} onClick={() => setMode("growth")}>
-            成长路径
-          </button>
+          {canAccessModule("教师看板") && (
+            <button
+              className={mode === "teacher" ? "active" : ""}
+              onClick={() => setMode("teacher")}
+            >
+              教师看板
+            </button>
+          )}
+          {canAccessModule("学生报告") && (
+            <button
+              className={mode === "student" ? "active" : ""}
+              onClick={() => setMode("student")}
+            >
+              学生报告
+            </button>
+          )}
+          {canAccessModule("成长路径") && (
+            <button
+              className={mode === "growth" ? "active" : ""}
+              onClick={() => setMode("growth")}
+            >
+              成长路径
+            </button>
+          )}
           <button className={mode === "tasks" ? "active" : ""} onClick={() => setMode("tasks")}>
             任务复盘
           </button>
@@ -307,20 +332,24 @@ export function Dashboard() {
           >
             课程班级
           </button>
-          <button className={mode === "kb" ? "active" : ""} onClick={() => setMode("kb")}>
-            知识库管理
-          </button>
-          <button
-            className={mode === "knowledge" ? "active" : ""}
-            onClick={() => {
-              setMode("knowledge");
-              if (!chatResponse) {
-                handleAskAgent();
-              }
-            }}
-          >
-            知识库问答
-          </button>
+          {canAccessModule("知识库管理") && (
+            <button className={mode === "kb" ? "active" : ""} onClick={() => setMode("kb")}>
+              知识库管理
+            </button>
+          )}
+          {canAccessModule("知识库问答") && (
+            <button
+              className={mode === "knowledge" ? "active" : ""}
+              onClick={() => {
+                setMode("knowledge");
+                if (!chatResponse) {
+                  handleAskAgent();
+                }
+              }}
+            >
+              知识库问答
+            </button>
+          )}
         </nav>
 
         <div className="side-note">
@@ -461,6 +490,7 @@ function TeacherDashboard({ dashboard }: { dashboard: AssignmentDashboard }) {
           </article>
         ))}
       </section>
+      <AccessScopeBadge value={dashboard.access_scope} />
       <AiGeneratedNotice text="本页班级诊断和讲评建议为 AI 生成，仅供参考；需结合课程要求和作业提交物核验。" />
 
       <section className="panel-grid">
@@ -536,6 +566,7 @@ function StudentReport({
         </div>
         <strong className="big-score">{averageScore}</strong>
       </section>
+      <AccessScopeBadge value={report.access_scope} />
       <AiGeneratedNotice text="本页作业报告和评分为 AI 生成，仅供参考；分数是基于证据的相对画像，需结合提交物核验。" />
 
       <section className="code-structure-panel">
@@ -603,6 +634,15 @@ function StudentReport({
         </article>
       </section>
     </>
+  );
+}
+
+function AccessScopeBadge({ value }: { value: string }) {
+  return (
+    <div className="access-scope-badge">
+      <strong>访问范围</strong>
+      <span>{value}</span>
+    </div>
   );
 }
 

@@ -389,6 +389,24 @@ h1 {
   color: var(--blue);
 }
 
+.access-scope-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 7px 9px;
+  color: var(--muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.access-scope-badge strong {
+  color: var(--ink);
+}
+
 .score-detail p,
 .finding-item p,
 .evidence-list p,

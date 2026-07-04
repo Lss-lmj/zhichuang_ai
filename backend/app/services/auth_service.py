@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from fastapi import HTTPException, status
+
 from app.schemas.auth import DemoAccount, DemoAccountsResponse, DemoSessionResponse
 
 
@@ -48,8 +50,25 @@ class AuthService:
             expires_in=60 * 60 * 8,
         )
 
+    def current_account(self, authorization: str | None) -> DemoAccount:
+        if not authorization:
+            return self._find_account("teacher_001")
+
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token.startswith("demo-token-"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid demo token",
+            )
+
+        user_id = token.removeprefix("demo-token-")
+        return self._find_account(user_id)
+
     def _find_account(self, user_id: str) -> DemoAccount:
         for account in self.accounts:
             if account.user_id == user_id:
                 return account
-        return self.accounts[0]
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Demo account not found",
+        )
