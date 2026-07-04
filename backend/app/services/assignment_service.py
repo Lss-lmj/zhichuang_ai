@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
+from hashlib import sha1
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.db.base import Base
+from app.models.assignment import Assignment as AssignmentRecord
+from app.models.assignment import AssignmentReport as AssignmentReportRecord
+from app.models.assignment import Submission as SubmissionRecord
 from app.schemas.auth import DemoAccount
 from app.schemas.assignments import (
     AbilityHeatmapCell,
@@ -57,6 +65,11 @@ class AssignmentService:
         "student_005": "数据与后端",
     }
 
+    def __init__(self, db: Session | None = None) -> None:
+        self.db = db
+        if self.db is not None:
+            Base.metadata.create_all(bind=self.db.get_bind())
+
     def analyze(
         self,
         payload: AssignmentAnalysisRequest,
@@ -67,7 +80,7 @@ class AssignmentService:
         course_id = payload.course_id or self.course["id"]
         class_id = payload.class_id or self.class_group["id"]
         self._ensure_report_access(account, course_id, class_id, student_id)
-        return self._build_report(
+        report = self._build_report(
             student_id=student_id,
             assignment_title=payload.assignment_title,
             course_id=course_id,
@@ -77,6 +90,8 @@ class AssignmentService:
             files=payload.files,
             access_scope=self._access_scope(account),
         )
+        self._save_report(report, payload)
+        return report
 
     def get_report(
         self,
@@ -87,6 +102,10 @@ class AssignmentService:
         account = account or self._demo_teacher_account()
         title = self.assignment["title"] if assignment_id == self.assignment["id"] else assignment_id
         self._ensure_report_access(account, self.course["id"], self.class_group["id"], student_id)
+        stored_report = self._stored_report(assignment_id, student_id)
+        if stored_report is not None:
+            stored_report.access_scope = self._access_scope(account)
+            return stored_report
         return self._build_report(
             student_id=student_id,
             assignment_title=title,
@@ -109,6 +128,7 @@ class AssignmentService:
             self.get_report(assignment_id, student_id, account=account)
             for student_id in self.students
         ]
+        reports.extend(self._stored_reports_for_dashboard(assignment_id, account))
         dimension_names = [score.dimension for score in reports[0].scores]
         dimension_averages = []
         for dimension in dimension_names:
@@ -159,10 +179,14 @@ class AssignmentService:
             class_name=self.class_group["name"],
             generated_at=self.generated_at,
             submitted_count=len(reports),
-            total_students=32,
+            total_students=max(32, len(reports)),
             average_score=average_score,
             metrics=[
-                AssignmentDashboardMetric(label="已提交", value="5 / 32", trend="演示样例"),
+                AssignmentDashboardMetric(
+                    label="已提交",
+                    value=f"{len(reports)} / {max(32, len(reports))}",
+                    trend="系统已分析",
+                ),
                 AssignmentDashboardMetric(label="平均分", value=str(average_score), trend="+6 较上次项目"),
                 AssignmentDashboardMetric(label="共性问题", value="3", trend="集中在测试和异常处理"),
                 AssignmentDashboardMetric(label="讲评重点", value="2", trend="分层设计、测试覆盖"),
@@ -480,6 +504,140 @@ class AssignmentService:
             ],
             access_scope=access_scope,
         )
+
+    def _save_report(
+        self,
+        report: AssignmentAnalysisResponse,
+        payload: AssignmentAnalysisRequest,
+    ) -> None:
+        if self.db is None:
+            return
+        now = datetime.utcnow()
+        assignment = self.db.get(AssignmentRecord, report.assignment_id)
+        if assignment is None:
+            assignment = AssignmentRecord(
+                id=report.assignment_id,
+                course_id=report.course_id,
+                title=report.assignment_title,
+                description=payload.description,
+                rubric_id=payload.rubric_id,
+                created_at=now,
+            )
+            self.db.add(assignment)
+        else:
+            assignment.title = report.assignment_title
+            assignment.description = payload.description
+            assignment.rubric_id = payload.rubric_id
+
+        submission_id = self._submission_id(report.assignment_id, report.student_id, payload)
+        submission = self.db.get(SubmissionRecord, submission_id)
+        if submission is None:
+            submission = SubmissionRecord(
+                id=submission_id,
+                assignment_id=report.assignment_id,
+                student_id=report.student_id,
+                repository_url=payload.repository_url,
+                storage_path=None,
+                status="analyzed",
+                submitted_at=now,
+                created_at=now,
+            )
+            self.db.add(submission)
+        else:
+            submission.repository_url = payload.repository_url
+            submission.status = "analyzed"
+            submission.submitted_at = now
+
+        report_record = self.db.get(AssignmentReportRecord, report.report_id)
+        if report_record is None:
+            report_record = AssignmentReportRecord(
+                id=report.report_id,
+                assignment_id=report.assignment_id,
+                submission_id=submission_id,
+                student_id=report.student_id,
+                summary=report.summary,
+                created_at=now,
+            )
+            self.db.add(report_record)
+        report_record.submission_id = submission_id
+        report_record.summary = report.summary
+        report_record.scores_json = self._assignment_scores_json(report)
+        report_record.evidence_json = self._assignment_evidence_json(report)
+        report_record.findings_json = self._assignment_findings_json(report)
+        self.db.commit()
+
+    def _stored_report(
+        self,
+        assignment_id: str,
+        student_id: str,
+    ) -> AssignmentAnalysisResponse | None:
+        if self.db is None:
+            return None
+        record = self.db.scalars(
+            select(AssignmentReportRecord)
+            .where(AssignmentReportRecord.assignment_id == assignment_id)
+            .where(AssignmentReportRecord.student_id == student_id)
+            .order_by(AssignmentReportRecord.created_at.desc())
+        ).first()
+        if record is None:
+            return None
+        payload = dict(record.evidence_json or {})
+        if not payload:
+            return None
+        payload["access_scope"] = "demo"
+        return AssignmentAnalysisResponse(**payload)
+
+    def _stored_reports_for_dashboard(
+        self,
+        assignment_id: str,
+        account: DemoAccount,
+    ) -> list[AssignmentAnalysisResponse]:
+        if self.db is None:
+            return []
+        records = self.db.scalars(
+            select(AssignmentReportRecord)
+            .where(AssignmentReportRecord.assignment_id == assignment_id)
+            .order_by(AssignmentReportRecord.created_at.asc(), AssignmentReportRecord.id.asc())
+        ).all()
+        reports: list[AssignmentAnalysisResponse] = []
+        seeded_student_ids = set(self.students)
+        for record in records:
+            if record.student_id in seeded_student_ids:
+                continue
+            payload = dict(record.evidence_json or {})
+            if not payload:
+                continue
+            payload["access_scope"] = self._access_scope(account)
+            reports.append(AssignmentAnalysisResponse(**payload))
+        return reports
+
+    def _submission_id(
+        self,
+        assignment_id: str,
+        student_id: str,
+        payload: AssignmentAnalysisRequest,
+    ) -> str:
+        file_basis = "|".join(f"{file.path}:{len(file.content)}" for file in payload.files)
+        raw = (
+            f"{assignment_id}:{student_id}:{payload.repository_url or ''}:"
+            f"{payload.description or ''}:{file_basis}"
+        ).encode("utf-8")
+        return f"submission_{sha1(raw).hexdigest()[:12]}"
+
+    def _assignment_scores_json(self, report: AssignmentAnalysisResponse) -> dict:
+        return {
+            "scores": [score.model_dump(mode="json") for score in report.scores],
+            "overall_score": self._overall_score(report),
+        }
+
+    def _assignment_evidence_json(self, report: AssignmentAnalysisResponse) -> dict:
+        return report.model_dump(mode="json")
+
+    def _assignment_findings_json(self, report: AssignmentAnalysisResponse) -> dict:
+        return {
+            "findings": [finding.model_dump(mode="json") for finding in report.findings],
+            "improvement_tasks": report.improvement_tasks,
+        }
 
     def _overall_score(self, report: AssignmentAnalysisResponse) -> int:
         return round(sum(score.score for score in report.scores) / len(report.scores))

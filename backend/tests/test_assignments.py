@@ -1,6 +1,10 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.main import app
+from app.schemas.assignments import AssignmentAnalysisRequest, CodeFile
+from app.services.assignment_service import AssignmentService
 
 
 def test_assignment_analysis_returns_report() -> None:
@@ -124,3 +128,54 @@ def test_student_cannot_access_assignment_dashboard() -> None:
     )
 
     assert response.status_code == 403
+
+
+def test_assignment_report_persists_in_sqlite_session(tmp_path) -> None:
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'assignments.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    with SessionLocal() as first_session:
+        created = AssignmentService(first_session).analyze(
+            AssignmentAnalysisRequest(
+                assignment_title="FastAPI 课程项目分析",
+                course_id="course_web_2026",
+                class_id="class_cs_2024_01",
+                student_id="student_009",
+                repository_url="https://example.edu/demo/fastapi-project",
+                description="学生提交了 FastAPI 接口、SQLAlchemy 数据访问、测试和 README。",
+                files=[
+                    CodeFile(
+                        path="main.py",
+                        content=(
+                            "from fastapi import FastAPI\n"
+                            "from sqlalchemy import select\n"
+                            "app = FastAPI()\n"
+                            "@app.get('/tasks')\n"
+                            "def tasks(): return []\n"
+                        ),
+                    ),
+                    CodeFile(path="tests/test_main.py", content="def test_tasks(): assert True"),
+                    CodeFile(path="README.md", content="FastAPI 课程项目运行说明"),
+                ],
+            )
+        )
+
+    with SessionLocal() as second_session:
+        service = AssignmentService(second_session)
+        persisted = service.get_report(
+            "assignment_flask_mvp",
+            "student_009",
+        )
+        dashboard = service.get_dashboard("assignment_flask_mvp")
+
+    assert persisted.report_id == created.report_id
+    assert persisted.assignment_title == "FastAPI 课程项目分析"
+    assert persisted.student_id == "student_009"
+    assert persisted.code_structure.test_files == ["tests/test_main.py"]
+    assert "FastAPI" in persisted.code_structure.detected_frameworks
+    assert persisted.evidence_snippets[0].path == "main.py"
+    assert any(report.student_id == "student_009" for report in dashboard.reports)
+    assert dashboard.submitted_count == 6
