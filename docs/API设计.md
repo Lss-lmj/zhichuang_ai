@@ -87,7 +87,7 @@
 
 ### `POST /assignments/analyze`
 
-提交课程作业代码文件、仓库链接或说明，系统生成一份基于提交物证据的作业分析报告。首版支持直接传入文件路径和文本内容，后续可接入压缩包解析或仓库拉取。
+提交课程作业代码文件、仓库链接或说明，系统生成一份基于提交物证据的作业分析报告。首版支持直接传入文件路径和文本内容；如需上传学生作业压缩包，使用 `POST /assignments/upload-archive`。
 生成结果会写入 SQLite `assignment_reports`，并关联 `assignments`、`submissions`，用于后续学生报告查看和教师看板汇总。
 
 请求：
@@ -163,6 +163,28 @@
   "ai_generated": true
 }
 ```
+
+### `POST /assignments/upload-archive`
+
+上传学生作业 zip 压缩包并生成作业分析报告。接口会读取可分析的文本代码文件，跳过依赖目录、二进制文件和过大的文件，然后复用作业分析流程生成报告并写入 SQLite。
+
+请求类型：`multipart/form-data`
+
+字段：
+
+- `assignment_title`：作业标题，必填。
+- `archive`：zip 压缩包，必填。
+- `course_id`、`class_id`、`student_id`、`rubric_id`、`repository_url`、`description`：可选，含义同 `POST /assignments/analyze`。
+
+安全限制：
+
+- 压缩包最大 5MB。
+- 单个文本文件最大 200KB。
+- 文本文件总量最大 1MB。
+- 最多分析 80 个文本文件。
+- 跳过 `node_modules`、`.git`、`.venv`、`venv`、`__MACOSX` 等目录。
+
+响应同 `POST /assignments/analyze`。教师可为授权班级学生上传，学生只能上传并查看自己的作业报告，管理员可维护演示范围内数据。
 
 ### `GET /assignments/{assignment_id}/reports/{student_id}`
 

@@ -1,3 +1,6 @@
+from io import BytesIO
+from zipfile import ZipFile
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -5,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.schemas.assignments import AssignmentAnalysisRequest, CodeFile
 from app.services.assignment_service import AssignmentService
+from app.services.submission_archive_service import SubmissionArchiveService
 
 
 def test_assignment_analysis_returns_report() -> None:
@@ -53,12 +57,12 @@ def test_assignment_dashboard_returns_teacher_view() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["submitted_count"] == 5
+    assert payload["submitted_count"] >= 5
     assert payload["total_students"] == 32
-    assert len(payload["reports"]) == 5
+    assert len(payload["reports"]) == payload["submitted_count"]
     assert payload["access_scope"] == "teacher:authorized_course_class"
     assert payload["class_profile"]["heatmap"]
-    assert len(payload["class_profile"]["heatmap"]) == 25
+    assert len(payload["class_profile"]["heatmap"]) == payload["submitted_count"] * 5
     assert payload["class_profile"]["direction_distribution"]
     assert payload["class_profile"]["data_coverage"]
     assert any(
@@ -102,6 +106,102 @@ def test_assignment_analysis_flags_missing_tests_from_uploaded_files() -> None:
     assert payload["findings"][0]["severity"] == "high"
     assert payload["findings"][0]["title"] == "测试覆盖不足"
     assert "自动化测试" in payload["improvement_tasks"][0]
+
+
+def test_assignment_archive_upload_returns_report() -> None:
+    client = TestClient(app)
+    archive = _zip_bytes(
+        {
+            "src/main.py": (
+                "from fastapi import FastAPI\n"
+                "app = FastAPI()\n"
+                "@app.get('/items')\n"
+                "def items(): return []\n"
+            ),
+            "tests/test_main.py": "def test_items(): assert True\n",
+            "README.md": "课程项目运行说明\n",
+            "requirements.txt": "fastapi\npytest\n",
+        }
+    )
+
+    response = client.post(
+        "/api/assignments/upload-archive",
+        data={
+            "assignment_title": "FastAPI Zip 作业",
+            "course_id": "course_web_2026",
+            "class_id": "class_cs_2024_01",
+            "student_id": "student_zip_001",
+            "description": "学生上传 zip 压缩包，包含 FastAPI 接口、测试和 README。",
+        },
+        files={"archive": ("homework.zip", archive, "application/zip")},
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+    )
+    report_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_zip_001",
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["assignment_title"] == "FastAPI Zip 作业"
+    assert payload["student_id"] == "student_zip_001"
+    assert payload["code_structure"]["file_count"] == 4
+    assert "FastAPI" in payload["code_structure"]["detected_frameworks"]
+    assert payload["code_structure"]["test_files"] == ["tests/test_main.py"]
+    assert report_response.status_code == 200
+    assert report_response.json()["report_id"] == payload["report_id"]
+
+
+def test_assignment_archive_upload_rejects_invalid_zip() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/api/assignments/upload-archive",
+        data={
+            "assignment_title": "无效压缩包",
+            "student_id": "student_001",
+        },
+        files={"archive": ("homework.zip", b"not a zip", "application/zip")},
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+    )
+
+    assert response.status_code == 400
+    assert "有效的 zip" in response.json()["detail"]
+
+
+def test_student_cannot_upload_archive_for_other_student() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/api/assignments/upload-archive",
+        data={
+            "assignment_title": "越权上传",
+            "student_id": "student_002",
+        },
+        files={
+            "archive": (
+                "homework.zip",
+                _zip_bytes({"app.py": "from flask import Flask\napp = Flask(__name__)\n"}),
+                "application/zip",
+            )
+        },
+        headers={"Authorization": "Bearer demo-token-student_001"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_submission_archive_parser_skips_unsafe_paths() -> None:
+    files = SubmissionArchiveService().parse_zip(
+        _zip_bytes(
+            {
+                "../secret.py": "print('skip')",
+                "/absolute.py": "print('skip')",
+                "node_modules/pkg/index.js": "console.log('skip')",
+                "src/app.py": "from flask import Flask\napp = Flask(__name__)\n",
+            }
+        )
+    )
+
+    assert [file.path for file in files] == ["src/app.py"]
 
 
 def test_student_can_only_access_own_assignment_report() -> None:
@@ -179,3 +279,11 @@ def test_assignment_report_persists_in_sqlite_session(tmp_path) -> None:
     assert persisted.evidence_snippets[0].path == "main.py"
     assert any(report.student_id == "student_009" for report in dashboard.reports)
     assert dashboard.submitted_count == 6
+
+
+def _zip_bytes(files: dict[str, str]) -> bytes:
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        for path, content in files.items():
+            archive.writestr(path, content)
+    return buffer.getvalue()

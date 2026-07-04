@@ -6,7 +6,10 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
+import zipfile
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Any
 
 
@@ -44,6 +47,64 @@ class SmokeClient:
             detail = error.read().decode("utf-8", errors="replace")
             raise AssertionError(f"{method} {path} failed with {error.code}: {detail}") from error
 
+    def post_multipart(
+        self,
+        path: str,
+        fields: dict[str, str],
+        files: dict[str, tuple[str, bytes, str]],
+        headers: dict[str, str] | None = None,
+    ) -> Any:
+        boundary = f"----zhichuang-smoke-{uuid.uuid4().hex}"
+        body = self._multipart_body(boundary, fields, files)
+        request_headers = {
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            **(headers or {}),
+        }
+        request = urllib.request.Request(
+            f"{self.api_base.rstrip('/')}/{path.lstrip('/')}",
+            data=body,
+            method="POST",
+            headers=request_headers,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            raise AssertionError(f"POST {path} failed with {error.code}: {detail}") from error
+
+    def _multipart_body(
+        self,
+        boundary: str,
+        fields: dict[str, str],
+        files: dict[str, tuple[str, bytes, str]],
+    ) -> bytes:
+        chunks: list[bytes] = []
+        for name, value in fields.items():
+            chunks.extend(
+                [
+                    f"--{boundary}\r\n".encode("utf-8"),
+                    f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode("utf-8"),
+                    value.encode("utf-8"),
+                    b"\r\n",
+                ]
+            )
+        for name, (filename, content, content_type) in files.items():
+            chunks.extend(
+                [
+                    f"--{boundary}\r\n".encode("utf-8"),
+                    (
+                        f'Content-Disposition: form-data; name="{name}"; '
+                        f'filename="{filename}"\r\n'
+                    ).encode("utf-8"),
+                    f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"),
+                    content,
+                    b"\r\n",
+                ]
+            )
+        chunks.append(f"--{boundary}--\r\n".encode("utf-8"))
+        return b"".join(chunks)
+
     def expect_forbidden(
         self,
         method: str,
@@ -71,6 +132,14 @@ class SmokeClient:
 def assert_true(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def zip_bytes(files: dict[str, str]) -> bytes:
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for path, content in files.items():
+            archive.writestr(path, content)
+    return buffer.getvalue()
 
 
 def main() -> int:
@@ -118,6 +187,36 @@ def main() -> int:
     assert_true(report["student_id"] == "student_001", "student report access failed")
     assert_true(report["code_structure"]["file_count"] >= 1, "code structure summary missing")
     assert_true(report["evidence_snippets"], "code evidence snippets missing")
+
+    uploaded_report = client.post_multipart(
+        "/assignments/upload-archive",
+        {
+            "assignment_title": "Smoke Zip 作业",
+            "course_id": "course_web_2026",
+            "class_id": "class_cs_2024_01",
+            "student_id": "student_smoke_zip_001",
+            "description": "Smoke zip 上传包含 FastAPI 接口、测试和 README。",
+        },
+        {
+            "archive": (
+                "homework.zip",
+                zip_bytes(
+                    {
+                        "main.py": "from fastapi import FastAPI\napp = FastAPI()\n",
+                        "tests/test_main.py": "def test_home(): assert True\n",
+                        "README.md": "Smoke zip 作业说明\n",
+                    }
+                ),
+                "application/zip",
+            )
+        },
+        headers=teacher_header,
+    )
+    assert_true(uploaded_report["student_id"] == "student_smoke_zip_001", "zip upload failed")
+    assert_true(
+        "FastAPI" in uploaded_report["code_structure"]["detected_frameworks"],
+        "zip upload did not analyze code files",
+    )
 
     profile = client.get_json("/students/student_001/profile")
     assert_true(len(profile["dimensions"]) >= 4, "growth profile dimensions missing")
