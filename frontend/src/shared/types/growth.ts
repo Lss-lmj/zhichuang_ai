@@ -100,6 +100,28 @@ export type CompetitionRecommendResponse = {
   ai_generated: boolean;
 };
 
+export type CompetitionPreparationMilestone = {
+  week: number;
+  focus: string;
+  tasks: string[];
+  deliverable: string;
+  official_basis: string;
+};
+
+export type CompetitionPreparationPlan = {
+  plan_id: string;
+  student_id: string;
+  competition_name: string;
+  weeks: number;
+  registration_time: string;
+  official_url: string;
+  overview: string;
+  milestones: CompetitionPreparationMilestone[];
+  citations: string[];
+  risk: string;
+  ai_generated: boolean;
+};
+
 export type TeacherCandidate = {
   student_id: string;
   student_name: string;

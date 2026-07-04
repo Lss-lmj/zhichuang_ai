@@ -1,5 +1,6 @@
 import type {
   CompetitionCatalogResponse,
+  CompetitionPreparationPlan,
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
@@ -105,6 +106,20 @@ export function recommendCompetitions(
 
 export function fetchCompetitionCatalog(): Promise<CompetitionCatalogResponse> {
   return requestJson<CompetitionCatalogResponse>("/competitions");
+}
+
+export function generateCompetitionPreparationPlan(
+  studentId = "student_001",
+): Promise<CompetitionPreparationPlan> {
+  return requestJson<CompetitionPreparationPlan>("/competitions/preparation-plan", {
+    method: "POST",
+    body: JSON.stringify({
+      student_id: studentId,
+      competition_name: "中国大学生计算机设计大赛",
+      weeks: 4,
+      weekly_hours: 8,
+    }),
+  });
 }
 
 export function screenTeacherCandidates(

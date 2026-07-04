@@ -8,6 +8,9 @@ from app.schemas.growth import (
     CapabilityDimension,
     CompetitionCatalogResponse,
     CompetitionInfo,
+    CompetitionPreparationMilestone,
+    CompetitionPreparationPlan,
+    CompetitionPreparationRequest,
     CompetitionRecommendation,
     CompetitionRecommendRequest,
     CompetitionRecommendResponse,
@@ -528,6 +531,46 @@ class GrowthService:
             ],
         )
 
+    def generate_competition_preparation_plan(
+        self,
+        payload: CompetitionPreparationRequest,
+    ) -> CompetitionPreparationPlan:
+        competition = self._find_competition(payload.competition_name)
+        weeks = max(1, min(payload.weeks, 12))
+        task_sets = self._competition_task_sets(competition)
+        milestones = []
+        for week in range(1, weeks + 1):
+            template = task_sets[min(week - 1, len(task_sets) - 1)]
+            milestones.append(
+                CompetitionPreparationMilestone(
+                    week=week,
+                    focus=template["focus"],
+                    tasks=template["tasks"],
+                    deliverable=template["deliverable"],
+                    official_basis=template["official_basis"],
+                )
+            )
+        return CompetitionPreparationPlan(
+            plan_id=f"competition_plan_{payload.student_id}_{competition.competition_id}",
+            student_id=payload.student_id,
+            competition_name=competition.name,
+            weeks=weeks,
+            registration_time=competition.registration_time,
+            official_url=competition.official_url,
+            overview=(
+                f"围绕{competition.name}安排 {weeks} 周准备，"
+                f"每周约 {payload.weekly_hours} 小时，任务覆盖知识补齐、项目实践、材料准备和报名节点。"
+            ),
+            milestones=milestones,
+            citations=[
+                f"{competition.name}参赛要求：{competition.participant_requirements}",
+                f"{competition.name}作品要求：{competition.work_requirements}",
+                f"报名时间口径：{competition.registration_time}",
+                f"官方链接：{competition.official_url}",
+            ],
+            risk="报名时间、组别和材料格式以官方通知为准；计划仅用于准备节奏安排。",
+        )
+
     def list_competitions(self) -> CompetitionCatalogResponse:
         competitions = [
             CompetitionInfo(
@@ -653,6 +696,68 @@ class GrowthService:
             updated_at=self.competition_updated_at,
             competitions=competitions,
         )
+
+    def _find_competition(self, competition_name: str) -> CompetitionInfo:
+        catalog = self.list_competitions()
+        for competition in catalog.competitions:
+            if competition_name in competition.name or competition.name in competition_name:
+                return competition
+        return catalog.competitions[0]
+
+    def _competition_task_sets(self, competition: CompetitionInfo) -> list[dict[str, object]]:
+        if "算法" in competition.category or "蓝桥杯" in competition.name or "ICPC" in competition.name:
+            return [
+                {
+                    "focus": "规则确认与题型诊断",
+                    "tasks": ["阅读官方报名与赛项说明", "完成一次基础语法和数据结构自测", "建立错题复盘表"],
+                    "deliverable": "报名规则摘要、基础能力诊断和训练题单。",
+                    "official_basis": competition.participant_requirements,
+                },
+                {
+                    "focus": "核心算法专题",
+                    "tasks": ["完成搜索和动态规划专题训练", "记录每题复杂度与错误原因", "整理 5 道代表题讲解"],
+                    "deliverable": "专题训练记录和错题原因清单。",
+                    "official_basis": competition.work_requirements,
+                },
+                {
+                    "focus": "真题与限时模拟",
+                    "tasks": ["完成至少 2 套真题或模拟题", "复盘超时、WA 和边界条件问题", "固定比赛环境和代码模板"],
+                    "deliverable": "模拟成绩表、问题复盘和代码模板。",
+                    "official_basis": competition.work_requirements,
+                },
+                {
+                    "focus": "报名材料与赛前检查",
+                    "tasks": ["核对报名时间和资格要求", "确认账号、证件和赛项信息", "完成赛前检查清单"],
+                    "deliverable": "报名节点清单和赛前检查表。",
+                    "official_basis": competition.registration_time,
+                },
+            ]
+        return [
+            {
+                "focus": "赛道规则与作品定位",
+                "tasks": ["阅读官方参赛要求", "确定作品赛道和目标用户", "整理竞品和应用场景"],
+                "deliverable": "赛道规则摘要、作品定位和用户场景说明。",
+                "official_basis": competition.participant_requirements,
+            },
+            {
+                "focus": "最小可展示原型",
+                "tasks": ["确定核心功能闭环", "完成可运行 Demo 主线", "补齐 README 和部署说明"],
+                "deliverable": "可运行 Demo、接口说明和部署步骤。",
+                "official_basis": competition.work_requirements,
+            },
+            {
+                "focus": "证明材料与评测记录",
+                "tasks": ["整理测试用例和输出记录", "补充教师看板和学生报告截图", "形成项目价值说明"],
+                "deliverable": "测试记录、效果截图和作品说明书初稿。",
+                "official_basis": competition.work_requirements,
+            },
+            {
+                "focus": "报名节点与展示材料",
+                "tasks": ["核对报名时间和组别要求", "整理演示视频脚本", "完成答辩提纲和风险说明"],
+                "deliverable": "报名检查表、演示视频脚本和答辩提纲。",
+                "official_basis": competition.registration_time,
+            },
+        ]
 
     def recommend_team(self, payload: TeamRecommendRequest) -> TeamRecommendResponse:
         candidates = [

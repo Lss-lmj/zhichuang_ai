@@ -3,6 +3,8 @@ from fastapi import APIRouter, Header, HTTPException, status
 from app.schemas.growth import (
     BasicProfileUpsert,
     CompetitionCatalogResponse,
+    CompetitionPreparationPlan,
+    CompetitionPreparationRequest,
     CompetitionRecommendRequest,
     CompetitionRecommendResponse,
     GrowthProfileResponse,
@@ -65,6 +67,13 @@ def recommend_competitions(
 @router.get("/competitions", response_model=CompetitionCatalogResponse)
 def list_competitions() -> CompetitionCatalogResponse:
     return GrowthService().list_competitions()
+
+
+@router.post("/competitions/preparation-plan", response_model=CompetitionPreparationPlan)
+def generate_competition_preparation_plan(
+    payload: CompetitionPreparationRequest,
+) -> CompetitionPreparationPlan:
+    return GrowthService().generate_competition_preparation_plan(payload)
 
 
 @router.post("/teacher/candidate-screening", response_model=TeacherCandidateScreenResponse)

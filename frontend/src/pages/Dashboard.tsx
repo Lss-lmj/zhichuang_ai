@@ -10,6 +10,7 @@ import {
   fetchCompetitionCatalog,
   fetchTeamPoolStatus,
   fetchGrowthProfile,
+  generateCompetitionPreparationPlan,
   generateLearningPlan,
   recommendCompetitions,
   recommendTeam,
@@ -35,6 +36,7 @@ import type { DemoAccount } from "../shared/types/auth";
 import type { EvaluationDashboardResponse } from "../shared/types/evaluations";
 import type {
   CompetitionCatalogResponse,
+  CompetitionPreparationPlan,
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
@@ -61,6 +63,8 @@ export function Dashboard() {
   const [plan, setPlan] = useState<LearningPlan | null>(null);
   const [planRevisionLoading, setPlanRevisionLoading] = useState(false);
   const [competitions, setCompetitions] = useState<CompetitionRecommendResponse | null>(null);
+  const [competitionPreparation, setCompetitionPreparation] =
+    useState<CompetitionPreparationPlan | null>(null);
   const [competitionCatalog, setCompetitionCatalog] =
     useState<CompetitionCatalogResponse | null>(null);
   const [team, setTeam] = useState<TeamRecommendResponse | null>(null);
@@ -108,6 +112,7 @@ export function Dashboard() {
           planData,
           competitionCatalogData,
           competitionData,
+          competitionPreparationData,
           teamData,
           candidateScreeningData,
           teamRequestData,
@@ -128,6 +133,7 @@ export function Dashboard() {
           generateLearningPlan(),
           fetchCompetitionCatalog(),
           recommendCompetitions(),
+          generateCompetitionPreparationPlan(),
           recommendTeam(),
           screenTeacherCandidates(),
           createTeamRequest(),
@@ -150,6 +156,7 @@ export function Dashboard() {
           setPlan(planData);
           setCompetitionCatalog(competitionCatalogData);
           setCompetitions(competitionData);
+          setCompetitionPreparation(competitionPreparationData);
           setTeam(teamData);
           setCandidateScreening(candidateScreeningData);
           setTeamRequest(teamRequestData);
@@ -200,6 +207,7 @@ export function Dashboard() {
     plan &&
     competitionCatalog &&
     competitions &&
+    competitionPreparation &&
     team &&
     teamRequest &&
     teamStatus
@@ -209,6 +217,7 @@ export function Dashboard() {
           plan,
           competitionCatalog,
           competitions,
+          competitionPreparation,
           team,
           teamRequest,
           teamStatus,
@@ -1038,6 +1047,7 @@ function GrowthPath({
   plan,
   competitionCatalog,
   competitions,
+  competitionPreparation,
   team,
   teamRequest,
   teamStatus,
@@ -1051,6 +1061,7 @@ function GrowthPath({
   plan: LearningPlan;
   competitionCatalog: CompetitionCatalogResponse;
   competitions: CompetitionRecommendResponse;
+  competitionPreparation: CompetitionPreparationPlan;
   team: TeamRecommendResponse;
   teamRequest: TeamRequestCard;
   teamStatus: TeamPoolStatus;
@@ -1139,6 +1150,38 @@ function GrowthPath({
             ))}
           </div>
         </article>
+      </section>
+
+      <section className="panel competition-prep-panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">竞赛准备计划</span>
+            <h2>{competitionPreparation.competition_name}</h2>
+          </div>
+          <span className="muted">{competitionPreparation.registration_time}</span>
+        </div>
+        <p className="competition-prep-overview">{competitionPreparation.overview}</p>
+        <div className="competition-prep-grid">
+          {competitionPreparation.milestones.map((milestone) => (
+            <article className="competition-prep-card" key={`${milestone.week}-${milestone.focus}`}>
+              <strong>W{milestone.week}</strong>
+              <h3>{milestone.focus}</h3>
+              <ul>
+                {milestone.tasks.map((task) => (
+                  <li key={task}>{task}</li>
+                ))}
+              </ul>
+              <p>{milestone.deliverable}</p>
+              <small>{milestone.official_basis}</small>
+            </article>
+          ))}
+        </div>
+        <div className="competition-citation-strip">
+          {competitionPreparation.citations.map((citation) => (
+            <small key={citation}>{citation}</small>
+          ))}
+        </div>
+        <p className="plan-revision-note">{competitionPreparation.risk}</p>
       </section>
 
       <section className="panel">

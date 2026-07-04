@@ -147,6 +147,35 @@ class CompetitionRecommendResponse(BaseModel):
     ai_generated: bool = True
 
 
+class CompetitionPreparationRequest(BaseModel):
+    student_id: str = "student_001"
+    competition_name: str = "中国大学生计算机设计大赛"
+    weeks: int = 4
+    weekly_hours: int = 8
+
+
+class CompetitionPreparationMilestone(BaseModel):
+    week: int
+    focus: str
+    tasks: list[str] = Field(default_factory=list)
+    deliverable: str
+    official_basis: str
+
+
+class CompetitionPreparationPlan(BaseModel):
+    plan_id: str
+    student_id: str
+    competition_name: str
+    weeks: int
+    registration_time: str
+    official_url: str
+    overview: str
+    milestones: list[CompetitionPreparationMilestone]
+    citations: list[str] = Field(default_factory=list)
+    risk: str
+    ai_generated: bool = True
+
+
 class TeacherCandidateScreenRequest(BaseModel):
     target_name: str = "中国大学生计算机设计大赛"
     target_type: str = "competition"

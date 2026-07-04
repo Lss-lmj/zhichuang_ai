@@ -79,6 +79,15 @@ def test_learning_plan_and_recommendations() -> None:
         "/api/competitions/recommend",
         json={"student_id": "student_001", "target": "AI 应用开发"},
     )
+    preparation_response = client.post(
+        "/api/competitions/preparation-plan",
+        json={
+            "student_id": "student_001",
+            "competition_name": "中国大学生计算机设计大赛",
+            "weeks": 4,
+            "weekly_hours": 8,
+        },
+    )
     team_response = client.post(
         "/api/teams/recommend",
         json={"student_id": "student_001", "project_goal": "作业代码分析 Demo"},
@@ -89,6 +98,7 @@ def test_learning_plan_and_recommendations() -> None:
     assert revision_response.status_code == 200
     assert catalog_response.status_code == 200
     assert competition_response.status_code == 200
+    assert preparation_response.status_code == 200
     assert team_response.status_code == 200
     assert len(plan_response.json()["tasks"]) == 4
     assert len(lean_plan_response.json()["tasks"]) == 4
@@ -104,6 +114,13 @@ def test_learning_plan_and_recommendations() -> None:
         recommendation["fit_reasons"] and recommendation["gap_abilities"]
         for recommendation in competition_response.json()["recommendations"]
     )
+    preparation_payload = preparation_response.json()
+    assert preparation_payload["competition_name"] == "中国大学生计算机设计大赛"
+    assert preparation_payload["official_url"]
+    assert "以当年官方通知为准" in preparation_payload["registration_time"]
+    assert len(preparation_payload["milestones"]) == 4
+    assert all(milestone["official_basis"] for milestone in preparation_payload["milestones"])
+    assert any("报名" in citation for citation in preparation_payload["citations"])
     assert len(team_response.json()["candidates"]) >= 2
     assert "student_004" not in [
         candidate["student_id"] for candidate in team_response.json()["candidates"]

@@ -130,6 +130,18 @@ def main() -> int:
         all(item["fit_reasons"] and item["gap_abilities"] for item in competitions["recommendations"]),
         "competition recommendation explanations missing",
     )
+    preparation = client.post_json(
+        "/competitions/preparation-plan",
+        {
+            "student_id": "student_001",
+            "competition_name": "中国大学生计算机设计大赛",
+            "weeks": 4,
+            "weekly_hours": 8,
+        },
+    )
+    assert_true(len(preparation["milestones"]) == 4, "competition preparation milestones missing")
+    assert_true(preparation["official_url"], "competition preparation official url missing")
+    assert_true(preparation["citations"], "competition preparation citations missing")
 
     candidate_screen = client.post_json(
         "/teacher/candidate-screening",
