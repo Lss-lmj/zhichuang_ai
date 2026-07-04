@@ -278,6 +278,55 @@ def main() -> int:
 
     courses = client.get_json("/courses")
     assert_true(courses["courses"], "courses missing")
+    import_payload = {
+        "courses": [
+            {
+                "course_id": "course_smoke_ai_2026",
+                "name": "Smoke AI 应用开发",
+                "term": "2025-2026 春季学期",
+                "teacher_id": "teacher_smoke_001",
+                "teacher_name": "Smoke 教师",
+                "teacher_no": "TSMOKE001",
+                "description": "Smoke 导入课程，用于验证教务基础数据写入。",
+            }
+        ],
+        "classes": [
+            {
+                "class_id": "class_smoke_ai_2024_01",
+                "course_id": "course_smoke_ai_2026",
+                "name": "Smoke AI 1 班",
+                "grade": "2024",
+                "major": "人工智能",
+            }
+        ],
+        "students": [
+            {
+                "student_id": "student_smoke_001",
+                "name": "Smoke 学生",
+                "student_no": "SMOKE2026001",
+                "class_id": "class_smoke_ai_2024_01",
+                "target_path": "AI 应用开发",
+                "tags": ["RAG", "项目实践"],
+            }
+        ],
+    }
+    client.expect_forbidden(
+        "POST",
+        "/academic/import",
+        import_payload,
+        headers=student_header,
+    )
+    imported_academic = client.post_json(
+        "/academic/import",
+        import_payload,
+        headers=admin_header,
+    )
+    assert_true(imported_academic["imported_students"] == 1, "academic import failed")
+    imported_students = client.get_json("/classes/class_smoke_ai_2024_01/students")
+    assert_true(
+        any(student["student_id"] == "student_smoke_001" for student in imported_students["students"]),
+        "imported student not found",
+    )
 
     web = client.get_text(web_base)
     assert_true("<html" in web.lower() or "root" in web.lower(), "web entry did not return HTML")

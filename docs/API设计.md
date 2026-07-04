@@ -296,6 +296,60 @@
 }
 ```
 
+### `POST /academic/import`
+
+管理员导入或更新课程、班级、学生和课程成员关系。接口按业务 ID upsert，适合首版从教务表格、脚本或后续学校系统对接同步基础教学数据。
+
+请求：
+
+```json
+{
+  "courses": [
+    {
+      "course_id": "course_ai_2026",
+      "name": "AI 应用开发",
+      "term": "2025-2026 春季学期",
+      "teacher_id": "teacher_002",
+      "teacher_name": "王老师",
+      "teacher_no": "T2026002",
+      "description": "围绕通用大模型应用、RAG 和智能体协作完成课程项目。"
+    }
+  ],
+  "classes": [
+    {
+      "class_id": "class_ai_2024_02",
+      "course_id": "course_ai_2026",
+      "name": "2024 级人工智能 2 班",
+      "grade": "2024",
+      "major": "人工智能"
+    }
+  ],
+  "students": [
+    {
+      "student_id": "student_101",
+      "name": "赵清河",
+      "student_no": "2024010201",
+      "class_id": "class_ai_2024_02",
+      "course_ids": ["course_ai_2026"],
+      "target_path": "AI 应用开发",
+      "tags": ["RAG", "智能体", "项目实践"]
+    }
+  ]
+}
+```
+
+响应：
+
+```json
+{
+  "imported_courses": 1,
+  "imported_classes": 1,
+  "imported_students": 1,
+  "imported_memberships": 3,
+  "message": "教学基础数据已导入。"
+}
+```
+
 ## 5. 学生画像
 
 ### `GET /students/me/profile`

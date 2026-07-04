@@ -1,9 +1,17 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.academic import ClassListResponse, CourseListResponse, StudentListResponse
+from app.schemas.academic import (
+    AcademicImportRequest,
+    AcademicImportResponse,
+    ClassListResponse,
+    CourseListResponse,
+    StudentListResponse,
+)
 from app.services.academic_service import AcademicService
+from app.services.auth_service import AuthService
 
 router = APIRouter()
 
@@ -27,3 +35,32 @@ def list_students(
     db: Session = Depends(get_db),
 ) -> StudentListResponse:
     return AcademicService(db).list_students(class_id)
+
+
+@router.post("/academic/import", response_model=AcademicImportResponse)
+def import_academic_data(
+    payload: AcademicImportRequest,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> AcademicImportResponse:
+    _ensure_admin(authorization)
+    try:
+        return AcademicService(db).import_academic_data(payload)
+    except ValueError as error:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Academic import conflicts with existing unique records",
+        ) from error
+
+
+def _ensure_admin(authorization: str | None) -> None:
+    account = AuthService().current_account(authorization)
+    if account.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can import academic data",
+        )

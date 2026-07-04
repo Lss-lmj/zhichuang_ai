@@ -1,6 +1,6 @@
 """Database models will be added here."""
 from app.models.assignment import Assignment, AssignmentReport, Rubric, Submission
-from app.models.course import ClassGroup, Course, CourseMembership
+from app.models.course import ClassGroup, Course, CourseMembership, StudentAcademicProfile
 from app.models.evaluation import EvaluationCaseRecord, EvaluationRecordItem
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument, KnowledgeDocumentVersionRecord
 from app.models.plan import (
@@ -33,6 +33,7 @@ __all__ = [
     "LearningTaskRecord",
     "Rubric",
     "Submission",
+    "StudentAcademicProfile",
     "StudentProfileRecord",
     "TeamPoolStatusRecord",
     "TeamRecommendation",
