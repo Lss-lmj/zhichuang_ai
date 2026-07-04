@@ -1,6 +1,8 @@
 export type AgentCitation = {
   title: string;
   source_type: string;
+  path: string;
+  updated_at: string;
   snippet: string;
 };
 
@@ -15,5 +17,7 @@ export type ChatResponse = {
   citations: AgentCitation[];
   context_summary: string;
   suggested_next_questions: string[];
+  is_uncertain: boolean;
+  retrieval_status: "matched" | "no_match" | string;
   ai_generated: boolean;
 };

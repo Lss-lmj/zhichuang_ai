@@ -16,6 +16,8 @@ class ChatRequest(BaseModel):
 class Citation(BaseModel):
     title: str
     source_type: str
+    path: str
+    updated_at: str
     snippet: str
 
 
@@ -25,4 +27,6 @@ class ChatResponse(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     context_summary: str
     suggested_next_questions: list[str] = Field(default_factory=list)
+    is_uncertain: bool = False
+    retrieval_status: str = "matched"
     ai_generated: bool = True

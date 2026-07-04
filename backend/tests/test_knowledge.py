@@ -17,3 +17,13 @@ def test_knowledge_documents_and_search() -> None:
     assert len([item for item in documents if item["source_type"] == "project_case"]) >= 10
     assert search_response.json()["total"] >= 1
     assert search_response.json()["results"][0]["title"]
+
+
+def test_knowledge_search_returns_empty_when_no_chunk_matches() -> None:
+    client = TestClient(app)
+    response = client.get("/api/knowledge/search", params={"q": "火星农业灌溉系统"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 0
+    assert payload["results"] == []

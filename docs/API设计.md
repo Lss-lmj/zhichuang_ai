@@ -66,14 +66,19 @@
     {
       "title": "算法竞赛训练路径",
       "source_type": "competition_material",
+      "path": "算法竞赛",
+      "updated_at": "2026-07-05T09:30:00+08:00",
       "snippet": "算法竞赛准备建议按基础语法、常用数据结构、搜索、动态规划、图论和真题复盘推进。"
     }
   ],
+  "is_uncertain": false,
+  "retrieval_status": "matched",
   "ai_generated": true
 }
 ```
 
 连续追问时前端会携带同一 `session_id` 和最近上下文，后端基于角色场景生成回答，避免教师诊断问题被误判为学生个人规划问题。
+当知识库没有找到足够依据时，`is_uncertain` 为 `true`、`retrieval_status` 为 `no_match`，回答会明确提示“不确定”，且 `citations` 返回空数组。
 
 ## 3. 作业代码分析
 

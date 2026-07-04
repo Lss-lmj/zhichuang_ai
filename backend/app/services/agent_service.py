@@ -16,12 +16,16 @@ class AgentService:
                 Citation(
                     title=chunk.title,
                     source_type=chunk.source_type,
+                    path=chunk.path,
+                    updated_at=chunk.updated_at,
                     snippet=chunk.content,
                 )
                 for chunk in chunks
             ],
             context_summary=f"{role_hint} · {context_summary}",
             suggested_next_questions=self._suggest_next_questions(payload.scenario),
+            is_uncertain=not chunks,
+            retrieval_status="no_match" if not chunks else "matched",
         )
 
     def _build_context_query(self, payload: ChatRequest) -> str:

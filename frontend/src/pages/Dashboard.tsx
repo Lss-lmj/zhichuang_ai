@@ -693,10 +693,19 @@ function KnowledgeAssistant({
         <article className="panel">
           <span className="section-label">引用来源</span>
           <div className="citation-list">
+            {response?.is_uncertain && (
+              <div className="citation-card citation-card-warning">
+                <strong>资料不足</strong>
+                <span>no_match</span>
+                <p>当前知识库没有找到可引用资料，建议补充对应课程资料、竞赛通知或项目案例后再检索。</p>
+              </div>
+            )}
             {response?.citations.map((citation) => (
               <div className="citation-card" key={`${citation.title}-${citation.source_type}`}>
                 <strong>{citation.title}</strong>
-                <span>{citation.source_type}</span>
+                <span>
+                  {citation.source_type} · {citation.path} · {citation.updated_at}
+                </span>
                 <p>{citation.snippet}</p>
               </div>
             ))}

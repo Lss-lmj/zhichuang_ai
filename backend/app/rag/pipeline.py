@@ -11,6 +11,7 @@ class RetrievedChunk:
     content: str
     score: float
     path: str
+    updated_at: str = "2026-07-05T09:30:00+08:00"
     tags: list[str] = field(default_factory=list)
 
 
@@ -318,25 +319,23 @@ class RagPipeline:
                     )
                 )
 
-        if not scored:
-            scored = [
-                RetrievedChunk(
-                    title=chunk.title,
-                    source_type=chunk.source_type,
-                    content=chunk.content,
-                    path=chunk.path,
-                    tags=chunk.tags,
-                    score=0.1,
-                )
-                for chunk in DEMO_CHUNKS[:limit]
-            ]
-
         return sorted(scored, key=lambda item: item.score, reverse=True)[:limit]
 
     def answer(self, query: str) -> tuple[str, list[RetrievedChunk]]:
         chunks = self.retrieve(query)
+        if not chunks:
+            return self._compose_uncertain_answer(query), []
         answer = self._compose_answer(query, chunks)
         return answer, chunks
+
+    def _compose_uncertain_answer(self, query: str) -> str:
+        return "\n".join(
+            [
+                "不确定：当前首批知识库资料没有找到足够依据来回答这个问题。",
+                f"建议先补充与“{query}”直接相关的课程资料、竞赛通知或项目案例，再生成可追溯回答。",
+                "如果这是竞赛或政策类问题，请以官方通知和学校实际要求为准。",
+            ]
+        )
 
     def _compose_answer(self, query: str, chunks: list[RetrievedChunk]) -> str:
         lead = "基于当前首批知识库资料，可以这样处理："
