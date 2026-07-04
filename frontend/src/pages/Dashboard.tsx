@@ -2,15 +2,31 @@ import { useEffect, useMemo, useState } from "react";
 
 import { askAgent } from "../shared/api/agent";
 import { analyzeDemoAssignment, fetchAssignmentDashboard } from "../shared/api/assignments";
+import {
+  fetchGrowthProfile,
+  generateLearningPlan,
+  recommendCompetitions,
+  recommendTeam,
+} from "../shared/api/growth";
 import type { ChatResponse } from "../shared/types/agent";
 import type { AssignmentDashboard, AssignmentReport } from "../shared/types/assignments";
+import type {
+  CompetitionRecommendResponse,
+  GrowthProfile,
+  LearningPlan,
+  TeamRecommendResponse,
+} from "../shared/types/growth";
 
-type ViewMode = "student" | "teacher" | "knowledge";
+type ViewMode = "student" | "teacher" | "knowledge" | "growth";
 
 export function Dashboard() {
   const [mode, setMode] = useState<ViewMode>("teacher");
   const [report, setReport] = useState<AssignmentReport | null>(null);
   const [dashboard, setDashboard] = useState<AssignmentDashboard | null>(null);
+  const [profile, setProfile] = useState<GrowthProfile | null>(null);
+  const [plan, setPlan] = useState<LearningPlan | null>(null);
+  const [competitions, setCompetitions] = useState<CompetitionRecommendResponse | null>(null);
+  const [team, setTeam] = useState<TeamRecommendResponse | null>(null);
   const [chatQuestion, setChatQuestion] = useState("如何准备算法竞赛？");
   const [chatResponse, setChatResponse] = useState<ChatResponse | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -24,14 +40,23 @@ export function Dashboard() {
       try {
         setLoading(true);
         setError(null);
-        const [reportData, dashboardData] = await Promise.all([
-          analyzeDemoAssignment(),
-          fetchAssignmentDashboard(),
-        ]);
+        const [reportData, dashboardData, profileData, planData, competitionData, teamData] =
+          await Promise.all([
+            analyzeDemoAssignment(),
+            fetchAssignmentDashboard(),
+            fetchGrowthProfile(),
+            generateLearningPlan(),
+            recommendCompetitions(),
+            recommendTeam(),
+          ]);
 
         if (mounted) {
           setReport(reportData);
           setDashboard(dashboardData);
+          setProfile(profileData);
+          setPlan(planData);
+          setCompetitions(competitionData);
+          setTeam(teamData);
         }
       } catch (err) {
         if (mounted) {
@@ -90,6 +115,9 @@ export function Dashboard() {
           <button className={mode === "student" ? "active" : ""} onClick={() => setMode("student")}>
             学生报告
           </button>
+          <button className={mode === "growth" ? "active" : ""} onClick={() => setMode("growth")}>
+            成长路径
+          </button>
           <button
             className={mode === "knowledge" ? "active" : ""}
             onClick={() => {
@@ -119,7 +147,9 @@ export function Dashboard() {
                 ? "课程作业学情诊断"
                 : mode === "student"
                   ? "学生作业分析报告"
-                  : "学科知识库问答"}
+                  : mode === "growth"
+                    ? "学生成长路径"
+                    : "学科知识库问答"}
             </h1>
           </div>
           <button
@@ -148,6 +178,15 @@ export function Dashboard() {
             loading={chatLoading}
             onQuestionChange={setChatQuestion}
             onAsk={handleAskAgent}
+          />
+        )}
+
+        {!loading && !error && mode === "growth" && profile && plan && competitions && team && (
+          <GrowthPath
+            profile={profile}
+            plan={plan}
+            competitions={competitions}
+            team={team}
           />
         )}
       </section>
@@ -387,6 +426,124 @@ function KnowledgeAssistant({
               </div>
             ))}
             {!response && <p className="muted">等待检索结果。</p>}
+          </div>
+        </article>
+      </section>
+    </>
+  );
+}
+
+function GrowthPath({
+  profile,
+  plan,
+  competitions,
+  team,
+}: {
+  profile: GrowthProfile;
+  plan: LearningPlan;
+  competitions: CompetitionRecommendResponse;
+  team: TeamRecommendResponse;
+}) {
+  return (
+    <>
+      <section className="growth-hero">
+        <div>
+          <span className="section-label">能力画像</span>
+          <h2>
+            {profile.student_name} · {profile.target_path}
+          </h2>
+          <p>{plan.overview}</p>
+        </div>
+        <div className="growth-actions">
+          {profile.next_actions.map((action) => (
+            <span key={action}>{action}</span>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel-grid">
+        <article className="panel wide">
+          <span className="section-label">画像维度</span>
+          <div className="score-list">
+            {profile.dimensions.map((dimension) => (
+              <div className="score-detail" key={dimension.dimension}>
+                <ScoreBar label={dimension.dimension} score={dimension.score} />
+                <p>{dimension.summary}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <span className="section-label">风险提醒</span>
+          <div className="risk-list">
+            {profile.risks.map((risk) => (
+              <div key={risk}>{risk}</div>
+            ))}
+          </div>
+          <span className="section-label block-label">优势</span>
+          <div className="tag-list">
+            {profile.strengths.map((strength) => (
+              <span key={strength}>{strength}</span>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">学习计划</span>
+            <h2>{plan.goal}</h2>
+          </div>
+          <span className="muted">{plan.weeks} 周</span>
+        </div>
+        <div className="timeline">
+          {plan.tasks.map((task) => (
+            <article className="timeline-item" key={`${task.week}-${task.title}`}>
+              <strong>W{task.week}</strong>
+              <div>
+                <h3>{task.title}</h3>
+                <p>{task.outcome}</p>
+                <small>{task.resources.join(" / ")}</small>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel-grid">
+        <article className="panel">
+          <span className="section-label">竞赛推荐</span>
+          <div className="recommend-list">
+            {competitions.recommendations.map((item) => (
+              <div className="recommend-card" key={item.name}>
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.category}</span>
+                </div>
+                <b>{item.match_score}</b>
+                <p>{item.reason}</p>
+                <small>{item.risk}</small>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <span className="section-label">组队推荐</span>
+          <div className="recommend-list">
+            {team.candidates.map((candidate) => (
+              <div className="recommend-card" key={candidate.student_id}>
+                <div>
+                  <strong>{candidate.name}</strong>
+                  <span>{candidate.role}</span>
+                </div>
+                <b>{candidate.match_score}</b>
+                <p>{candidate.complement}</p>
+                <small>{candidate.evidence.join(" / ")}</small>
+              </div>
+            ))}
           </div>
         </article>
       </section>
