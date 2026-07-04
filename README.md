@@ -2,7 +2,7 @@
 
 作品名称：**智创Agent·计算机学科垂类大模型与双创能力赋能平台**
 
-本仓库用于沉淀项目立项、需求分析、架构设计、HTML 立项 PPT，以及后续系统实现代码。
+本仓库用于沉淀项目立项、需求分析、架构设计、HTML 立项 PPT，以及系统实现代码。
 
 ## 当前内容
 
@@ -10,6 +10,16 @@
 - `立项/项目架构设计与技术选型_智创Agent.md`：架构设计与技术选型文档
 - `立项/智创Agent_立项PPT/index.html`：HTML 形式立项 PPT
 - `立项/XH-202620_面向一流学科建设的学科垂类大模型与创新应用开发.pdf`：赛题原始材料
+- `docs/开发SOP.md`：开发流程、协作规范、验收标准
+- `docs/架构约定.md`：系统架构、模块边界、技术选型约定
+- `docs/API设计.md`：首版 API 草案
+- `docs/数据模型.md`：首版数据模型草案
+- `docs/知识库资料清单.md`：首批知识库资料需求
+- `backend/`：FastAPI 后端骨架
+- `frontend/`：React + Vite 前端骨架
+- `harmony/`：鸿蒙端 P1 客户端规划
+- `evals/`：RAG、Prompt、Agent 工作流评测资产
+- `infra/`：部署和运维资产
 
 ## 项目定位
 
@@ -30,9 +40,52 @@ open 立项/智创Agent_立项PPT/index.html
 - `T`：切换主题
 - `O`：总览
 
-## 仓库约定
+## 快速开始
+
+```bash
+make init
+make dev-backend
+```
+
+另开一个终端启动前端：
+
+```bash
+make dev-frontend
+```
+
+检查：
+
+```bash
+make check
+```
+
+RAG 或 LangGraph 开发需要进入 `backend/` 安装额外依赖：
+
+```bash
+python3.11 -m pip install -e ".[ai,rag,dev]"
+```
+
+## 仓库结构
+
+```text
+.
+├── backend/        # FastAPI、RAG、LangGraph、多 Agent 工作流
+├── frontend/       # React + TypeScript + Vite Web 前端
+├── harmony/        # ArkTS + ArkUI 鸿蒙端规划
+├── docs/           # 开发 SOP、API、数据模型、路线图
+├── evals/          # RAG、Prompt、Graph 评测样例
+├── infra/          # 部署和运维配置
+├── data/           # 本地开发和 Demo 运行数据
+├── scripts/        # 开发脚本
+└── 立项/           # 需求、架构、立项 PPT 和赛题资料
+```
+
+## 核心约定
 
 - 文档优先放在 `立项/`
-- 后续代码目录按前后端和服务模块拆分
+- 开发规范、API 草案、数据模型放在 `docs/`
+- 代码目录按前端、后端、鸿蒙端拆分
 - 公网 Demo 使用演示账号和示例课程数据
 - 真实学校使用场景通过角色、课程、班级权限控制数据访问范围
+- 教师端是 P0 核心场景，直接展示作业分析报告和班级学情看板
+- 长任务和多 Agent 编排使用 LangGraph，确定性业务逻辑放在 service 层

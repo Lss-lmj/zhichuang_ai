@@ -9,6 +9,7 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -20,6 +21,7 @@ node_modules/
 dist/
 build/
 .vite/
+*.tsbuildinfo
 
 # IDE / editor
 .idea/
@@ -33,6 +35,21 @@ tmp/
 temp/
 render-check/
 screenshots/
+
+# Local data
+*.db
+*.sqlite
+*.sqlite3
+.chroma/
+uploads/
+storage/
+data/local/
+coverage/
+.coverage
+
+# Docker/runtime
+.pid
+*.sock
 
 # OS / archive leftovers
 Thumbs.db

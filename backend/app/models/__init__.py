@@ -1,0 +1,27 @@
+"""Database models will be added here."""
+from app.models.assignment import Assignment, AssignmentReport, Rubric, Submission
+from app.models.course import ClassGroup, Course, CourseMembership
+from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
+from app.models.plan import Competition, LearningPlan, TeamRecommendation
+from app.models.profile import CapabilityEvidence, CapabilityProfile
+from app.models.task import AgentTask
+from app.models.user import User
+
+__all__ = [
+    "AgentTask",
+    "Assignment",
+    "AssignmentReport",
+    "CapabilityEvidence",
+    "CapabilityProfile",
+    "ClassGroup",
+    "Competition",
+    "Course",
+    "CourseMembership",
+    "KnowledgeChunk",
+    "KnowledgeDocument",
+    "LearningPlan",
+    "Rubric",
+    "Submission",
+    "TeamRecommendation",
+    "User",
+]
