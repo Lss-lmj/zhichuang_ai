@@ -299,6 +299,31 @@
 
 ## 8. 组队推荐
 
+### `POST /teams/requests`
+
+发布结构化组队需求。
+
+请求：
+
+```json
+{
+  "student_id": "student_001",
+  "competition_name": "中国大学生计算机设计大赛",
+  "project_direction": "AI 应用开发与教学智能体",
+  "missing_roles": ["前端与交互", "算法与评测"],
+  "expected_skills": ["React", "RAG", "测试评测"],
+  "weekly_hours": 8,
+  "communication": "每周一次线上同步",
+  "team_status_enabled": true
+}
+```
+
+响应包含组队需求卡片、发布状态、进入推荐池状态和联系方式可见性。联系方式默认不公开。
+
+### `GET /students/{student_id}/team-status`
+
+查询学生是否主动开启组队状态，以及联系方式是否公开。
+
 ### `POST /teams/recommend`
 
 根据项目或竞赛目标推荐组队候选。

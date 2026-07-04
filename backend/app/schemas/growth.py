@@ -72,6 +72,7 @@ class CompetitionRecommendResponse(BaseModel):
 class TeamRecommendRequest(BaseModel):
     student_id: str = "student_001"
     project_goal: str = "做一个课程作业代码分析与教师看板 Demo"
+    team_request_id: str | None = None
 
 
 class TeamCandidate(BaseModel):
@@ -89,3 +90,36 @@ class TeamRecommendResponse(BaseModel):
     candidates: list[TeamCandidate]
     collaboration_tips: list[str]
     ai_generated: bool = True
+
+
+class TeamRequestCreate(BaseModel):
+    student_id: str = "student_001"
+    competition_name: str = "中国大学生计算机设计大赛"
+    project_direction: str = "AI 应用开发与教学智能体"
+    missing_roles: list[str] = Field(default_factory=lambda: ["前端与交互", "算法与评测"])
+    expected_skills: list[str] = Field(default_factory=lambda: ["React", "RAG", "测试评测"])
+    weekly_hours: int = 8
+    communication: str = "每周一次线上同步，平时使用项目文档和任务看板沟通"
+    team_status_enabled: bool = True
+
+
+class TeamRequestCard(BaseModel):
+    team_request_id: str
+    student_id: str
+    competition_name: str
+    project_direction: str
+    missing_roles: list[str]
+    expected_skills: list[str]
+    weekly_hours: int
+    communication: str
+    team_status_enabled: bool
+    contact_visible: bool
+    status: str
+    created_at: str
+
+
+class TeamPoolStatus(BaseModel):
+    student_id: str
+    team_status_enabled: bool
+    contact_visible: bool
+    visibility_note: str

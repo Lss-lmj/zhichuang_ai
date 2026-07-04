@@ -5,6 +5,8 @@ import { fetchClasses, fetchCourses, fetchStudents } from "../shared/api/academi
 import { analyzeDemoAssignment, fetchAssignmentDashboard } from "../shared/api/assignments";
 import { createDemoSession, fetchDemoAccounts } from "../shared/api/auth";
 import {
+  createTeamRequest,
+  fetchTeamPoolStatus,
   fetchGrowthProfile,
   generateLearningPlan,
   recommendCompetitions,
@@ -22,7 +24,9 @@ import type {
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
+  TeamPoolStatus,
   TeamRecommendResponse,
+  TeamRequestCard,
 } from "../shared/types/growth";
 import type { KnowledgeDocumentsResponse, KnowledgeSearchResponse } from "../shared/types/knowledge";
 import type { ViewMode } from "../shared/types/navigation";
@@ -36,6 +40,8 @@ export function Dashboard() {
   const [plan, setPlan] = useState<LearningPlan | null>(null);
   const [competitions, setCompetitions] = useState<CompetitionRecommendResponse | null>(null);
   const [team, setTeam] = useState<TeamRecommendResponse | null>(null);
+  const [teamRequest, setTeamRequest] = useState<TeamRequestCard | null>(null);
+  const [teamStatus, setTeamStatus] = useState<TeamPoolStatus | null>(null);
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocumentsResponse | null>(null);
   const [knowledgeSearch, setKnowledgeSearch] = useState<KnowledgeSearchResponse | null>(null);
   const [knowledgeQuery, setKnowledgeQuery] = useState("作业 Rubric");
@@ -70,6 +76,8 @@ export function Dashboard() {
           planData,
           competitionData,
           teamData,
+          teamRequestData,
+          teamStatusData,
           knowledgeData,
           searchData,
           accountsData,
@@ -85,6 +93,8 @@ export function Dashboard() {
           generateLearningPlan(),
           recommendCompetitions(),
           recommendTeam(),
+          createTeamRequest(),
+          fetchTeamPoolStatus(),
           fetchKnowledgeDocuments(),
           searchKnowledge("作业 Rubric"),
           fetchDemoAccounts(),
@@ -102,6 +112,8 @@ export function Dashboard() {
           setPlan(planData);
           setCompetitions(competitionData);
           setTeam(teamData);
+          setTeamRequest(teamRequestData);
+          setTeamStatus(teamStatusData);
           setKnowledgeDocs(knowledgeData);
           setKnowledgeSearch(searchData);
           setAccounts(accountsData.accounts);
@@ -138,6 +150,19 @@ export function Dashboard() {
     const total = report.scores.reduce((sum, score) => sum + score.score, 0);
     return Math.round(total / report.scores.length);
   }, [report]);
+
+  const growthPayload =
+    !loading &&
+    !error &&
+    mode === "growth" &&
+    profile &&
+    plan &&
+    competitions &&
+    team &&
+    teamRequest &&
+    teamStatus
+      ? { profile, plan, competitions, team, teamRequest, teamStatus }
+      : null;
 
   async function handleAskAgent(question = chatQuestion) {
     try {
@@ -358,14 +383,7 @@ export function Dashboard() {
           />
         )}
 
-        {!loading && !error && mode === "growth" && profile && plan && competitions && team && (
-          <GrowthPath
-            profile={profile}
-            plan={plan}
-            competitions={competitions}
-            team={team}
-          />
-        )}
+        {growthPayload && <GrowthPath {...growthPayload} />}
 
         {!loading && !error && mode === "kb" && knowledgeDocs && (
           <KnowledgeAdmin
@@ -656,11 +674,15 @@ function GrowthPath({
   plan,
   competitions,
   team,
+  teamRequest,
+  teamStatus,
 }: {
   profile: GrowthProfile;
   plan: LearningPlan;
   competitions: CompetitionRecommendResponse;
   team: TeamRecommendResponse;
+  teamRequest: TeamRequestCard;
+  teamStatus: TeamPoolStatus;
 }) {
   return (
     <>
@@ -750,7 +772,35 @@ function GrowthPath({
         </article>
 
         <article className="panel">
-          <span className="section-label">组队推荐</span>
+          <span className="section-label">组队需求</span>
+          <div className="team-request-card">
+            <div>
+              <strong>{teamRequest.competition_name}</strong>
+              <span>{teamRequest.status}</span>
+            </div>
+            <p>{teamRequest.project_direction}</p>
+            <div className="team-tags">
+              {teamRequest.missing_roles.map((role) => (
+                <small key={role}>{role}</small>
+              ))}
+            </div>
+            <small>{teamRequest.weekly_hours} 小时/周 · {teamRequest.communication}</small>
+          </div>
+          <div className="team-privacy">
+            <strong>{teamStatus.team_status_enabled ? "已进入推荐池" : "未进入推荐池"}</strong>
+            <span>{teamStatus.visibility_note}</span>
+          </div>
+        </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">队友推荐</span>
+            <h2>基于技能互补、方向一致和项目经历匹配</h2>
+          </div>
+          <span className="muted">联系方式默认不公开</span>
+        </div>
           <div className="recommend-list">
             {team.candidates.map((candidate) => (
               <div className="recommend-card" key={candidate.student_id}>
@@ -764,7 +814,6 @@ function GrowthPath({
               </div>
             ))}
           </div>
-        </article>
       </section>
     </>
   );

@@ -10,13 +10,17 @@ from app.schemas.growth import (
     LearningPlanResponse,
     PlanTask,
     TeamCandidate,
+    TeamPoolStatus,
     TeamRecommendRequest,
     TeamRecommendResponse,
+    TeamRequestCard,
+    TeamRequestCreate,
 )
 
 
 class GrowthService:
     generated_at = "2026-07-05T09:00:00+08:00"
+    team_created_at = "2026-07-05T11:20:00+08:00"
 
     def get_profile(self, student_id: str) -> GrowthProfileResponse:
         return GrowthProfileResponse(
@@ -194,4 +198,28 @@ class GrowthService:
                 "每周保留一次项目复盘，记录完成内容、阻塞和下周任务。",
                 "接口、页面和演示数据同时推进，避免答辩前只剩单点功能。",
             ],
+        )
+
+    def create_team_request(self, payload: TeamRequestCreate) -> TeamRequestCard:
+        return TeamRequestCard(
+            team_request_id=f"team_req_{payload.student_id}_ai_app",
+            student_id=payload.student_id,
+            competition_name=payload.competition_name,
+            project_direction=payload.project_direction,
+            missing_roles=payload.missing_roles,
+            expected_skills=payload.expected_skills,
+            weekly_hours=payload.weekly_hours,
+            communication=payload.communication,
+            team_status_enabled=payload.team_status_enabled,
+            contact_visible=False,
+            status="已发布" if payload.team_status_enabled else "仅保存草稿",
+            created_at=self.team_created_at,
+        )
+
+    def get_team_pool_status(self, student_id: str) -> TeamPoolStatus:
+        return TeamPoolStatus(
+            student_id=student_id,
+            team_status_enabled=True,
+            contact_visible=False,
+            visibility_note="已进入推荐池；联系方式默认不公开，需学生主动提供。",
         )

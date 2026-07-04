@@ -6,8 +6,11 @@ from app.schemas.growth import (
     GrowthProfileResponse,
     LearningPlanRequest,
     LearningPlanResponse,
+    TeamPoolStatus,
     TeamRecommendRequest,
     TeamRecommendResponse,
+    TeamRequestCard,
+    TeamRequestCreate,
 )
 from app.services.growth_service import GrowthService
 
@@ -34,3 +37,13 @@ def recommend_competitions(
 @router.post("/teams/recommend", response_model=TeamRecommendResponse)
 def recommend_team(payload: TeamRecommendRequest) -> TeamRecommendResponse:
     return GrowthService().recommend_team(payload)
+
+
+@router.post("/teams/requests", response_model=TeamRequestCard)
+def create_team_request(payload: TeamRequestCreate) -> TeamRequestCard:
+    return GrowthService().create_team_request(payload)
+
+
+@router.get("/students/{student_id}/team-status", response_model=TeamPoolStatus)
+def get_team_pool_status(student_id: str) -> TeamPoolStatus:
+    return GrowthService().get_team_pool_status(student_id)

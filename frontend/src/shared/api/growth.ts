@@ -2,7 +2,9 @@ import type {
   CompetitionRecommendResponse,
   GrowthProfile,
   LearningPlan,
+  TeamPoolStatus,
   TeamRecommendResponse,
+  TeamRequestCard,
 } from "../types/growth";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
@@ -59,4 +61,24 @@ export function recommendTeam(studentId = "student_001"): Promise<TeamRecommendR
       project_goal: "做一个课程作业代码分析与教师看板 Demo",
     }),
   });
+}
+
+export function createTeamRequest(studentId = "student_001"): Promise<TeamRequestCard> {
+  return requestJson<TeamRequestCard>("/teams/requests", {
+    method: "POST",
+    body: JSON.stringify({
+      student_id: studentId,
+      competition_name: "中国大学生计算机设计大赛",
+      project_direction: "AI 应用开发与教学智能体",
+      missing_roles: ["前端与交互", "算法与评测"],
+      expected_skills: ["React", "RAG", "测试评测"],
+      weekly_hours: 8,
+      communication: "每周一次线上同步，平时使用项目文档和任务看板沟通",
+      team_status_enabled: true,
+    }),
+  });
+}
+
+export function fetchTeamPoolStatus(studentId = "student_001"): Promise<TeamPoolStatus> {
+  return requestJson<TeamPoolStatus>(`/students/${studentId}/team-status`);
 }

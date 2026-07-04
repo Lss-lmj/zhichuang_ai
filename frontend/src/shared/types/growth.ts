@@ -68,3 +68,25 @@ export type TeamRecommendResponse = {
   collaboration_tips: string[];
   ai_generated: boolean;
 };
+
+export type TeamRequestCard = {
+  team_request_id: string;
+  student_id: string;
+  competition_name: string;
+  project_direction: string;
+  missing_roles: string[];
+  expected_skills: string[];
+  weekly_hours: number;
+  communication: string;
+  team_status_enabled: boolean;
+  contact_visible: boolean;
+  status: string;
+  created_at: string;
+};
+
+export type TeamPoolStatus = {
+  student_id: string;
+  team_status_enabled: boolean;
+  contact_visible: boolean;
+  visibility_note: string;
+};

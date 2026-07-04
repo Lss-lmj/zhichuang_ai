@@ -607,6 +607,53 @@ h1 {
   margin: 0;
 }
 
+.team-request-card,
+.team-privacy {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.team-request-card div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.team-request-card span,
+.team-request-card small,
+.team-privacy span {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.team-request-card p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.team-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.team-tags small {
+  padding: 5px 7px;
+  color: var(--blue);
+  background: rgba(23, 78, 166, 0.08);
+  border-radius: 999px;
+}
+
+.team-privacy {
+  border-left: 4px solid var(--green);
+}
+
 .task-board {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
