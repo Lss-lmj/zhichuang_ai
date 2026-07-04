@@ -117,3 +117,16 @@ export function createTeamRequest(studentId = "student_001"): Promise<TeamReques
 export function fetchTeamPoolStatus(studentId = "student_001"): Promise<TeamPoolStatus> {
   return requestJson<TeamPoolStatus>(`/students/${studentId}/team-status`);
 }
+
+export function updateTeamPoolStatus(
+  studentId = "student_001",
+  enabled: boolean,
+): Promise<TeamPoolStatus> {
+  return requestJson<TeamPoolStatus>(`/students/${studentId}/team-status`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      team_status_enabled: enabled,
+      contact_visible: false,
+    }),
+  });
+}

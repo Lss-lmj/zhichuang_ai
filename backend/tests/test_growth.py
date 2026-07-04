@@ -76,6 +76,9 @@ def test_learning_plan_and_recommendations() -> None:
     assert catalog_response.json()["competitions"][0]["official_url"]
     assert len(competition_response.json()["recommendations"]) >= 2
     assert len(team_response.json()["candidates"]) >= 2
+    assert "student_004" not in [
+        candidate["student_id"] for candidate in team_response.json()["candidates"]
+    ]
 
 
 def test_team_request_and_pool_status() -> None:
@@ -94,9 +97,34 @@ def test_team_request_and_pool_status() -> None:
         },
     )
     status_response = client.get("/api/students/student_001/team-status")
+    disabled_status_response = client.get("/api/students/student_004/team-status")
+    revoke_response = client.patch(
+        "/api/students/student_002/team-status",
+        json={"team_status_enabled": False, "contact_visible": True},
+    )
+    team_response_after_revoke = client.post(
+        "/api/teams/recommend",
+        json={"student_id": "student_001", "project_goal": "作业代码分析 Demo"},
+    )
+    restore_response = client.patch(
+        "/api/students/student_002/team-status",
+        json={"team_status_enabled": True, "contact_visible": False},
+    )
 
     assert request_response.status_code == 200
     assert status_response.status_code == 200
+    assert disabled_status_response.status_code == 200
+    assert revoke_response.status_code == 200
+    assert team_response_after_revoke.status_code == 200
+    assert restore_response.status_code == 200
     assert request_response.json()["team_status_enabled"] is True
     assert request_response.json()["contact_visible"] is False
     assert status_response.json()["contact_visible"] is False
+    assert disabled_status_response.json()["team_status_enabled"] is False
+    assert "不会出现在队友推荐结果中" in disabled_status_response.json()["visibility_note"]
+    assert revoke_response.json()["team_status_enabled"] is False
+    assert revoke_response.json()["contact_visible"] is False
+    assert "student_002" not in [
+        candidate["student_id"]
+        for candidate in team_response_after_revoke.json()["candidates"]
+    ]

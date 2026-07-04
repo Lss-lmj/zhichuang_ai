@@ -806,6 +806,22 @@ h1 {
   line-height: 1.55;
 }
 
+.team-privacy button {
+  justify-self: start;
+  padding: 8px 10px;
+  color: var(--blue);
+  background: rgba(23, 78, 166, 0.08);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.team-privacy button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .team-request-card p {
   margin: 0;
   color: var(--ink);

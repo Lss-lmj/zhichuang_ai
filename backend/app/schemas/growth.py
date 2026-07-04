@@ -173,3 +173,8 @@ class TeamPoolStatus(BaseModel):
     team_status_enabled: bool
     contact_visible: bool
     visibility_note: str
+
+
+class TeamPoolStatusUpdate(BaseModel):
+    team_status_enabled: bool = True
+    contact_visible: bool = False

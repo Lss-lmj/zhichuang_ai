@@ -14,6 +14,7 @@ import {
   recommendCompetitions,
   recommendTeam,
   reviseLearningPlan,
+  updateTeamPoolStatus,
 } from "../shared/api/growth";
 import { fetchEvaluationDashboard } from "../shared/api/evaluations";
 import { fetchKnowledgeDocuments, searchKnowledge } from "../shared/api/knowledge";
@@ -51,6 +52,7 @@ export function Dashboard() {
   const [team, setTeam] = useState<TeamRecommendResponse | null>(null);
   const [teamRequest, setTeamRequest] = useState<TeamRequestCard | null>(null);
   const [teamStatus, setTeamStatus] = useState<TeamPoolStatus | null>(null);
+  const [teamStatusLoading, setTeamStatusLoading] = useState(false);
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocumentsResponse | null>(null);
   const [knowledgeSearch, setKnowledgeSearch] = useState<KnowledgeSearchResponse | null>(null);
   const [knowledgeQuery, setKnowledgeQuery] = useState("作业 Rubric");
@@ -189,7 +191,9 @@ export function Dashboard() {
           teamRequest,
           teamStatus,
           planRevisionLoading,
+          teamStatusLoading,
           onRevisePlan: handleRevisePlan,
+          onUpdateTeamStatus: handleUpdateTeamStatus,
         }
       : null;
 
@@ -262,6 +266,21 @@ export function Dashboard() {
 
   function canAccessModule(module: string) {
     return currentAccount?.modules.includes(module) ?? true;
+  }
+
+  async function handleUpdateTeamStatus(enabled: boolean) {
+    try {
+      setTeamStatusLoading(true);
+      setError(null);
+      const nextStatus = await updateTeamPoolStatus("student_001", enabled);
+      setTeamStatus(nextStatus);
+      const nextTeam = await recommendTeam("student_001");
+      setTeam(nextTeam);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "组队授权状态更新失败");
+    } finally {
+      setTeamStatusLoading(false);
+    }
   }
 
   async function handleGenerateReview() {
@@ -828,7 +847,9 @@ function GrowthPath({
   teamRequest,
   teamStatus,
   planRevisionLoading,
+  teamStatusLoading,
   onRevisePlan,
+  onUpdateTeamStatus,
 }: {
   profile: GrowthProfile;
   profileEvidence: ProfileEvidence;
@@ -839,7 +860,9 @@ function GrowthPath({
   teamRequest: TeamRequestCard;
   teamStatus: TeamPoolStatus;
   planRevisionLoading: boolean;
+  teamStatusLoading: boolean;
   onRevisePlan: (feedback: string) => void;
+  onUpdateTeamStatus: (enabled: boolean) => void;
 }) {
   return (
     <>
@@ -1002,6 +1025,12 @@ function GrowthPath({
           <div className="team-privacy">
             <strong>{teamStatus.team_status_enabled ? "已进入推荐池" : "未进入推荐池"}</strong>
             <span>{teamStatus.visibility_note}</span>
+            <button
+              onClick={() => onUpdateTeamStatus(!teamStatus.team_status_enabled)}
+              disabled={teamStatusLoading}
+            >
+              {teamStatus.team_status_enabled ? "撤回授权" : "开启授权"}
+            </button>
           </div>
         </article>
       </section>

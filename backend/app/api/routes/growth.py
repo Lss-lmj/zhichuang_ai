@@ -11,6 +11,7 @@ from app.schemas.growth import (
     ProfileEvidence,
     ProfileEvidenceCreate,
     TeamPoolStatus,
+    TeamPoolStatusUpdate,
     TeamRecommendRequest,
     TeamRecommendResponse,
     TeamRequestCard,
@@ -66,3 +67,11 @@ def create_team_request(payload: TeamRequestCreate) -> TeamRequestCard:
 @router.get("/students/{student_id}/team-status", response_model=TeamPoolStatus)
 def get_team_pool_status(student_id: str) -> TeamPoolStatus:
     return GrowthService().get_team_pool_status(student_id)
+
+
+@router.patch("/students/{student_id}/team-status", response_model=TeamPoolStatus)
+def update_team_pool_status(
+    student_id: str,
+    payload: TeamPoolStatusUpdate,
+) -> TeamPoolStatus:
+    return GrowthService().update_team_pool_status(student_id, payload)

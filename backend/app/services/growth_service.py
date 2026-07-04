@@ -16,6 +16,7 @@ from app.schemas.growth import (
     ProfileEvidenceCreate,
     TeamCandidate,
     TeamPoolStatus,
+    TeamPoolStatusUpdate,
     TeamRecommendRequest,
     TeamRecommendResponse,
     TeamRequestCard,
@@ -29,6 +30,13 @@ class GrowthService:
     competition_updated_at = "2026-07-05T11:40:00+08:00"
     competition_source_note = "系统内置首批竞赛清单，管理员可根据官方通知维护更新。"
     evidence_created_at = "2026-07-05T11:55:00+08:00"
+    team_pool_enabled = {
+        "student_001": True,
+        "student_002": True,
+        "student_003": True,
+        "student_004": False,
+        "student_005": False,
+    }
 
     def get_profile(self, student_id: str) -> GrowthProfileResponse:
         evidence_items = self._profile_evidence(student_id)
@@ -509,38 +517,20 @@ class GrowthService:
         )
 
     def recommend_team(self, payload: TeamRecommendRequest) -> TeamRecommendResponse:
+        candidates = [
+            candidate
+            for candidate in self._team_candidates()
+            if candidate.student_id != payload.student_id
+            and self._is_team_pool_enabled(candidate.student_id)
+        ]
         return TeamRecommendResponse(
             requester_id=payload.student_id,
             project_goal=payload.project_goal,
-            candidates=[
-                TeamCandidate(
-                    student_id="student_002",
-                    name="陈星然",
-                    role="前端与交互",
-                    match_score=86,
-                    complement="补足工作台界面、演示流程和移动端适配。",
-                    evidence=["课程项目中负责过 React 页面", "表达材料完成度高"],
-                ),
-                TeamCandidate(
-                    student_id="student_003",
-                    name="周明远",
-                    role="算法与评测",
-                    match_score=81,
-                    complement="补足代码分析规则、评测样例和算法竞赛路径。",
-                    evidence=["算法专题训练稳定", "能整理测试用例"],
-                ),
-                TeamCandidate(
-                    student_id="student_004",
-                    name="沈知夏",
-                    role="产品与答辩",
-                    match_score=79,
-                    complement="补足需求表达、场景材料和比赛答辩结构。",
-                    evidence=["项目报告结构清晰", "擅长用户场景梳理"],
-                ),
-            ],
+            candidates=candidates,
             collaboration_tips=[
                 "先固定一条演示主线：学生提交作业 -> 系统分析 -> 教师看板 -> 学生成长建议。",
                 "每周保留一次项目复盘，记录完成内容、阻塞和下周任务。",
+                "推荐池只包含主动开启组队状态的同学，联系方式默认不公开。",
                 "接口、页面和演示数据同时推进，避免答辩前只剩单点功能。",
             ],
         )
@@ -562,9 +552,62 @@ class GrowthService:
         )
 
     def get_team_pool_status(self, student_id: str) -> TeamPoolStatus:
+        enabled = self._is_team_pool_enabled(student_id)
         return TeamPoolStatus(
             student_id=student_id,
-            team_status_enabled=True,
+            team_status_enabled=enabled,
             contact_visible=False,
-            visibility_note="已进入推荐池；联系方式默认不公开，需学生主动提供。",
+            visibility_note=(
+                "已进入推荐池；联系方式默认不公开，需学生主动提供。"
+                if enabled
+                else "未进入推荐池；不会出现在队友推荐结果中。"
+            ),
         )
+
+    def update_team_pool_status(
+        self,
+        student_id: str,
+        payload: TeamPoolStatusUpdate,
+    ) -> TeamPoolStatus:
+        self.team_pool_enabled[student_id] = payload.team_status_enabled
+        return TeamPoolStatus(
+            student_id=student_id,
+            team_status_enabled=payload.team_status_enabled,
+            contact_visible=False,
+            visibility_note=(
+                "已进入推荐池；联系方式默认不公开，需学生主动提供。"
+                if payload.team_status_enabled
+                else "已撤回组队授权；不会出现在队友推荐结果中。"
+            ),
+        )
+
+    def _team_candidates(self) -> list[TeamCandidate]:
+        return [
+            TeamCandidate(
+                student_id="student_002",
+                name="陈星然",
+                role="前端与交互",
+                match_score=86,
+                complement="补足工作台界面、演示流程和移动端适配。",
+                evidence=["课程项目中负责过 React 页面", "表达材料完成度高"],
+            ),
+            TeamCandidate(
+                student_id="student_003",
+                name="周明远",
+                role="算法与评测",
+                match_score=81,
+                complement="补足代码分析规则、评测样例和算法竞赛路径。",
+                evidence=["算法专题训练稳定", "能整理测试用例"],
+            ),
+            TeamCandidate(
+                student_id="student_004",
+                name="沈知夏",
+                role="产品与答辩",
+                match_score=79,
+                complement="补足需求表达、场景材料和比赛答辩结构。",
+                evidence=["项目报告结构清晰", "擅长用户场景梳理"],
+            ),
+        ]
+
+    def _is_team_pool_enabled(self, student_id: str) -> bool:
+        return self.team_pool_enabled.get(student_id, False)
