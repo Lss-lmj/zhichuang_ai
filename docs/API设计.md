@@ -183,6 +183,15 @@
   "metrics": [],
   "dimension_averages": [],
   "common_findings": [],
+  "teaching_suggestions": [
+    {
+      "knowledge_point": "接口测试与业务逻辑测试",
+      "class_evidence": "5 份已分析提交中出现“测试覆盖偏弱”；测试意识均分 71。",
+      "suggested_activity": "用一份学生提交演示 pytest/TestClient 的成功、失败、空输入三类测试写法。",
+      "practice_task": "下一次提交至少包含 3 个 API 测试和 2 个 service 层单元测试。",
+      "expected_improvement": "让学生把功能完成从人工试运行推进到可复现验证，提升测试意识维度。"
+    }
+  ],
   "reports": []
 }
 ```

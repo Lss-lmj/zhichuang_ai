@@ -71,6 +71,14 @@ class AssignmentDashboardMetric(BaseModel):
     trend: str | None = None
 
 
+class TeachingSuggestion(BaseModel):
+    knowledge_point: str
+    class_evidence: str
+    suggested_activity: str
+    practice_task: str
+    expected_improvement: str
+
+
 class AssignmentAnalysisResponse(BaseModel):
     report_id: str
     assignment_id: str
@@ -107,6 +115,7 @@ class AssignmentDashboardResponse(BaseModel):
     metrics: list[AssignmentDashboardMetric]
     dimension_averages: list[AssignmentScore]
     common_findings: list[AssignmentFinding]
+    teaching_suggestions: list[TeachingSuggestion]
     reports: list[AssignmentReportSummary]
     access_scope: str = "demo"
     ai_generated: bool = True

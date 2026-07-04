@@ -496,6 +496,58 @@ h1 {
   border-left-color: var(--green);
 }
 
+.teaching-panel {
+  margin-top: 16px;
+}
+
+.teaching-suggestion-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.teaching-suggestion {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--green);
+  border-radius: 6px;
+}
+
+.teaching-suggestion div {
+  display: grid;
+  gap: 5px;
+}
+
+.teaching-suggestion span,
+.teaching-suggestion p,
+.teaching-suggestion small,
+.teaching-suggestion em {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.teaching-suggestion span {
+  font-size: 12px;
+}
+
+.teaching-suggestion small {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.teaching-suggestion em {
+  color: var(--green);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .report-table {
   display: grid;
   gap: 10px;
@@ -1289,7 +1341,8 @@ h1 {
   .timeline,
   .task-board,
   .competition-catalog,
-  .student-grid {
+  .student-grid,
+  .teaching-suggestion-list {
     grid-template-columns: 1fr;
   }
 

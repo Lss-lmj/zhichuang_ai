@@ -49,6 +49,14 @@ def test_assignment_dashboard_returns_teacher_view() -> None:
     assert payload["total_students"] == 32
     assert len(payload["reports"]) == 5
     assert payload["access_scope"] == "teacher:authorized_course_class"
+    assert len(payload["teaching_suggestions"]) >= 2
+    for suggestion in payload["teaching_suggestions"]:
+        assert suggestion["knowledge_point"]
+        assert "份已分析提交" in suggestion["class_evidence"]
+        assert "均分" in suggestion["class_evidence"]
+        assert suggestion["suggested_activity"]
+        assert suggestion["practice_task"]
+        assert suggestion["expected_improvement"]
 
 
 def test_assignment_analysis_flags_missing_tests_from_uploaded_files() -> None:

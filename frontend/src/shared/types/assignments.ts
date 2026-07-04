@@ -72,6 +72,14 @@ export type AssignmentDashboardMetric = {
   trend?: string | null;
 };
 
+export type TeachingSuggestion = {
+  knowledge_point: string;
+  class_evidence: string;
+  suggested_activity: string;
+  practice_task: string;
+  expected_improvement: string;
+};
+
 export type AssignmentDashboard = {
   assignment_id: string;
   assignment_title: string;
@@ -86,6 +94,7 @@ export type AssignmentDashboard = {
   metrics: AssignmentDashboardMetric[];
   dimension_averages: AssignmentScore[];
   common_findings: AssignmentFinding[];
+  teaching_suggestions: TeachingSuggestion[];
   reports: AssignmentReportSummary[];
   access_scope: string;
   ai_generated: boolean;

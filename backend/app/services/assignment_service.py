@@ -17,6 +17,7 @@ from app.schemas.assignments import (
     Citation,
     CodeFile,
     CodeStructureSummary,
+    TeachingSuggestion,
 )
 
 
@@ -114,6 +115,26 @@ class AssignmentService:
                 )
             )
 
+        common_findings = [
+            AssignmentFinding(
+                severity="medium",
+                title="异常路径处理不足",
+                detail="多数提交覆盖了主流程，但对表单为空、数据库写入失败等情况缺少处理。",
+                suggestion="讲评时可以集中演示请求校验、异常捕获和错误提示的标准写法。",
+            ),
+            AssignmentFinding(
+                severity="medium",
+                title="测试覆盖偏弱",
+                detail="示例提交中只有少量同学提供接口测试或 service 层单元测试。",
+                suggestion="下一次作业要求提交至少 3 个 API 测试和 2 个业务逻辑测试。",
+            ),
+            AssignmentFinding(
+                severity="low",
+                title="README 运行说明不完整",
+                detail="部分项目缺少环境变量、初始化数据库和启动命令说明。",
+                suggestion="提供课程统一 README 模板，作为工程规范评分依据。",
+            ),
+        ]
         average_score = round(sum(self._overall_score(report) for report in reports) / len(reports))
         return AssignmentDashboardResponse(
             assignment_id=assignment_id,
@@ -133,26 +154,12 @@ class AssignmentService:
                 AssignmentDashboardMetric(label="讲评重点", value="2", trend="分层设计、测试覆盖"),
             ],
             dimension_averages=dimension_averages,
-            common_findings=[
-                AssignmentFinding(
-                    severity="medium",
-                    title="异常路径处理不足",
-                    detail="多数提交覆盖了主流程，但对表单为空、数据库写入失败等情况缺少处理。",
-                    suggestion="讲评时可以集中演示请求校验、异常捕获和错误提示的标准写法。",
-                ),
-                AssignmentFinding(
-                    severity="medium",
-                    title="测试覆盖偏弱",
-                    detail="示例提交中只有少量同学提供接口测试或 service 层单元测试。",
-                    suggestion="下一次作业要求提交至少 3 个 API 测试和 2 个业务逻辑测试。",
-                ),
-                AssignmentFinding(
-                    severity="low",
-                    title="README 运行说明不完整",
-                    detail="部分项目缺少环境变量、初始化数据库和启动命令说明。",
-                    suggestion="提供课程统一 README 模板，作为工程规范评分依据。",
-                ),
-            ],
+            common_findings=common_findings,
+            teaching_suggestions=self._build_teaching_suggestions(
+                common_findings,
+                dimension_averages,
+                submitted_count=len(reports),
+            ),
             reports=[
                 AssignmentReportSummary(
                     report_id=report.report_id,
@@ -335,6 +342,71 @@ class AssignmentService:
         if score >= 75:
             return f"{dimension}达到课程阶段要求，但仍有集中改进空间。"
         return f"{dimension}低于预期，需要在下一次作业中重点跟进。"
+
+    def _build_teaching_suggestions(
+        self,
+        common_findings: list[AssignmentFinding],
+        dimension_averages: list[AssignmentScore],
+        submitted_count: int,
+    ) -> list[TeachingSuggestion]:
+        score_by_dimension = {score.dimension: score.score for score in dimension_averages}
+        evidence_prefix = f"{submitted_count} 份已分析提交"
+        suggestions: list[TeachingSuggestion] = []
+
+        for finding in common_findings:
+            if "异常" in finding.title:
+                suggestions.append(
+                    TeachingSuggestion(
+                        knowledge_point="请求校验与异常处理",
+                        class_evidence=(
+                            f"{evidence_prefix}中出现“{finding.title}”；"
+                            f"功能完成度均分 {score_by_dimension.get('功能完成度', 0)}。"
+                        ),
+                        suggested_activity="选取一个表单为空和一次数据库写入失败案例，现场改写为可复现的错误处理流程。",
+                        practice_task="补充 2 个失败路径处理，并在 README 中说明错误提示策略。",
+                        expected_improvement="降低主流程可用但边界场景失效的问题，提高功能完成度和工程规范稳定性。",
+                    )
+                )
+            if "测试" in finding.title:
+                suggestions.append(
+                    TeachingSuggestion(
+                        knowledge_point="接口测试与业务逻辑测试",
+                        class_evidence=(
+                            f"{evidence_prefix}中出现“{finding.title}”；"
+                            f"测试意识均分 {score_by_dimension.get('测试意识', 0)}。"
+                        ),
+                        suggested_activity="用一份学生提交演示 pytest/TestClient 的成功、失败、空输入三类测试写法。",
+                        practice_task="下一次提交至少包含 3 个 API 测试和 2 个 service 层单元测试。",
+                        expected_improvement="让学生把功能完成从人工试运行推进到可复现验证，提升测试意识维度。",
+                    )
+                )
+            if "README" in finding.title or "说明" in finding.title:
+                suggestions.append(
+                    TeachingSuggestion(
+                        knowledge_point="项目文档与复现说明",
+                        class_evidence=(
+                            f"{evidence_prefix}中出现“{finding.title}”；"
+                            f"文档表达均分 {score_by_dimension.get('文档表达', 0)}。"
+                        ),
+                        suggested_activity="课堂发放统一 README 模板，要求学生补齐启动命令、接口列表和数据库初始化步骤。",
+                        practice_task="按模板重写 README，并将运行截图或测试命令输出放入报告。",
+                        expected_improvement="减少教师复现实验成本，提升项目表达和工程交付完整度。",
+                    )
+                )
+
+        if len(suggestions) < 2:
+            weakest = min(dimension_averages, key=lambda score: score.score)
+            suggestions.append(
+                TeachingSuggestion(
+                    knowledge_point=f"{weakest.dimension}巩固",
+                    class_evidence=f"{evidence_prefix}中{weakest.dimension}均分 {weakest.score}，是当前最低维度。",
+                    suggested_activity=f"围绕{weakest.dimension}选取一份高分样例和一份待改进样例进行对比讲评。",
+                    practice_task=f"要求学生提交一项针对{weakest.dimension}的修订记录。",
+                    expected_improvement="把班级均分短板转化为下一次作业的明确改进动作。",
+                )
+            )
+
+        return suggestions[:3]
 
     def _analyze_files(self, files: list[CodeFile]) -> CodeStructureSummary:
         entry_files: list[str] = []

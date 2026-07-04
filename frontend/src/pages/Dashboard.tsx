@@ -561,6 +561,29 @@ function TeacherDashboard({ dashboard }: { dashboard: AssignmentDashboard }) {
         </article>
       </section>
 
+      <section className="panel teaching-panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">教学改进建议</span>
+            <h2>讲评安排与课后练习</h2>
+          </div>
+          <span className="muted">基于班级共性证据</span>
+        </div>
+        <div className="teaching-suggestion-list">
+          {dashboard.teaching_suggestions.map((suggestion) => (
+            <div className="teaching-suggestion" key={suggestion.knowledge_point}>
+              <div>
+                <strong>{suggestion.knowledge_point}</strong>
+                <span>{suggestion.class_evidence}</span>
+              </div>
+              <p>{suggestion.suggested_activity}</p>
+              <small>{suggestion.practice_task}</small>
+              <em>{suggestion.expected_improvement}</em>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="panel">
         <div className="panel-header">
           <div>
