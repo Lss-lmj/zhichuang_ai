@@ -143,13 +143,59 @@
 
 查询当前用户可访问课程。
 
+响应：
+
+```json
+{
+  "courses": [
+    {
+      "course_id": "course_web_2026",
+      "name": "Web 应用开发",
+      "term": "2025-2026 春季学期",
+      "teacher_name": "周老师"
+    }
+  ]
+}
+```
+
 ### `GET /courses/{course_id}/classes`
 
 查询课程下班级。
 
+响应：
+
+```json
+{
+  "course_id": "course_web_2026",
+  "classes": [
+    {
+      "class_id": "class_cs_2024_01",
+      "name": "2024 级计算机科学与技术 1 班",
+      "student_count": 32
+    }
+  ]
+}
+```
+
 ### `GET /classes/{class_id}/students`
 
 查询班级学生列表。
+
+响应：
+
+```json
+{
+  "class_id": "class_cs_2024_01",
+  "students": [
+    {
+      "student_id": "student_001",
+      "name": "林一舟",
+      "target_path": "AI 应用开发 / 软件项目实践",
+      "tags": ["工程实践", "RAG", "后端接口"]
+    }
+  ]
+}
+```
 
 ## 5. 学生画像
 
