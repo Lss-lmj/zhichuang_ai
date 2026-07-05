@@ -31,6 +31,7 @@ import {
   reviseLearningPlan,
   screenTeacherCandidates,
   updateTeamPoolStatus,
+  upsertBasicProfile,
 } from "../shared/api/growth";
 import {
   createEvaluationCase,
@@ -57,6 +58,7 @@ import type {
 import type { DemoAccount } from "../shared/types/auth";
 import type { EvaluationDashboardResponse } from "../shared/types/evaluations";
 import type {
+  BasicProfilePayload,
   CompetitionCatalogResponse,
   CompetitionPreparationPlan,
   CompetitionRecommendResponse,
@@ -159,6 +161,17 @@ function reportStudentIdForAccount(account: DemoAccount | null) {
   return account?.role === "student" ? account.user_id : demoStudentId;
 }
 
+function joinProfileItems(items: string[] | undefined) {
+  return (items ?? []).join("、");
+}
+
+function splitProfileItems(value: string) {
+  return value
+    .split(/[、,，\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export function Dashboard() {
   const [mode, setMode] = useState<ViewMode>("growth");
   const [report, setReport] = useState<AssignmentReport | null>(null);
@@ -172,6 +185,7 @@ export function Dashboard() {
   const [archiveUploadResult, setArchiveUploadResult] = useState<string | null>(null);
   const [profile, setProfile] = useState<GrowthProfile | null>(null);
   const [profileEvidence, setProfileEvidence] = useState<ProfileEvidence | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [plan, setPlan] = useState<LearningPlan | null>(null);
   const [planRevisionLoading, setPlanRevisionLoading] = useState(false);
   const [competitions, setCompetitions] = useState<CompetitionRecommendResponse | null>(null);
@@ -363,8 +377,10 @@ export function Dashboard() {
           teamStatus,
           planRevisionLoading,
           teamStatusLoading,
+          profileSaving,
           planCreateLoading: planRevisionLoading,
           onRevisePlan: handleRevisePlan,
+          onSaveProfile: handleSaveProfile,
           onGeneratePlan: handleGeneratePlan,
           onGenerateCompetition: handleGenerateCompetition,
           onGenerateTeam: handleGenerateTeam,
@@ -589,6 +605,26 @@ export function Dashboard() {
       setError(err instanceof Error ? err.message : "学习计划更新失败");
     } finally {
       setPlanRevisionLoading(false);
+    }
+  }
+
+  async function handleSaveProfile(payload: BasicProfilePayload) {
+    try {
+      setProfileSaving(true);
+      setError(null);
+      const updatedProfile = await upsertBasicProfile(activeStudentId, payload, currentToken);
+      setProfile(updatedProfile);
+      setProfileEvidence(null);
+      setPlan(null);
+      setCompetitions(null);
+      setCompetitionPreparation(null);
+      setTeam(null);
+      setTeamRequest(null);
+      setMode("growth");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "基础画像保存失败");
+    } finally {
+      setProfileSaving(false);
     }
   }
 
@@ -2148,6 +2184,161 @@ function KnowledgeAssistant({
   );
 }
 
+function BasicProfileEditor({
+  profile,
+  saving,
+  onSave,
+}: {
+  profile: GrowthProfile;
+  saving: boolean;
+  onSave: (payload: BasicProfilePayload) => void;
+}) {
+  const summary = profile.profile_summary;
+  const [studentName, setStudentName] = useState(profile.student_name);
+  const [grade, setGrade] = useState(summary?.grade ?? "大二");
+  const [major, setMajor] = useState(summary?.major ?? "计算机科学与技术");
+  const [targetDirection, setTargetDirection] = useState(
+    summary?.target_direction ?? profile.target_path,
+  );
+  const [weeklyHours, setWeeklyHours] = useState(summary?.weekly_hours ?? 8);
+  const [courseFoundation, setCourseFoundation] = useState(
+    joinProfileItems(summary?.course_foundation ?? ["程序设计基础", "数据结构"]),
+  );
+  const [skillTags, setSkillTags] = useState(
+    joinProfileItems(summary?.skill_tags ?? ["Flask", "RAG"]),
+  );
+  const [projectExperiences, setProjectExperiences] = useState(
+    joinProfileItems(summary?.project_experiences ?? ["课程作业项目"]),
+  );
+  const [competitionExperiences, setCompetitionExperiences] = useState(
+    joinProfileItems(summary?.competition_experiences ?? []),
+  );
+  const [githubUrl, setGithubUrl] = useState(summary?.github_url ?? "");
+
+  useEffect(() => {
+    setStudentName(profile.student_name);
+    setGrade(summary?.grade ?? "大二");
+    setMajor(summary?.major ?? "计算机科学与技术");
+    setTargetDirection(summary?.target_direction ?? profile.target_path);
+    setWeeklyHours(summary?.weekly_hours ?? 8);
+    setCourseFoundation(joinProfileItems(summary?.course_foundation ?? ["程序设计基础", "数据结构"]));
+    setSkillTags(joinProfileItems(summary?.skill_tags ?? ["Flask", "RAG"]));
+    setProjectExperiences(joinProfileItems(summary?.project_experiences ?? ["课程作业项目"]));
+    setCompetitionExperiences(joinProfileItems(summary?.competition_experiences ?? []));
+    setGithubUrl(summary?.github_url ?? "");
+  }, [profile.student_id, profile.student_name, profile.target_path, summary]);
+
+  const skillTagList = splitProfileItems(skillTags);
+  const canSave =
+    studentName.trim() &&
+    grade.trim() &&
+    major.trim() &&
+    targetDirection.trim() &&
+    weeklyHours > 0;
+
+  return (
+    <section className="basic-profile-editor">
+      <div className="basic-profile-editor-head">
+        <div>
+          <span className="section-label">基础画像采集</span>
+          <h3>完善学习目标与能力证据</h3>
+        </div>
+        <span>{summary ? "已保存" : "待完善"}</span>
+      </div>
+      <div className="profile-form-grid">
+        <label>
+          <span>姓名</span>
+          <input value={studentName} onChange={(event) => setStudentName(event.target.value)} />
+        </label>
+        <label>
+          <span>年级</span>
+          <input value={grade} onChange={(event) => setGrade(event.target.value)} />
+        </label>
+        <label>
+          <span>专业</span>
+          <input value={major} onChange={(event) => setMajor(event.target.value)} />
+        </label>
+        <label>
+          <span>每周投入</span>
+          <input
+            min={1}
+            max={40}
+            type="number"
+            value={weeklyHours}
+            onChange={(event) => setWeeklyHours(Number(event.target.value))}
+          />
+        </label>
+      </div>
+      <label className="profile-form-field">
+        <span>目标方向</span>
+        <input
+          value={targetDirection}
+          onChange={(event) => setTargetDirection(event.target.value)}
+        />
+      </label>
+      <label className="profile-form-field">
+        <span>课程基础</span>
+        <textarea
+          rows={2}
+          value={courseFoundation}
+          onChange={(event) => setCourseFoundation(event.target.value)}
+        />
+      </label>
+      <label className="profile-form-field">
+        <span>技能标签</span>
+        <textarea rows={2} value={skillTags} onChange={(event) => setSkillTags(event.target.value)} />
+      </label>
+      {skillTagList.length > 0 && (
+        <div className="profile-tag-preview">
+          {skillTagList.slice(0, 8).map((tag) => (
+            <small key={tag}>{tag}</small>
+          ))}
+        </div>
+      )}
+      <label className="profile-form-field">
+        <span>项目经历</span>
+        <textarea
+          rows={2}
+          value={projectExperiences}
+          onChange={(event) => setProjectExperiences(event.target.value)}
+        />
+      </label>
+      <label className="profile-form-field">
+        <span>竞赛经历</span>
+        <textarea
+          rows={2}
+          value={competitionExperiences}
+          onChange={(event) => setCompetitionExperiences(event.target.value)}
+        />
+      </label>
+      <label className="profile-form-field">
+        <span>代码仓库</span>
+        <input value={githubUrl} onChange={(event) => setGithubUrl(event.target.value)} />
+      </label>
+      <button
+        type="button"
+        disabled={saving || !canSave}
+        onClick={() =>
+          onSave({
+            student_name: studentName.trim(),
+            grade: grade.trim(),
+            major: major.trim(),
+            course_foundation: splitProfileItems(courseFoundation),
+            target_direction: targetDirection.trim(),
+            weekly_hours: Math.max(1, Math.min(40, weeklyHours || 1)),
+            skill_tags: skillTagList,
+            project_experiences: splitProfileItems(projectExperiences),
+            competition_experiences: splitProfileItems(competitionExperiences),
+            github_url: githubUrl.trim() || null,
+          })
+        }
+      >
+        {saving ? "保存中" : "保存画像"}
+      </button>
+    </section>
+  );
+}
+
 function GrowthPath({
   profile,
   profileEvidence,
@@ -2160,8 +2351,10 @@ function GrowthPath({
   teamStatus,
   planRevisionLoading,
   teamStatusLoading,
+  profileSaving,
   planCreateLoading,
   onRevisePlan,
+  onSaveProfile,
   onGeneratePlan,
   onGenerateCompetition,
   onGenerateTeam,
@@ -2178,8 +2371,10 @@ function GrowthPath({
   teamStatus: TeamPoolStatus;
   planRevisionLoading: boolean;
   teamStatusLoading: boolean;
+  profileSaving: boolean;
   planCreateLoading: boolean;
   onRevisePlan: (feedback: string) => void;
+  onSaveProfile: (payload: BasicProfilePayload) => void;
   onGeneratePlan: () => void;
   onGenerateCompetition: () => void;
   onGenerateTeam: () => void;
@@ -2228,29 +2423,11 @@ function GrowthPath({
         </article>
 
         <article className="panel">
-          {profile.profile_summary && (
-            <>
-              <span className="section-label">基础画像采集</span>
-              <div className="basic-profile-card">
-                <strong>
-                  {profile.profile_summary.grade} · {profile.profile_summary.major}
-                </strong>
-                <p>{profile.profile_summary.target_direction}</p>
-                <small>{profile.profile_summary.weekly_hours} 小时/周 · 预计 5 分钟完成</small>
-                <div>
-                  {profile.profile_summary.skill_tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-                <small>
-                  课程基础：{profile.profile_summary.course_foundation.join(" / ")}
-                </small>
-                {profile.profile_summary.github_url && (
-                  <small>{profile.profile_summary.github_url}</small>
-                )}
-              </div>
-            </>
-          )}
+          <BasicProfileEditor
+            profile={profile}
+            saving={profileSaving}
+            onSave={onSaveProfile}
+          />
           {profileEvidence ? (
             <>
               <span className="section-label">最近补充</span>

@@ -2,6 +2,7 @@ import type {
   CompetitionCatalogResponse,
   CompetitionPreparationPlan,
   CompetitionRecommendResponse,
+  BasicProfilePayload,
   GrowthProfile,
   LearningPlan,
   LearningPlanListResponse,
@@ -34,11 +35,6 @@ function authHeaders(token?: string): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-type BasicProfileSeed = {
-  studentName?: string;
-  targetDirection?: string;
-};
-
 export function fetchGrowthProfile(
   studentId = "student_001",
   token?: string,
@@ -50,24 +46,13 @@ export function fetchGrowthProfile(
 
 export function upsertBasicProfile(
   studentId = "student_001",
+  payload: BasicProfilePayload,
   token?: string,
-  seed: BasicProfileSeed = {},
 ): Promise<GrowthProfile> {
   return requestJson<GrowthProfile>(`/students/${studentId}/profile`, {
     method: "PUT",
     headers: authHeaders(token),
-    body: JSON.stringify({
-      student_name: seed.studentName ?? "林一舟",
-      grade: "大二",
-      major: "计算机科学与技术",
-      course_foundation: ["程序设计基础", "数据结构", "数据库系统"],
-      skill_tags: ["Flask", "RAG", "GitHub", "README"],
-      project_experiences: ["Flask Web 作业项目", "RAG 文档问答课程项目"],
-      competition_experiences: ["蓝桥杯校内训练"],
-      target_direction: seed.targetDirection ?? "AI 应用开发 / 软件项目实践",
-      weekly_hours: 8,
-      github_url: "https://github.com/school-projects/zhichuang-agent",
-    }),
+    body: JSON.stringify(payload),
   });
 }
 

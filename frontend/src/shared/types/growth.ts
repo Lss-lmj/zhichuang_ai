@@ -43,6 +43,19 @@ export type BasicProfileSummary = {
   completion_minutes_estimate: number;
 };
 
+export type BasicProfilePayload = {
+  student_name: string;
+  grade: string;
+  major: string;
+  course_foundation: string[];
+  target_direction: string;
+  weekly_hours: number;
+  skill_tags: string[];
+  project_experiences: string[];
+  competition_experiences: string[];
+  github_url?: string | null;
+};
+
 export type PlanTask = {
   week: number;
   title: string;
