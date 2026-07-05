@@ -29,7 +29,7 @@ class AuthService:
             default_view="growth",
             authorized_courses=["Web 应用开发", "算法设计与分析"],
             authorized_classes=["2024 级计算机科学与技术 1 班"],
-            modules=["学生报告", "成长路径", "知识库问答"],
+            modules=["成长路径", "学生报告", "任务复盘", "知识库问答"],
         ),
         DemoAccount(
             user_id="teacher_001",
@@ -264,10 +264,10 @@ class AuthService:
 
     def _modules_for_role(self, role: str) -> list[str]:
         if role == "admin":
-            return ["课程班级", "知识库管理", "教师看板", "成长路径", "知识库问答"]
+            return ["课程班级", "知识库管理", "教师看板", "成长路径", "任务复盘", "知识库问答", "测试评测"]
         if role == "teacher":
             return ["教师看板", "学生报告", "课程班级", "知识库问答"]
-        return ["学生报告", "成长路径", "知识库问答"]
+        return ["成长路径", "学生报告", "任务复盘", "知识库问答"]
 
     def _dedupe(self, values: list[str]) -> list[str]:
         seen: set[str] = set()

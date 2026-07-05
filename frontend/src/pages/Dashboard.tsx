@@ -96,11 +96,11 @@ const demoStudentAccount: DemoAccount = {
   default_view: "growth",
   authorized_courses: ["Web 应用开发", "算法设计与分析"],
   authorized_classes: ["2024 级计算机科学与技术 1 班"],
-  modules: ["学生报告", "成长路径", "知识库问答"],
+  modules: ["成长路径", "学生报告", "任务复盘", "知识库问答"],
 };
 
 export function Dashboard() {
-  const [mode, setMode] = useState<ViewMode>("teacher");
+  const [mode, setMode] = useState<ViewMode>("growth");
   const [report, setReport] = useState<AssignmentReport | null>(null);
   const [dashboard, setDashboard] = useState<AssignmentDashboard | null>(null);
   const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
@@ -134,8 +134,8 @@ export function Dashboard() {
   const [knowledgeCreateLoading, setKnowledgeCreateLoading] = useState(false);
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   const [localAccounts, setLocalAccounts] = useState<DemoAccount[]>([]);
-  const [currentAccount, setCurrentAccount] = useState<DemoAccount | null>(null);
-  const [currentToken, setCurrentToken] = useState("demo-token-teacher_001");
+  const [currentAccount, setCurrentAccount] = useState<DemoAccount | null>(demoStudentAccount);
+  const [currentToken, setCurrentToken] = useState("demo-token-student_001");
   const [taskList, setTaskList] = useState<TaskListResponse | null>(null);
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
@@ -273,10 +273,10 @@ export function Dashboard() {
           setAccounts(accountsData.accounts);
           setLocalAccounts([]);
           setCurrentAccount(
-            accountsData.accounts.find((account) => account.role === "teacher") ??
-              accountsData.accounts[0],
+            accountsData.accounts.find((account) => account.role === "student") ??
+              demoStudentAccount,
           );
-          setCurrentToken("demo-token-teacher_001");
+          setCurrentToken("demo-token-student_001");
           setTaskList(taskData);
           setEvaluationDashboard(evaluationData);
           setCourses(coursesData);
@@ -873,17 +873,17 @@ export function Dashboard() {
           <span className="brand-mark">Z</span>
           <div>
             <strong>智创Agent</strong>
-            <span>教学智能体工作台</span>
+            <span>学生成长与双创能力平台</span>
           </div>
         </div>
 
         <nav className="nav-list" aria-label="主导航">
-          {canAccessModule("教师看板") && (
+          {canAccessModule("成长路径") && (
             <button
-              className={mode === "teacher" ? "active" : ""}
-              onClick={() => setMode("teacher")}
+              className={mode === "growth" ? "active" : ""}
+              onClick={() => setMode("growth")}
             >
-              教师看板
+              我的成长路径
             </button>
           )}
           {canAccessModule("学生报告") && (
@@ -891,35 +891,12 @@ export function Dashboard() {
               className={mode === "student" ? "active" : ""}
               onClick={() => setMode("student")}
             >
-              学生报告
+              我的作业报告
             </button>
           )}
-          {canAccessModule("成长路径") && (
-            <button
-              className={mode === "growth" ? "active" : ""}
-              onClick={() => setMode("growth")}
-            >
-              成长路径
-            </button>
-          )}
-          <button className={mode === "tasks" ? "active" : ""} onClick={() => setMode("tasks")}>
-            任务复盘
-          </button>
-          <button
-            className={mode === "evaluations" ? "active" : ""}
-            onClick={() => setMode("evaluations")}
-          >
-            测试评测
-          </button>
-          <button
-            className={mode === "academic" ? "active" : ""}
-            onClick={() => setMode("academic")}
-          >
-            课程班级
-          </button>
-          {canAccessModule("知识库管理") && (
-            <button className={mode === "kb" ? "active" : ""} onClick={() => setMode("kb")}>
-              知识库管理
+          {canAccessModule("任务复盘") && (
+            <button className={mode === "tasks" ? "active" : ""} onClick={() => setMode("tasks")}>
+              任务复盘
             </button>
           )}
           {canAccessModule("知识库问答") && (
@@ -935,12 +912,41 @@ export function Dashboard() {
               知识库问答
             </button>
           )}
+          {canAccessModule("教师看板") && (
+            <button
+              className={mode === "teacher" ? "active" : ""}
+              onClick={() => setMode("teacher")}
+            >
+              教师看板
+            </button>
+          )}
+          {canAccessModule("测试评测") && (
+            <button
+              className={mode === "evaluations" ? "active" : ""}
+              onClick={() => setMode("evaluations")}
+            >
+              测试评测
+            </button>
+          )}
+          {canAccessModule("课程班级") && (
+            <button
+              className={mode === "academic" ? "active" : ""}
+              onClick={() => setMode("academic")}
+            >
+              课程班级
+            </button>
+          )}
+          {canAccessModule("知识库管理") && (
+            <button className={mode === "kb" ? "active" : ""} onClick={() => setMode("kb")}>
+              知识库管理
+            </button>
+          )}
         </nav>
 
         <div className="side-note">
-          <span>当前样例</span>
-          <strong>Flask Web 项目实践</strong>
-          <p>系统分析作业代码与说明，教师直接查看学情诊断。</p>
+          <span>当前学生</span>
+          <strong>{currentAccount?.role === "student" ? currentAccount.name : demoStudentAccount.name}</strong>
+          <p>从课程作业、能力画像、竞赛准备和组队建议形成个人成长闭环。</p>
         </div>
 
         {currentAccount && (
@@ -1002,11 +1008,11 @@ export function Dashboard() {
               {mode === "teacher"
                 ? "课程作业学情诊断"
                 : mode === "student"
-                  ? "学生作业分析报告"
+                  ? "我的作业分析报告"
                   : mode === "growth"
-                    ? "学生成长路径"
+                    ? "我的成长路径"
                     : mode === "tasks"
-                      ? "任务中心与定期复盘"
+                      ? "我的任务与复盘"
                       : mode === "evaluations"
                         ? "测试评测与输出记录"
                         : mode === "academic"
@@ -1030,7 +1036,9 @@ export function Dashboard() {
               ? "重新检索"
               : mode === "academic" || mode === "evaluations"
                 ? "刷新数据"
-                : "重新分析"}
+                : mode === "teacher"
+                  ? "重新分析"
+                  : "刷新路径"}
           </button>
         </header>
 
