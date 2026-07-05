@@ -266,6 +266,14 @@ def main() -> int:
 
     profile = client.get_json("/students/student_001/profile")
     assert_true(len(profile["dimensions"]) >= 4, "growth profile dimensions missing")
+    assert_true(
+        any(
+            item["source_type"] == "assignment_report"
+            for dimension in profile["dimensions"]
+            for item in dimension["evidence_items"]
+        ),
+        "assignment report evidence not synced to profile",
+    )
 
     plan = client.post_json("/plans/generate", {"student_id": "student_001", "weeks": 4})
     assert_true(len(plan["tasks"]) == 4, "learning plan did not honor weeks")

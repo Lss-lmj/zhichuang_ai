@@ -13,6 +13,7 @@ from app.models.assignment import Assignment as AssignmentRecord
 from app.models.assignment import AssignmentReport as AssignmentReportRecord
 from app.models.assignment import Submission as SubmissionRecord
 from app.models.course import ClassGroup, Course
+from app.models.profile import CapabilityEvidence as CapabilityEvidenceRecord
 from app.schemas.auth import DemoAccount
 from app.schemas.assignments import (
     AbilityHeatmapCell,
@@ -75,6 +76,7 @@ class AssignmentService:
         if self.db is not None:
             Base.metadata.create_all(bind=self.db.get_bind())
             self._ensure_assignment_schema()
+            self._ensure_profile_evidence_schema()
 
     def list_assignments(self, account: DemoAccount | None = None) -> AssignmentListResponse:
         account = account or self._demo_teacher_account()
@@ -744,6 +746,7 @@ class AssignmentService:
         report_record.scores_json = self._assignment_scores_json(report)
         report_record.evidence_json = self._assignment_evidence_json(report)
         report_record.findings_json = self._assignment_findings_json(report)
+        self._sync_profile_evidence(report, now)
         self.db.commit()
 
     def _stored_report(
@@ -818,6 +821,47 @@ class AssignmentService:
             "findings": [finding.model_dump(mode="json") for finding in report.findings],
             "improvement_tasks": report.improvement_tasks,
         }
+
+    def _sync_profile_evidence(
+        self,
+        report: AssignmentAnalysisResponse,
+        now: datetime,
+    ) -> None:
+        if self.db is None:
+            return
+        for item in report.capability_evidence:
+            evidence_id = self._profile_evidence_id(report, item.dimension)
+            record = self.db.get(CapabilityEvidenceRecord, evidence_id)
+            if record is None:
+                record = CapabilityEvidenceRecord(
+                    id=evidence_id,
+                    student_id=report.student_id,
+                    dimension=item.dimension,
+                    source_type="assignment_report",
+                    source_id=report.report_id,
+                    source_title=report.assignment_title,
+                    evidence_text=item.evidence,
+                    confidence=0.82,
+                    weight=0.82,
+                    created_at=now,
+                )
+                self.db.add(record)
+            else:
+                record.dimension = item.dimension
+                record.source_type = "assignment_report"
+                record.source_id = report.report_id
+                record.source_title = report.assignment_title
+                record.evidence_text = item.evidence
+                record.confidence = 0.82
+                record.weight = 0.82
+
+    def _profile_evidence_id(
+        self,
+        report: AssignmentAnalysisResponse,
+        dimension: str,
+    ) -> str:
+        raw = f"{report.report_id}:{report.student_id}:{dimension}".encode("utf-8")
+        return f"evidence_{report.student_id}_assignment_{sha1(raw).hexdigest()[:10]}"
 
     def _demo_assignment_item(self, account: DemoAccount) -> AssignmentItem:
         return AssignmentItem(
@@ -933,6 +977,24 @@ class AssignmentService:
         columns = {column["name"] for column in inspector.get_columns("assignments")}
         if "class_id" not in columns:
             self.db.execute(text("ALTER TABLE assignments ADD COLUMN class_id VARCHAR(64)"))
+            self.db.commit()
+
+    def _ensure_profile_evidence_schema(self) -> None:
+        if self.db is None:
+            return
+        bind = self.db.get_bind()
+        inspector = inspect(bind)
+        if not inspector.has_table("capability_evidence"):
+            return
+        columns = {column["name"] for column in inspector.get_columns("capability_evidence")}
+        statements = []
+        if "source_title" not in columns:
+            statements.append("ALTER TABLE capability_evidence ADD COLUMN source_title VARCHAR(200)")
+        if "confidence" not in columns:
+            statements.append("ALTER TABLE capability_evidence ADD COLUMN confidence FLOAT")
+        for statement in statements:
+            self.db.execute(text(statement))
+        if statements:
             self.db.commit()
 
     def _assignment_id_from_title(self, title: str) -> str:

@@ -138,6 +138,7 @@ Authorization: Bearer demo-token-admin_001
 
 提交课程作业代码文件、仓库链接或说明，系统生成一份基于提交物证据的作业分析报告。首版支持直接传入文件路径和文本内容；如需上传学生作业压缩包，使用 `POST /assignments/upload-archive`。
 生成结果会写入 SQLite `assignment_reports`，并关联 `assignments`、`submissions`，用于后续学生报告查看和教师看板汇总。
+报告中的能力证据会同步写入 `capability_evidence`，因此学生画像刷新后可看到来源为 `assignment_report` 的证据项。
 
 请求：
 

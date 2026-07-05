@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.schemas.assignments import AssignmentAnalysisRequest, CodeFile
 from app.services.assignment_service import AssignmentService
+from app.services.growth_service import GrowthService
 from app.services.submission_archive_service import SubmissionArchiveService
 
 
@@ -415,6 +416,61 @@ def test_assignment_report_persists_in_sqlite_session(tmp_path) -> None:
     assert persisted.analysis_trace[-1].node == "generate_report"
     assert any(report.student_id == "student_009" for report in dashboard.reports)
     assert dashboard.submitted_count == 6
+
+
+def test_assignment_report_syncs_capability_evidence_to_profile(tmp_path) -> None:
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'assignment_profile_evidence.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    with SessionLocal() as first_session:
+        AssignmentService(first_session).analyze(
+            AssignmentAnalysisRequest(
+                assignment_id="assignment_profile_sync",
+                assignment_title="画像证据同步作业",
+                course_id="course_web_2026",
+                class_id="class_cs_2024_01",
+                student_id="student_profile_sync_001",
+                description="学生提交了接口、测试和 README，用于验证作业报告沉淀为画像证据。",
+                files=[
+                    CodeFile(path="main.py", content="from fastapi import FastAPI\napp = FastAPI()\n"),
+                    CodeFile(path="tests/test_main.py", content="def test_main(): assert True\n"),
+                    CodeFile(path="README.md", content="画像证据同步作业说明\n"),
+                ],
+            )
+        )
+        AssignmentService(first_session).analyze(
+            AssignmentAnalysisRequest(
+                assignment_id="assignment_profile_sync",
+                assignment_title="画像证据同步作业",
+                course_id="course_web_2026",
+                class_id="class_cs_2024_01",
+                student_id="student_profile_sync_001",
+                description="学生提交了接口、测试和 README，用于验证作业报告沉淀为画像证据。",
+                files=[
+                    CodeFile(path="main.py", content="from fastapi import FastAPI\napp = FastAPI()\n"),
+                    CodeFile(path="tests/test_main.py", content="def test_main(): assert True\n"),
+                    CodeFile(path="README.md", content="画像证据同步作业说明\n"),
+                ],
+            )
+        )
+
+    with SessionLocal() as second_session:
+        profile = GrowthService(second_session).get_profile("student_profile_sync_001")
+        engineering_evidence = [
+            item
+            for dimension in profile.dimensions
+            if dimension.dimension == "工程实践"
+            for item in dimension.evidence_items
+            if item.source_type == "assignment_report"
+            and item.source_title == "画像证据同步作业"
+        ]
+
+    assert len(engineering_evidence) == 1
+    assert "识别到的实现能力" in engineering_evidence[0].evidence_text
+    assert engineering_evidence[0].confidence == 0.82
 
 
 def _zip_bytes(files: dict[str, str]) -> bytes:
