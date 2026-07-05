@@ -39,6 +39,7 @@ from app.schemas.assignments import (
     DirectionDistributionItem,
     TeachingSuggestion,
 )
+from app.services.repository_fetch_service import RepositoryFetchService
 
 
 class AssignmentService:
@@ -163,6 +164,7 @@ class AssignmentService:
         course_id = payload.course_id or self.course["id"]
         class_id = payload.class_id or self.class_group["id"]
         self._ensure_report_access(account, course_id, class_id, student_id)
+        files = self._analysis_files(payload)
         report = self._build_report(
             assignment_id=assignment_id,
             student_id=student_id,
@@ -171,10 +173,10 @@ class AssignmentService:
             class_id=class_id,
             repository_url=payload.repository_url,
             description=payload.description,
-            files=payload.files,
+            files=files,
             access_scope=self._access_scope(account),
         )
-        self._save_report(report, payload)
+        self._save_report(report, payload, files)
         return report
 
     def get_report(
@@ -695,6 +697,7 @@ class AssignmentService:
         self,
         report: AssignmentAnalysisResponse,
         payload: AssignmentAnalysisRequest,
+        files: list[CodeFile] | None = None,
     ) -> None:
         if self.db is None:
             return
@@ -718,7 +721,7 @@ class AssignmentService:
             assignment.description = payload.description
             assignment.rubric_id = payload.rubric_id
 
-        submission_id = self._submission_id(report.assignment_id, report.student_id, payload)
+        submission_id = self._submission_id(report.assignment_id, report.student_id, payload, files)
         submission = self.db.get(SubmissionRecord, submission_id)
         if submission is None:
             submission = SubmissionRecord(
@@ -806,13 +809,20 @@ class AssignmentService:
         assignment_id: str,
         student_id: str,
         payload: AssignmentAnalysisRequest,
+        files: list[CodeFile] | None = None,
     ) -> str:
-        file_basis = "|".join(f"{file.path}:{len(file.content)}" for file in payload.files)
+        analysis_files = files if files is not None else payload.files
+        file_basis = "|".join(f"{file.path}:{len(file.content)}" for file in analysis_files)
         raw = (
             f"{assignment_id}:{student_id}:{payload.repository_url or ''}:"
             f"{payload.description or ''}:{file_basis}"
         ).encode("utf-8")
         return f"submission_{sha1(raw).hexdigest()[:12]}"
+
+    def _analysis_files(self, payload: AssignmentAnalysisRequest) -> list[CodeFile]:
+        if payload.files or not payload.repository_url:
+            return payload.files
+        return RepositoryFetchService().fetch_repository_files(payload.repository_url)
 
     def _assignment_scores_json(self, report: AssignmentAnalysisResponse) -> dict:
         return {

@@ -4,6 +4,7 @@ import type {
   AssignmentListResponse,
   AssignmentReport,
   AssignmentUploadArchivePayload,
+  RepositoryAnalysisPayload,
 } from "../types/assignments";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
@@ -99,6 +100,25 @@ export function createAssignment(token?: string): Promise<AssignmentItem> {
       class_id: "class_cs_2024_01",
       description: "围绕 RAG 检索、引用展示、对话上下文和工程测试完成一次综合实践。",
       rubric_id: "rubric_agent_rag",
+    }),
+  });
+}
+
+export function analyzeRepositoryAssignment(
+  payload: RepositoryAnalysisPayload,
+  token?: string,
+): Promise<AssignmentReport> {
+  return requestJson<AssignmentReport>("/assignments/analyze", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({
+      assignment_id: payload.assignmentId,
+      assignment_title: payload.assignmentTitle,
+      course_id: payload.courseId,
+      class_id: payload.classId,
+      student_id: payload.studentId,
+      repository_url: payload.repositoryUrl,
+      description: payload.description,
     }),
   });
 }

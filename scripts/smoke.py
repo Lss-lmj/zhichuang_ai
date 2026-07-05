@@ -260,6 +260,35 @@ def main() -> int:
         "FastAPI" in uploaded_report["code_structure"]["detected_frameworks"],
         "zip upload did not analyze code files",
     )
+    repository_style_report = client.post_json(
+        "/assignments/analyze",
+        {
+            "assignment_id": "assignment_smoke_agent_rag",
+            "assignment_title": "Smoke 仓库链接作业",
+            "course_id": "course_web_2026",
+            "class_id": "class_cs_2024_01",
+            "student_id": "student_smoke_repo_001",
+            "repository_url": "https://github.com/example/course-homework.git",
+            "description": "Smoke 使用仓库链接字段提交，同时传入文件列表以避免冒烟测试依赖外部网络。",
+            "files": [
+                {
+                    "path": "src/main.py",
+                    "content": "from fastapi import FastAPI\napp = FastAPI()\n@app.get('/items')\ndef items(): return []\n",
+                },
+                {"path": "tests/test_main.py", "content": "def test_items(): assert True\n"},
+                {"path": "README.md", "content": "Smoke 仓库链接作业说明\n"},
+            ],
+        },
+        headers=teacher_header,
+    )
+    assert_true(
+        repository_style_report["student_id"] == "student_smoke_repo_001",
+        "repository-style assignment analysis failed",
+    )
+    assert_true(
+        "FastAPI" in repository_style_report["code_structure"]["detected_frameworks"],
+        "repository-style assignment did not analyze code files",
+    )
     created_dashboard = client.get_json(
         "/assignments/assignment_smoke_agent_rag/dashboard",
         headers=teacher_header,
@@ -267,6 +296,13 @@ def main() -> int:
     assert_true(
         any(report["student_id"] == "student_smoke_zip_001" for report in created_dashboard["reports"]),
         "created assignment dashboard missing uploaded report",
+    )
+    assert_true(
+        any(
+            report["student_id"] == "student_smoke_repo_001"
+            for report in created_dashboard["reports"]
+        ),
+        "created assignment dashboard missing repository-style report",
     )
 
     profile = client.get_json("/students/student_001/profile")

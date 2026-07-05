@@ -10,6 +10,7 @@ from app.main import app
 from app.schemas.assignments import AssignmentAnalysisRequest, CodeFile
 from app.services.assignment_service import AssignmentService
 from app.services.growth_service import GrowthService
+from app.services.repository_fetch_service import RepositoryFetchService
 from app.services.submission_archive_service import SubmissionArchiveService
 
 
@@ -244,6 +245,73 @@ def test_assignment_analysis_flags_missing_tests_from_uploaded_files() -> None:
     assert "自动化测试" in payload["improvement_tasks"][0]
 
 
+def test_assignment_analysis_fetches_repository_when_files_missing(monkeypatch) -> None:
+    client = TestClient(app)
+    teacher_header = {"Authorization": "Bearer demo-token-teacher_001"}
+    assignment_id = f"assignment_repo_fetch_{uuid4().hex[:8]}"
+
+    def fake_fetch(self: RepositoryFetchService, repository_url: str) -> list[CodeFile]:
+        assert repository_url == "https://github.com/example/course-homework.git"
+        return [
+            CodeFile(
+                path="src/main.py",
+                content="from fastapi import FastAPI\napp = FastAPI()\n@app.get('/items')\ndef items(): return []\n",
+            ),
+            CodeFile(path="tests/test_main.py", content="def test_items(): assert True\n"),
+            CodeFile(path="requirements.txt", content="fastapi\npytest\n"),
+            CodeFile(path="README.md", content="仓库提交作业说明\n"),
+        ]
+
+    monkeypatch.setattr(RepositoryFetchService, "fetch_repository_files", fake_fetch)
+
+    response = client.post(
+        "/api/assignments/analyze",
+        json={
+            "assignment_id": assignment_id,
+            "assignment_title": "仓库链接作业",
+            "course_id": "course_web_2026",
+            "class_id": "class_cs_2024_01",
+            "student_id": "student_repo_001",
+            "repository_url": "https://github.com/example/course-homework.git",
+            "description": "学生提交公开 Git 仓库地址，系统拉取核心代码并生成作业报告。",
+        },
+        headers=teacher_header,
+    )
+    dashboard_response = client.get(
+        f"/api/assignments/{assignment_id}/dashboard",
+        headers=teacher_header,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["assignment_id"] == assignment_id
+    assert payload["student_id"] == "student_repo_001"
+    assert payload["code_structure"]["file_count"] == 4
+    assert "FastAPI" in payload["code_structure"]["detected_frameworks"]
+    assert payload["code_structure"]["test_files"] == ["tests/test_main.py"]
+    assert dashboard_response.status_code == 200
+    assert any(
+        report["student_id"] == "student_repo_001"
+        for report in dashboard_response.json()["reports"]
+    )
+
+
+def test_assignment_analysis_rejects_invalid_repository_url() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/api/assignments/analyze",
+        json={
+            "assignment_title": "非法仓库链接",
+            "student_id": "student_001",
+            "repository_url": "file:///tmp/course-homework",
+        },
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+    )
+
+    assert response.status_code == 400
+    assert "http 或 https" in response.json()["detail"]
+
+
 def test_assignment_archive_upload_returns_report() -> None:
     client = TestClient(app)
     archive = _zip_bytes(
@@ -338,6 +406,26 @@ def test_submission_archive_parser_skips_unsafe_paths() -> None:
     )
 
     assert [file.path for file in files] == ["src/app.py"]
+
+
+def test_submission_archive_parser_reads_repository_directory(tmp_path) -> None:
+    root = tmp_path / "repo"
+    (root / "src").mkdir(parents=True)
+    (root / "tests").mkdir()
+    (root / "node_modules" / "pkg").mkdir(parents=True)
+    (root / ".git" / "objects").mkdir(parents=True)
+    (root / "src" / "main.py").write_text(
+        "from fastapi import FastAPI\napp = FastAPI()\n",
+        encoding="utf-8",
+    )
+    (root / "tests" / "test_main.py").write_text("def test_main(): assert True\n", encoding="utf-8")
+    (root / "node_modules" / "pkg" / "index.js").write_text("console.log('skip')", encoding="utf-8")
+    (root / ".git" / "config").write_text("[remote]\n", encoding="utf-8")
+    (root / "image.png").write_bytes(b"\x89PNG\x00")
+
+    files = SubmissionArchiveService().parse_directory(root)
+
+    assert [file.path for file in files] == ["src/main.py", "tests/test_main.py"]
 
 
 def test_student_can_only_access_own_assignment_report() -> None:

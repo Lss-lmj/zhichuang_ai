@@ -187,3 +187,13 @@ export type AssignmentUploadArchivePayload = {
   repositoryUrl?: string;
   description?: string;
 };
+
+export type RepositoryAnalysisPayload = {
+  assignmentId?: string;
+  assignmentTitle: string;
+  courseId?: string;
+  classId?: string;
+  studentId?: string;
+  repositoryUrl: string;
+  description?: string;
+};

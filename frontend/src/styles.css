@@ -661,10 +661,22 @@ h1 {
 
 .upload-form {
   display: grid;
-  grid-template-columns: minmax(180px, 0.8fr) minmax(150px, 0.55fr) minmax(240px, 1fr) minmax(160px, 0.65fr) auto;
+  grid-template-columns: repeat(4, minmax(160px, 1fr)) auto;
   gap: 12px;
   align-items: end;
   margin-top: 18px;
+}
+
+.source-mode-toggle {
+  display: inline-grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(96px, max-content));
+  gap: 6px;
+  justify-content: start;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }
 
 .upload-form label {
@@ -730,6 +742,19 @@ h1 {
 .upload-form button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.upload-form .source-mode-toggle button {
+  min-height: 32px;
+  padding: 0 11px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+}
+
+.upload-form .source-mode-toggle button.active {
+  color: #fff;
+  background: var(--blue);
 }
 
 .upload-rules {

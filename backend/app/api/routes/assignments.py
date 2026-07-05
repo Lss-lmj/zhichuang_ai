@@ -43,7 +43,10 @@ def analyze_assignment(
     db: Session = Depends(get_db),
 ) -> AssignmentAnalysisResponse:
     account = AuthService(db).current_account(authorization)
-    return AssignmentService(db).analyze(payload, account=account)
+    try:
+        return AssignmentService(db).analyze(payload, account=account)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.post("/upload-archive", response_model=AssignmentAnalysisResponse)

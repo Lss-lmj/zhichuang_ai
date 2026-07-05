@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { askAgent } from "../shared/api/agent";
 import { fetchClasses, fetchCourses, fetchStudents, importAcademicData } from "../shared/api/academic";
 import {
+  analyzeRepositoryAssignment,
   analyzeDemoAssignment,
   createAssignment,
   fetchAssignmentDashboard,
@@ -74,6 +75,15 @@ import type {
 } from "../shared/types/knowledge";
 import type { ViewMode } from "../shared/types/navigation";
 import type { LearningTask, ReviewResponse, TaskListResponse } from "../shared/types/tasks";
+
+type AssignmentSubmissionPayload = {
+  assignmentId: string;
+  assignmentTitle: string;
+  studentId: string;
+  description: string;
+  archive?: File;
+  repositoryUrl?: string;
+};
 
 export function Dashboard() {
   const [mode, setMode] = useState<ViewMode>("teacher");
@@ -487,29 +497,34 @@ export function Dashboard() {
     }
   }
 
-  async function handleArchiveUpload(payload: {
-    assignmentId: string;
-    assignmentTitle: string;
-    studentId: string;
-    description: string;
-    archive: File;
-  }) {
+  async function handleArchiveUpload(payload: AssignmentSubmissionPayload) {
     try {
       setArchiveUploadLoading(true);
       setArchiveUploadResult(null);
       setError(null);
-      const uploadedReport = await uploadAssignmentArchive(
-        {
-          assignmentTitle: payload.assignmentTitle,
-          assignmentId: payload.assignmentId,
-          studentId: payload.studentId,
-          courseId: dashboard?.course_id ?? "course_web_2026",
-          classId: dashboard?.class_id ?? "class_cs_2024_01",
-          description: payload.description,
-          archive: payload.archive,
-        },
-        currentToken,
-      );
+      const commonPayload = {
+        assignmentTitle: payload.assignmentTitle,
+        assignmentId: payload.assignmentId,
+        studentId: payload.studentId,
+        courseId: dashboard?.course_id ?? "course_web_2026",
+        classId: dashboard?.class_id ?? "class_cs_2024_01",
+        description: payload.description,
+      };
+      const uploadedReport = payload.archive
+        ? await uploadAssignmentArchive(
+            {
+              ...commonPayload,
+              archive: payload.archive,
+            },
+            currentToken,
+          )
+        : await analyzeRepositoryAssignment(
+            {
+              ...commonPayload,
+              repositoryUrl: payload.repositoryUrl ?? "",
+            },
+            currentToken,
+          );
       const nextDashboard = await fetchAssignmentDashboardById(
         uploadedReport.assignment_id,
         currentToken,
@@ -523,7 +538,7 @@ export function Dashboard() {
       );
       setMode("teacher");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "作业压缩包上传失败");
+      setError(err instanceof Error ? err.message : "作业提交分析失败");
     } finally {
       setArchiveUploadLoading(false);
     }
@@ -1013,13 +1028,7 @@ function TeacherDashboard({
   uploadResult: string | null;
   onCreateAssignment: () => void;
   onSelectAssignment: (assignmentId: string) => void;
-  onArchiveUpload: (payload: {
-    assignmentId: string;
-    assignmentTitle: string;
-    studentId: string;
-    description: string;
-    archive: File;
-  }) => void;
+  onArchiveUpload: (payload: AssignmentSubmissionPayload) => void;
 }) {
   return (
     <>
@@ -1300,33 +1309,51 @@ function AssignmentArchiveUploader({
   dashboard: AssignmentDashboard;
   loading: boolean;
   result: string | null;
-  onUpload: (payload: {
-    assignmentId: string;
-    assignmentTitle: string;
-    studentId: string;
-    description: string;
-    archive: File;
-  }) => void;
+  onUpload: (payload: AssignmentSubmissionPayload) => void;
 }) {
+  const [sourceMode, setSourceMode] = useState<"zip" | "repo">("zip");
   const [assignmentTitle, setAssignmentTitle] = useState(dashboard.assignment_title);
   const [studentId, setStudentId] = useState("student_006");
-  const [description, setDescription] = useState("学生提交 zip 作业包，系统提取代码、测试、文档和配置文件生成分析报告。");
+  const [description, setDescription] = useState("学生提交作业代码，系统提取代码、测试、文档和配置文件生成分析报告。");
   const [archive, setArchive] = useState<File | null>(null);
+  const [repositoryUrl, setRepositoryUrl] = useState("");
 
   useEffect(() => {
     setAssignmentTitle(dashboard.assignment_title);
   }, [dashboard.assignment_title]);
+
+  const canSubmit =
+    !loading &&
+    studentId.trim() &&
+    assignmentTitle.trim() &&
+    (sourceMode === "zip" ? archive : repositoryUrl.trim());
 
   return (
     <section className="panel upload-panel">
       <div className="panel-header">
         <div>
           <span className="section-label">作业上传分析</span>
-          <h2>上传学生 zip 作业包</h2>
+          <h2>提交学生作业代码</h2>
         </div>
         <span className="muted">{dashboard.course_name}</span>
       </div>
       <div className="upload-form">
+        <div className="source-mode-toggle">
+          {[
+            ["zip", "zip 文件"],
+            ["repo", "Git 仓库"],
+          ].map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              className={sourceMode === mode ? "active" : ""}
+              onClick={() => setSourceMode(mode as "zip" | "repo")}
+              disabled={loading}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <label>
           <span>作业标题</span>
           <input
@@ -1346,32 +1373,49 @@ function AssignmentArchiveUploader({
             rows={3}
           />
         </label>
-        <label className="file-picker">
-          <span>{archive ? archive.name : "选择 zip 文件"}</span>
-          <input
-            type="file"
-            accept=".zip,application/zip"
-            onChange={(event) => setArchive(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        {sourceMode === "zip" ? (
+          <label className="file-picker">
+            <span>{archive ? archive.name : "选择 zip 文件"}</span>
+            <input
+              type="file"
+              accept=".zip,application/zip"
+              onChange={(event) => setArchive(event.target.files?.[0] ?? null)}
+            />
+          </label>
+        ) : (
+          <label className="upload-description">
+            <span>仓库链接</span>
+            <input
+              value={repositoryUrl}
+              placeholder="https://github.com/example/course-homework.git"
+              onChange={(event) => setRepositoryUrl(event.target.value)}
+            />
+          </label>
+        )}
         <button
           onClick={() => {
-            if (!archive) return;
+            if (sourceMode === "zip" && !archive) return;
+            if (sourceMode === "repo" && !repositoryUrl.trim()) return;
+            const sourcePayload =
+              sourceMode === "zip"
+                ? { archive: archive ?? undefined }
+                : { repositoryUrl: repositoryUrl.trim() };
             onUpload({
               assignmentId: dashboard.assignment_id,
               assignmentTitle,
               studentId,
               description,
-              archive,
+              ...sourcePayload,
             });
           }}
-          disabled={loading || !archive || !studentId.trim() || !assignmentTitle.trim()}
+          disabled={!canSubmit}
         >
-          {loading ? "分析中" : "上传并分析"}
+          {loading ? "分析中" : "提交并分析"}
         </button>
       </div>
       <div className="upload-rules">
         <span>zip 最大 5MB</span>
+        <span>支持公开 Git 仓库</span>
         <span>最多 80 个文本文件</span>
         <span>新增学生会进入看板</span>
         {result && <strong>{result}</strong>}
