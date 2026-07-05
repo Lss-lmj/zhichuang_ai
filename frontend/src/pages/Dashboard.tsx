@@ -92,12 +92,45 @@ const demoStudentAccount: DemoAccount = {
   user_id: demoStudentId,
   name: "林一舟",
   role: "student",
-  title: "学生演示账号",
+  title: "学生",
   default_view: "growth",
   authorized_courses: ["Web 应用开发", "算法设计与分析"],
   authorized_classes: ["2024 级计算机科学与技术 1 班"],
   modules: ["成长路径", "学生报告", "任务复盘", "知识库问答"],
 };
+
+function roleLabel(role: string) {
+  if (role === "student") return "学生";
+  if (role === "teacher") return "教师";
+  if (role === "admin") return "管理员";
+  return role;
+}
+
+function accountSubtitle(account: DemoAccount) {
+  if (account.role === "student") {
+    return account.authorized_classes[0] ?? "学生";
+  }
+  if (account.role === "teacher") {
+    return account.authorized_courses[0] ?? "授课教师";
+  }
+  if (account.role === "admin") {
+    return "平台管理";
+  }
+  return account.title.replace(/演示账号|账号/g, "").trim() || "用户";
+}
+
+function evidenceLabels(items: ProfileEvidence[]) {
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    const label = item.source_title || item.source_type;
+    if (seen.has(label)) continue;
+    seen.add(label);
+    labels.push(label);
+    if (labels.length >= 3) break;
+  }
+  return labels;
+}
 
 export function Dashboard() {
   const [mode, setMode] = useState<ViewMode>("growth");
@@ -386,7 +419,7 @@ export function Dashboard() {
       }
       setMode(session.account.default_view);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "演示账号切换失败");
+      setError(err instanceof Error ? err.message : "身份切换失败");
     }
   }
 
@@ -951,7 +984,7 @@ export function Dashboard() {
 
         {currentAccount && (
           <div className="account-panel">
-            <label htmlFor="demo-account">演示账号</label>
+            <label htmlFor="demo-account">当前身份</label>
             <select
               id="demo-account"
               value={currentToken.startsWith("demo-token-") ? currentAccount.user_id : ""}
@@ -961,10 +994,10 @@ export function Dashboard() {
                 }
               }}
             >
-              <option value="">当前为学校账号</option>
+              <option value="">已接入学校账号</option>
               {accounts.map((account) => (
                 <option key={account.user_id} value={account.user_id}>
-                  {account.name} · {account.title}
+                  {account.name} · {accountSubtitle(account)}
                 </option>
               ))}
             </select>
@@ -985,14 +1018,14 @@ export function Dashboard() {
                   <option value="">选择已导入账号</option>
                   {localAccounts.map((account) => (
                     <option key={account.user_id} value={account.user_id}>
-                      {account.name} · {account.title}
+                      {account.name} · {accountSubtitle(account)}
                     </option>
                   ))}
                 </select>
               </>
             )}
             <div className="account-scope">
-              <strong>{currentAccount.role.toUpperCase()}</strong>
+              <strong>{roleLabel(currentAccount.role)}</strong>
               <span>{currentAccount.authorized_courses.join(" / ")}</span>
               <span>{currentAccount.authorized_classes.join(" / ")}</span>
             </div>
@@ -1042,7 +1075,7 @@ export function Dashboard() {
           </button>
         </header>
 
-        {loading && <div className="state-box">正在生成演示报告...</div>}
+        {loading && <div className="state-box">正在加载个人工作台...</div>}
         {error && <div className="state-box error">接口未连接：{error}</div>}
 
         {!loading && !error && mode === "teacher" && dashboard && (
@@ -1178,8 +1211,7 @@ function TeacherDashboard({
           </article>
         ))}
       </section>
-      <AccessScopeBadge value={dashboard.access_scope} />
-      <AiGeneratedNotice text="本页班级诊断和讲评建议为 AI 生成，仅供参考；需结合课程要求和作业提交物核验。" />
+      <InlineNotice label="生成说明" text="班级诊断会结合提交物、评分维度和共性问题生成，建议教师按课程要求复核。" />
       <section className="panel export-panel">
         <div>
           <span className="section-label">诊断报告</span>
@@ -1297,7 +1329,7 @@ function TeacherDashboard({
             <span className="section-label">异常作业提示</span>
             <h2>需要教师优先关注的提交</h2>
           </div>
-          <span className="muted">F6-001</span>
+          <span className="muted">{dashboard.anomalies.length} 条提示</span>
         </div>
         <div className="anomaly-list">
           {dashboard.anomalies.map((anomaly) => (
@@ -1624,8 +1656,7 @@ function StudentReport({
         </div>
         <strong className="big-score">{averageScore}</strong>
       </section>
-      <AccessScopeBadge value={report.access_scope} />
-      <AiGeneratedNotice text="本页作业报告和评分为 AI 生成，仅供参考；分数是基于证据的相对画像，需结合提交物核验。" />
+      <InlineNotice label="报告说明" text="分数依据代码结构、测试、文档和问题证据生成，可作为作业改进参考。" />
 
       <section className="code-structure-panel">
         <div>
@@ -1727,7 +1758,7 @@ function StudentReport({
             <span className="section-label">代码证据片段</span>
             <h2>关联到具体文件、模块和代码行</h2>
           </div>
-          <span className="muted">F2-004</span>
+          <span className="muted">共 {report.evidence_snippets.length} 条</span>
         </div>
         <div className="snippet-grid">
           {report.evidence_snippets.map((snippet) => (
@@ -1750,11 +1781,11 @@ function StudentReport({
   );
 }
 
-function AccessScopeBadge({ value }: { value: string }) {
+function InlineNotice({ label, text }: { label: string; text: string }) {
   return (
-    <div className="access-scope-badge">
-      <strong>访问范围</strong>
-      <span>{value}</span>
+    <div className="ai-notice" role="note">
+      <strong>{label}</strong>
+      <span>{text}</span>
     </div>
   );
 }
@@ -1808,15 +1839,6 @@ function ScoreBar({
   );
 }
 
-function AiGeneratedNotice({ text }: { text: string }) {
-  return (
-    <div className="ai-notice" role="note">
-      <strong>AI 生成</strong>
-      <span>{text}</span>
-    </div>
-  );
-}
-
 function KnowledgeAssistant({
   question,
   response,
@@ -1832,7 +1854,7 @@ function KnowledgeAssistant({
   onQuestionChange: (question: string) => void;
   onAsk: (question?: string) => void;
 }) {
-  const examples = ["如何准备算法竞赛？", "教师怎么看本次代码作业共性问题？", "AI 应用开发首个 Demo 做什么？"];
+  const examples = ["如何准备算法竞赛？", "这次作业我应该先改哪里？", "AI 应用开发第一个项目做什么？"];
 
   return (
     <>
@@ -1907,7 +1929,7 @@ function KnowledgeAssistant({
           </div>
         </article>
       </section>
-      <AiGeneratedNotice text="回答为 AI 生成，仅供参考；事实性内容需结合引用来源和官方信息核验。" />
+      <InlineNotice label="回答依据" text="回答会优先展示引用来源，事实性内容建议继续查看原始资料。" />
     </>
   );
 }
@@ -1957,7 +1979,7 @@ function GrowthPath({
           ))}
         </div>
       </section>
-      <AiGeneratedNotice text="成长路径、竞赛推荐和组队推荐为 AI 生成，仅供参考；需结合目标、时间和官方通知核验。" />
+      <InlineNotice label="路径说明" text="系统会根据画像、作业证据和目标方向更新建议，你可以随时按时间和方向调整。" />
 
       <section className="panel-grid">
         <article className="panel wide">
@@ -1968,9 +1990,9 @@ function GrowthPath({
                 <ScoreBar label={dimension.dimension} score={dimension.score} />
                 <p>{dimension.summary}</p>
                 <div className="profile-evidence-list">
-                  {dimension.evidence_items.map((item) => (
-                    <small key={item.evidence_id}>
-                      {item.source_title} · 置信度 {Math.round(item.confidence * 100)}%
+                  {evidenceLabels(dimension.evidence_items).map((label) => (
+                    <small key={label}>
+                      {label}
                     </small>
                   ))}
                 </div>
@@ -2003,13 +2025,11 @@ function GrowthPath({
               </div>
             </>
           )}
-          <span className="section-label">补充证据</span>
+          <span className="section-label">最近补充</span>
           <div className="profile-evidence-card">
             <strong>{profileEvidence.dimension}</strong>
             <p>{profileEvidence.evidence_text}</p>
-            <small>
-              {profileEvidence.source_title} · 置信度 {Math.round(profileEvidence.confidence * 100)}%
-            </small>
+            <small>{profileEvidence.source_title}</small>
           </div>
           <span className="section-label">风险提醒</span>
           <div className="risk-list">
@@ -2394,7 +2414,7 @@ function TaskCenter({
           <button onClick={onGenerateReview} disabled={loading}>生成本周复盘</button>
         </div>
       </section>
-      <AiGeneratedNotice text="复盘与任务建议为 AI 生成，仅供参考；需结合个人计划和课程安排调整。" />
+      <InlineNotice label="复盘说明" text="复盘会结合已完成任务和证据记录生成，适合每周更新一次。" />
 
       <section className="panel-grid">
         <article className="panel wide">
@@ -2489,7 +2509,7 @@ function EvaluationDashboard({
           <small>80 分以上</small>
         </article>
       </section>
-      <AiGeneratedNotice text="测试输出为 AI 生成，仅供评测和复现使用；人工评价用于记录问题，不作为最终教学结论。" />
+      <InlineNotice label="评测说明" text="评测中心用于记录测试案例、系统输出和问题记录，便于版本复现。" />
 
       <section className="panel-grid">
         <article className="panel wide">
@@ -2498,7 +2518,7 @@ function EvaluationDashboard({
               <span className="section-label">测试案例</span>
               <h2>覆盖问答、作业分析和推荐闭环</h2>
             </div>
-            <span className="muted">F7-001</span>
+            <span className="muted">{dashboard.cases.length} 个案例</span>
           </div>
           <div className="eval-case-list">
             {dashboard.cases.map((item) => (
@@ -2546,7 +2566,7 @@ function EvaluationDashboard({
             <span className="section-label">输出记录</span>
             <h2>完整评测样例</h2>
           </div>
-          <span className="muted">F7-002</span>
+          <span className="muted">{dashboard.records.length} 条记录</span>
         </div>
         <div className="eval-record-list">
           {dashboard.records.map((record) => (
@@ -2611,12 +2631,12 @@ function AcademicDirectory({
           <article className="metric">
             <span>课程</span>
             <strong>{courses.courses.length}</strong>
-            <small>演示课程</small>
+            <small>已接入课程</small>
           </article>
           <article className="metric">
             <span>学生</span>
             <strong>{students.students.length}</strong>
-            <small>演示学生</small>
+            <small>已接入学生</small>
           </article>
         </div>
       </section>

@@ -1,4 +1,4 @@
-.PHONY: help init dev dev-backend dev-frontend test lint format check smoke docker-up docker-down
+.PHONY: help init dev dev-backend dev-frontend test lint format check smoke reset-local-data docker-up docker-down
 
 help:
 	@echo "智创Agent development commands"
@@ -9,6 +9,7 @@ help:
 	@echo "  make test          Run backend tests"
 	@echo "  make check         Run repository checks"
 	@echo "  make smoke         Run deployed demo smoke checks"
+	@echo "  make reset-local-data  Clean local test/demo leftovers"
 	@echo "  make docker-up     Start compose services"
 	@echo "  make docker-down   Stop compose services"
 
@@ -56,6 +57,9 @@ check:
 
 smoke:
 	./scripts/smoke.sh
+
+reset-local-data:
+	./scripts/reset-local-data.sh
 
 docker-up:
 	docker compose up --build

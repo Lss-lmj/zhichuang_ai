@@ -227,13 +227,22 @@ class KnowledgeService:
             if not exact_match and not term_match:
                 continue
             title_match = normalized_query in record.title.lower()
+            exact_title_match = normalized_query == record.title.lower()
             results.append(
                 KnowledgeSearchResult(
                     title=record.title,
                     source_type=record.source_type,
                     path=record.path or "软件项目实践",
                     snippet=(record.content or "")[:180],
-                    score=1.4 if title_match else 1.2 if exact_match else 0.9,
+                    score=(
+                        1.6
+                        if exact_title_match
+                        else 1.4
+                        if title_match
+                        else 1.2
+                        if exact_match
+                        else 0.9
+                    ),
                     tags=list(record.tags_json or []),
                 )
             )
