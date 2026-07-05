@@ -190,6 +190,7 @@ class AssignmentAnalysisResponse(BaseModel):
     analysis_trace: list[AnalysisTraceStep] = Field(default_factory=list)
     improvement_tasks: list[str]
     citations: list[Citation] = Field(default_factory=list)
+    agent_task_id: str | None = None
     access_scope: str = "demo"
     ai_generated: bool = True
 

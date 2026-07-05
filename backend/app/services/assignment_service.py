@@ -14,6 +14,7 @@ from app.models.assignment import AssignmentReport as AssignmentReportRecord
 from app.models.assignment import Submission as SubmissionRecord
 from app.models.course import ClassGroup, Course
 from app.models.profile import CapabilityEvidence as CapabilityEvidenceRecord
+from app.models.task import AgentTask
 from app.schemas.auth import DemoAccount
 from app.schemas.assignments import (
     AbilityHeatmapCell,
@@ -177,6 +178,7 @@ class AssignmentService:
             files=files,
             access_scope=self._access_scope(account),
         )
+        report.agent_task_id = self._agent_task_id(report)
         self._save_report(report, payload, files)
         return report
 
@@ -850,6 +852,7 @@ class AssignmentService:
         report_record.scores_json = self._assignment_scores_json(report)
         report_record.evidence_json = self._assignment_evidence_json(report)
         report_record.findings_json = self._assignment_findings_json(report)
+        self._save_agent_task(report, payload, files, now)
         self._sync_profile_evidence(report, now)
         self.db.commit()
 
@@ -912,6 +915,46 @@ class AssignmentService:
             f"{payload.description or ''}:{file_basis}"
         ).encode("utf-8")
         return f"submission_{sha1(raw).hexdigest()[:12]}"
+
+    def _agent_task_id(self, report: AssignmentAnalysisResponse) -> str:
+        raw = f"{report.assignment_id}:{report.student_id}:{report.report_id}".encode("utf-8")
+        return f"agent_task_assignment_{sha1(raw).hexdigest()[:10]}"
+
+    def _save_agent_task(
+        self,
+        report: AssignmentAnalysisResponse,
+        payload: AssignmentAnalysisRequest,
+        files: list[CodeFile] | None,
+        now: datetime,
+    ) -> None:
+        if self.db is None or report.agent_task_id is None:
+            return
+        record = self.db.get(AgentTask, report.agent_task_id)
+        if record is None:
+            record = AgentTask(
+                id=report.agent_task_id,
+                task_type="assignment_analysis",
+                owner_id=report.student_id,
+                created_at=now,
+            )
+            self.db.add(record)
+        record.status = "succeeded"
+        record.input_json = {
+            "assignment_id": report.assignment_id,
+            "assignment_title": report.assignment_title,
+            "student_id": report.student_id,
+            "repository_url": payload.repository_url,
+            "file_count": len(files or []),
+        }
+        record.state_json = {
+            "current_node": "generate_report",
+            "completed_nodes": [step.node for step in report.analysis_trace],
+            "next_action": "报告已生成，可查看学生报告和班级看板",
+            "scores": {score.dimension: score.score for score in report.scores},
+        }
+        record.result_ref = report.report_id
+        record.error_message = None
+        record.updated_at = now
 
     def _analysis_files(self, payload: AssignmentAnalysisRequest) -> list[CodeFile]:
         if payload.files or not payload.repository_url:

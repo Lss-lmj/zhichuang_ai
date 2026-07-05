@@ -1639,7 +1639,10 @@ function StudentReport({
             <span className="section-label">分析过程</span>
             <h2>从文件解析到报告生成的分阶段轨迹</h2>
           </div>
-          <span className="muted">{report.analysis_trace.length} 个分析节点</span>
+          <span className="muted">
+            {report.analysis_trace.length} 个分析节点
+            {report.agent_task_id ? ` · ${report.agent_task_id}` : ""}
+          </span>
         </div>
         <div className="analysis-trace-list">
           {report.analysis_trace.map((step, index) => (

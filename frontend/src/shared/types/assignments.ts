@@ -72,6 +72,7 @@ export type AssignmentReport = {
   analysis_trace: AnalysisTraceStep[];
   improvement_tasks: string[];
   citations: Citation[];
+  agent_task_id?: string | null;
   access_scope: string;
   ai_generated: boolean;
 };

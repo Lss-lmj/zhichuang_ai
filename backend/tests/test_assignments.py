@@ -57,6 +57,21 @@ def test_assignment_analysis_returns_report() -> None:
         "generate_report",
     ]
     assert payload["analysis_trace"][2]["title"] == "质量与风险检查"
+    assert payload["agent_task_id"]
+    task_response = client.get(
+        f"/api/tasks/{payload['agent_task_id']}",
+        headers={"Authorization": "Bearer demo-token-student_001"},
+    )
+    assert task_response.status_code == 200
+    assert task_response.json()["status"] == "succeeded"
+    assert task_response.json()["result_ref"] == payload["report_id"]
+    assert task_response.json()["state"]["completed_nodes"] == [
+        "parse_files",
+        "summarize_structure",
+        "review_quality",
+        "extract_capability_evidence",
+        "generate_report",
+    ]
 
 
 def test_assignment_dashboard_returns_teacher_view() -> None:

@@ -163,6 +163,7 @@ X-School-Identity-Secret: <shared-secret>
 
 提交课程作业代码文件、公开 Git 仓库链接或说明，系统生成一份基于提交物证据的作业分析报告。首版支持直接传入文件路径和文本内容；当 `files` 为空且提供 `repository_url` 时，后端会拉取公开 HTTP/HTTPS Git 仓库并提取可分析文本文件；如需上传学生作业压缩包，使用 `POST /assignments/upload-archive`。
 生成结果会写入 SQLite `assignment_reports`，并关联 `assignments`、`submissions`，用于后续学生报告查看和教师看板汇总。
+同时会写入 `agent_tasks` 长任务状态，响应中的 `agent_task_id` 可用于查询本次代码分析的多阶段执行状态和报告引用。
 报告中的能力证据会同步写入 `capability_evidence`，因此学生画像刷新后可看到来源为 `assignment_report` 的证据项。
 
 请求：
@@ -258,6 +259,7 @@ X-School-Identity-Secret: <shared-secret>
     }
   ],
   "improvement_tasks": ["将本次报告中的能力证据同步到个人画像，用于后续路径和竞赛推荐。"],
+  "agent_task_id": "agent_task_assignment_abc123",
   "access_scope": "teacher:authorized_course_class",
   "ai_generated": true
 }

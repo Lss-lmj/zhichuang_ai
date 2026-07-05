@@ -277,6 +277,18 @@ def main() -> int:
         "FastAPI" in uploaded_report["code_structure"]["detected_frameworks"],
         "zip upload did not analyze code files",
     )
+    uploaded_agent_task = client.get_json(
+        f"/tasks/{uploaded_report['agent_task_id']}",
+        headers=teacher_header,
+    )
+    assert_true(
+        uploaded_agent_task["status"] == "succeeded",
+        "uploaded assignment agent task did not finish",
+    )
+    assert_true(
+        uploaded_agent_task["result_ref"] == uploaded_report["report_id"],
+        "uploaded assignment agent task missing report ref",
+    )
     repository_style_report = client.post_json(
         "/assignments/analyze",
         {
