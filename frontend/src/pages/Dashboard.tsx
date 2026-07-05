@@ -118,7 +118,7 @@ function accountSubtitle(account: DemoAccount) {
   if (account.role === "admin") {
     return "平台管理";
   }
-  return account.title.replace(/演示账号|账号/g, "").trim() || "用户";
+  return account.title.replace(/试用账号|账号/g, "").trim() || "用户";
 }
 
 function workspaceLabel(account: DemoAccount | null) {
@@ -1582,6 +1582,22 @@ function AssignmentArchiveUploader({
     (variant === "student" || targetStudentId.trim()) &&
     assignmentTitle.trim() &&
     (sourceMode === "zip" ? archive : repositoryUrl.trim());
+  const archiveTooLarge = Boolean(archive && archive.size > 5 * 1024 * 1024);
+  const repositoryUrlInvalid =
+    sourceMode === "repo" &&
+    repositoryUrl.trim().length > 0 &&
+    !/^https?:\/\/.+/i.test(repositoryUrl.trim());
+  const validationMessage =
+    sourceMode === "zip" && archiveTooLarge
+      ? "zip 文件超过 5MB，请压缩后重新上传。"
+      : repositoryUrlInvalid
+        ? "仓库链接需要以 http:// 或 https:// 开头。"
+        : !assignmentTitle.trim()
+          ? "请填写作业标题。"
+          : variant === "teacher" && !targetStudentId.trim()
+            ? "请填写学生 ID。"
+            : null;
+  const canSubmitValidated = Boolean(canSubmit && !archiveTooLarge && !repositoryUrlInvalid);
 
   return (
     <section className={`panel upload-panel ${variant === "student" ? "student-upload-panel" : ""}`}>
@@ -1593,6 +1609,23 @@ function AssignmentArchiveUploader({
         <span className="muted">
           {assignment.course_name} · {assignment.class_name}
         </span>
+      </div>
+      <div className="upload-stepper" aria-label="作业分析流程">
+        <span className={assignmentTitle.trim() ? "complete" : ""}>1 选择作业</span>
+        <span
+          className={
+            sourceMode === "zip"
+              ? archive && !archiveTooLarge
+                ? "complete"
+                : ""
+              : repositoryUrl.trim() && !repositoryUrlInvalid
+                ? "complete"
+                : ""
+          }
+        >
+          2 提交代码
+        </span>
+        <span className={result ? "complete" : ""}>3 查看报告</span>
       </div>
       <div className="upload-form">
         <div className="source-mode-toggle">
@@ -1639,6 +1672,7 @@ function AssignmentArchiveUploader({
         {sourceMode === "zip" ? (
           <label className="file-picker">
             <span>{archive ? archive.name : "选择 zip 文件"}</span>
+            {archive && <small>{formatFileSize(archive.size)}</small>}
             <input
               type="file"
               accept=".zip,application/zip"
@@ -1657,6 +1691,7 @@ function AssignmentArchiveUploader({
         )}
         <button
           onClick={() => {
+            if (!canSubmitValidated) return;
             if (sourceMode === "zip" && !archive) return;
             if (sourceMode === "repo" && !repositoryUrl.trim()) return;
             const sourcePayload =
@@ -1673,11 +1708,12 @@ function AssignmentArchiveUploader({
               ...sourcePayload,
             });
           }}
-          disabled={!canSubmit}
+          disabled={!canSubmitValidated}
         >
           {loading ? "分析中" : "提交并分析"}
         </button>
       </div>
+      {validationMessage && <p className="upload-validation">{validationMessage}</p>}
       <div className="upload-rules">
         <span>zip 最大 5MB</span>
         <span>支持公开 Git 仓库</span>
@@ -1687,6 +1723,12 @@ function AssignmentArchiveUploader({
       </div>
     </section>
   );
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function StudentReport({

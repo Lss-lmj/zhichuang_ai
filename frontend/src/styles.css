@@ -717,6 +717,29 @@ h1 {
   border-left: 4px solid var(--green);
 }
 
+.upload-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.upload-stepper span {
+  padding: 7px 9px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.upload-stepper span.complete {
+  color: var(--green);
+  background: rgba(28, 124, 84, 0.09);
+  border-color: rgba(28, 124, 84, 0.26);
+}
+
 .upload-form {
   display: grid;
   grid-template-columns: repeat(4, minmax(160px, 1fr)) auto;
@@ -786,6 +809,11 @@ h1 {
   cursor: pointer;
 }
 
+.file-picker small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .file-picker input {
   position: absolute;
   inset: 0;
@@ -826,6 +854,17 @@ h1 {
 .upload-form .source-mode-toggle button.active {
   color: #fff;
   background: var(--blue);
+}
+
+.upload-validation {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  color: var(--red);
+  background: rgba(180, 35, 24, 0.08);
+  border: 1px solid rgba(180, 35, 24, 0.2);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .upload-rules {

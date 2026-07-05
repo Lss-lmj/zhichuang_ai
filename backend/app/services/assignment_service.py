@@ -1583,7 +1583,7 @@ class AssignmentService:
 
     def _access_scope(self, account: DemoAccount) -> str:
         if account.role == "admin":
-            return "admin:all_demo_courses"
+            return "admin:all_courses"
         if account.role == "teacher":
             return "teacher:authorized_course_class"
         return "student:self"
@@ -1593,7 +1593,7 @@ class AssignmentService:
             user_id="teacher_001",
             name="周老师",
             role="teacher",
-            title="教师演示账号",
+            title="教师试用账号",
             default_view="teacher",
             authorized_courses=[self.course["name"]],
             authorized_classes=[self.class_group["name"]],
