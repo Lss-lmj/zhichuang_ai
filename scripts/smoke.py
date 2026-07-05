@@ -209,6 +209,17 @@ def main() -> int:
     assert_true(report["student_id"] == "student_001", "student report access failed")
     assert_true(report["code_structure"]["file_count"] >= 1, "code structure summary missing")
     assert_true(report["evidence_snippets"], "code evidence snippets missing")
+    assert_true(
+        [step["node"] for step in report["analysis_trace"]]
+        == [
+            "parse_files",
+            "summarize_structure",
+            "review_quality",
+            "extract_capability_evidence",
+            "generate_report",
+        ],
+        "analysis trace missing graph nodes",
+    )
 
     uploaded_report = client.post_multipart(
         "/assignments/upload-archive",

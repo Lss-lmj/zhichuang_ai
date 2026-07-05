@@ -547,6 +547,58 @@ h1 {
   margin-top: 16px;
 }
 
+.analysis-trace-panel {
+  margin-top: 16px;
+}
+
+.analysis-trace-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.analysis-trace-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.analysis-trace-step b {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  color: #fff;
+  background: var(--blue);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.analysis-trace-step div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.analysis-trace-step span,
+.analysis-trace-step small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.analysis-trace-step small {
+  padding: 4px 6px;
+  background: #eef3f8;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
 .assignment-manager .panel-header button {
   min-height: 40px;
   padding: 0 14px;
@@ -2006,6 +2058,7 @@ h1 {
   .kb-overview,
   .panel-grid,
   .assignment-list,
+  .analysis-trace-list,
   .upload-form,
   .class-profile-layout,
   .growth-hero,

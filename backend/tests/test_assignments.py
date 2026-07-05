@@ -47,6 +47,14 @@ def test_assignment_analysis_returns_report() -> None:
     assert payload["evidence_snippets"][0]["path"] == "app.py"
     assert payload["evidence_snippets"][0]["line_start"] >= 1
     assert payload["evidence_snippets"][0]["snippet"]
+    assert [step["node"] for step in payload["analysis_trace"]] == [
+        "parse_files",
+        "summarize_structure",
+        "review_quality",
+        "extract_capability_evidence",
+        "generate_report",
+    ]
+    assert payload["analysis_trace"][2]["title"] == "质量与风险检查"
 
 
 def test_assignment_dashboard_returns_teacher_view() -> None:
@@ -404,6 +412,7 @@ def test_assignment_report_persists_in_sqlite_session(tmp_path) -> None:
     assert persisted.code_structure.test_files == ["tests/test_main.py"]
     assert "FastAPI" in persisted.code_structure.detected_frameworks
     assert persisted.evidence_snippets[0].path == "main.py"
+    assert persisted.analysis_trace[-1].node == "generate_report"
     assert any(report.student_id == "student_009" for report in dashboard.reports)
     assert dashboard.submitted_count == 6
 

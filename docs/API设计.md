@@ -208,11 +208,29 @@ Authorization: Bearer demo-token-admin_001
       "snippet": "@app.route('/todos', methods=['GET', 'POST'])"
     }
   ],
+  "analysis_trace": [
+    {
+      "node": "parse_files",
+      "title": "文件解析",
+      "status": "completed",
+      "summary": "识别 5 个可分析文本文件。",
+      "evidence": ["入口文件：app.py", "配置文件：requirements.txt"]
+    },
+    {
+      "node": "review_quality",
+      "title": "质量与风险检查",
+      "status": "completed",
+      "summary": "配置、依赖或环境文件较完整，暂未发现明显工程风险信号。",
+      "evidence": ["风险信号：未识别", "测试文件：tests/test_app.py"]
+    }
+  ],
   "improvement_tasks": ["将本次报告中的能力证据同步到个人画像，用于后续路径和竞赛推荐。"],
   "access_scope": "teacher:authorized_course_class",
   "ai_generated": true
 }
 ```
+
+`analysis_trace` 完整响应固定覆盖 `parse_files`、`summarize_structure`、`review_quality`、`extract_capability_evidence`、`generate_report` 五个分析节点，便于教师查看报告生成依据。
 
 ### `POST /assignments/upload-archive`
 

@@ -76,6 +76,14 @@ class CapabilityEvidence(BaseModel):
     source: str
 
 
+class AnalysisTraceStep(BaseModel):
+    node: str
+    title: str
+    status: str
+    summary: str
+    evidence: list[str] = Field(default_factory=list)
+
+
 class CodeStructureSummary(BaseModel):
     file_count: int
     entry_files: list[str] = Field(default_factory=list)
@@ -170,6 +178,7 @@ class AssignmentAnalysisResponse(BaseModel):
     findings: list[AssignmentFinding]
     evidence_snippets: list[CodeEvidenceSnippet] = Field(default_factory=list)
     capability_evidence: list[CapabilityEvidence]
+    analysis_trace: list[AnalysisTraceStep] = Field(default_factory=list)
     improvement_tasks: list[str]
     citations: list[Citation] = Field(default_factory=list)
     access_scope: str = "demo"

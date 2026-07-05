@@ -1385,6 +1385,32 @@ function StudentReport({
         <StructureGroup label="风险信号" values={report.code_structure.risk_signals} tone="warning" />
       </section>
 
+      <section className="panel analysis-trace-panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">分析过程</span>
+            <h2>从文件解析到报告生成的分阶段轨迹</h2>
+          </div>
+          <span className="muted">{report.analysis_trace.length} 个分析节点</span>
+        </div>
+        <div className="analysis-trace-list">
+          {report.analysis_trace.map((step, index) => (
+            <article className="analysis-trace-step" key={step.node}>
+              <b>{index + 1}</b>
+              <div>
+                <strong>{step.title}</strong>
+                <span>{step.summary}</span>
+                <div>
+                  {step.evidence.slice(0, 3).map((item) => (
+                    <small key={item}>{item}</small>
+                  ))}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="panel-grid">
         <article className="panel wide">
           <span className="section-label">多维度评分</span>

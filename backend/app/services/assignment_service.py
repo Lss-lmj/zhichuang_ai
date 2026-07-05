@@ -27,6 +27,7 @@ from app.schemas.assignments import (
     AssignmentListResponse,
     AssignmentReportSummary,
     AssignmentScore,
+    AnalysisTraceStep,
     CapabilityEvidence,
     Citation,
     ClassAbilityProfile,
@@ -538,6 +539,26 @@ class AssignmentService:
         findings = self._build_findings(structure)
         evidence_snippets = self._build_evidence_snippets(files)
         improvement_tasks = self._build_improvement_tasks(structure)
+        capability_evidence = [
+            CapabilityEvidence(
+                dimension="工程实践",
+                evidence=self._format_items(
+                    "识别到的实现能力",
+                    structure.detected_capabilities,
+                ),
+                source="代码文件路径与内容扫描",
+            ),
+            CapabilityEvidence(
+                dimension="问题拆解",
+                evidence=self._format_paths("入口和模块文件", structure.entry_files),
+                source="项目结构分析",
+            ),
+            CapabilityEvidence(
+                dimension="质量意识",
+                evidence=self._format_paths("自动化测试文件", structure.test_files),
+                source="测试文件与代码路径分析",
+            ),
+        ]
 
         return AssignmentAnalysisResponse(
             report_id=f"report_{assignment_id}_{student_id}",
@@ -561,26 +582,13 @@ class AssignmentService:
             ],
             findings=findings,
             evidence_snippets=evidence_snippets,
-            capability_evidence=[
-                CapabilityEvidence(
-                    dimension="工程实践",
-                    evidence=self._format_items(
-                        "识别到的实现能力",
-                        structure.detected_capabilities,
-                    ),
-                    source="代码文件路径与内容扫描",
-                ),
-                CapabilityEvidence(
-                    dimension="问题拆解",
-                    evidence=self._format_paths("入口和模块文件", structure.entry_files),
-                    source="项目结构分析",
-                ),
-                CapabilityEvidence(
-                    dimension="质量意识",
-                    evidence=self._format_paths("自动化测试文件", structure.test_files),
-                    source="测试文件与代码路径分析",
-                ),
-            ],
+            capability_evidence=capability_evidence,
+            analysis_trace=self._build_analysis_trace(
+                structure=structure,
+                scores=scores,
+                findings=findings,
+                capability_evidence=capability_evidence,
+            ),
             improvement_tasks=improvement_tasks,
             citations=[
                 Citation(
@@ -1204,6 +1212,61 @@ class AssignmentService:
             tasks.append("逐项修正代码扫描发现的风险信号，并在提交说明中记录修改依据。")
         tasks.append("将本次报告中的能力证据同步到个人画像，用于后续路径和竞赛推荐。")
         return tasks[:5]
+
+    def _build_analysis_trace(
+        self,
+        structure: CodeStructureSummary,
+        scores: list[AssignmentScore],
+        findings: list[AssignmentFinding],
+        capability_evidence: list[CapabilityEvidence],
+    ) -> list[AnalysisTraceStep]:
+        score_map = {score.dimension: score for score in scores}
+        return [
+            AnalysisTraceStep(
+                node="parse_files",
+                title="文件解析",
+                status="completed",
+                summary=f"识别 {structure.file_count} 个可分析文本文件。",
+                evidence=[
+                    self._format_paths("入口文件", structure.entry_files),
+                    self._format_paths("配置文件", structure.config_files),
+                ],
+            ),
+            AnalysisTraceStep(
+                node="summarize_structure",
+                title="结构识别",
+                status="completed",
+                summary=score_map["代码结构"].summary,
+                evidence=[
+                    self._format_items("识别框架", structure.detected_frameworks),
+                    self._format_items("能力信号", structure.detected_capabilities),
+                ],
+            ),
+            AnalysisTraceStep(
+                node="review_quality",
+                title="质量与风险检查",
+                status="completed",
+                summary=score_map["工程规范"].summary,
+                evidence=[
+                    self._format_items("风险信号", structure.risk_signals),
+                    self._format_paths("测试文件", structure.test_files),
+                ],
+            ),
+            AnalysisTraceStep(
+                node="extract_capability_evidence",
+                title="能力证据提取",
+                status="completed",
+                summary=f"生成 {len(capability_evidence)} 类能力证据，作为画像更新依据。",
+                evidence=[item.evidence for item in capability_evidence],
+            ),
+            AnalysisTraceStep(
+                node="generate_report",
+                title="报告生成",
+                status="completed",
+                summary=f"汇总 {len(scores)} 个评分维度和 {len(findings)} 条问题建议。",
+                evidence=[finding.title for finding in findings[:3]],
+            ),
+        ]
 
     def _capability_evidence_lines(
         self,

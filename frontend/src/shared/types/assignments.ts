@@ -27,6 +27,14 @@ export type CapabilityEvidence = {
   source: string;
 };
 
+export type AnalysisTraceStep = {
+  node: string;
+  title: string;
+  status: string;
+  summary: string;
+  evidence: string[];
+};
+
 export type CodeStructureSummary = {
   file_count: number;
   entry_files: string[];
@@ -61,6 +69,7 @@ export type AssignmentReport = {
   findings: AssignmentFinding[];
   evidence_snippets: CodeEvidenceSnippet[];
   capability_evidence: CapabilityEvidence[];
+  analysis_trace: AnalysisTraceStep[];
   improvement_tasks: string[];
   citations: Citation[];
   access_scope: string;
