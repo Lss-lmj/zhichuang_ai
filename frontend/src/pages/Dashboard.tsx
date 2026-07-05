@@ -76,7 +76,13 @@ import type {
   KnowledgeSearchResponse,
 } from "../shared/types/knowledge";
 import type { ViewMode } from "../shared/types/navigation";
-import type { LearningTask, ReviewResponse, TaskListResponse } from "../shared/types/tasks";
+import type {
+  LearningTask,
+  ReviewGeneratePayload,
+  ReviewResponse,
+  SaveTaskPayload,
+  TaskListResponse,
+} from "../shared/types/tasks";
 
 type AssignmentSubmissionPayload = {
   assignmentId: string;
@@ -825,11 +831,11 @@ export function Dashboard() {
     }
   }
 
-  async function handleGenerateReview() {
+  async function handleGenerateReview(payload: ReviewGeneratePayload) {
     try {
       setTaskLoading(true);
       setError(null);
-      const response = await generateReview(activeStudentId, currentToken);
+      const response = await generateReview(activeStudentId, currentToken, payload);
       setReview(response);
       setMode("tasks");
     } catch (err) {
@@ -839,11 +845,11 @@ export function Dashboard() {
     }
   }
 
-  async function handleSaveTask() {
+  async function handleSaveTask(payload: SaveTaskPayload) {
     try {
       setTaskLoading(true);
       setError(null);
-      const task = await saveTask("补充一次课程作业自动化测试记录", activeStudentId, currentToken);
+      const task = await saveTask(payload, activeStudentId, currentToken);
       setTaskList((current) =>
         current
           ? {
@@ -2893,10 +2899,35 @@ function TaskCenter({
   taskList: TaskListResponse;
   review: ReviewResponse | null;
   loading: boolean;
-  onSaveTask: () => void;
-  onGenerateReview: () => void;
+  onSaveTask: (payload: SaveTaskPayload) => void;
+  onGenerateReview: (payload: ReviewGeneratePayload) => void;
 }) {
-  const completion = Math.round((taskList.completed / taskList.total) * 100);
+  const [taskTitle, setTaskTitle] = useState("补充一次课程作业自动化测试记录");
+  const [taskSource, setTaskSource] = useState("手动记录");
+  const [taskPriority, setTaskPriority] = useState<"high" | "medium" | "low">("medium");
+  const [taskDueDate, setTaskDueDate] = useState("2026-07-12");
+  const [taskEvidence, setTaskEvidence] = useState("提交学习记录或项目产物");
+  const [reviewPeriod, setReviewPeriod] = useState("本周");
+  const [reviewNotes, setReviewNotes] = useState(
+    "记录本周完成情况、遇到的问题和下一步计划。",
+  );
+  const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(
+    taskList.tasks.filter((task) => task.status === "done").map((task) => task.task_id),
+  );
+  const completion = taskList.total ? Math.round((taskList.completed / taskList.total) * 100) : 0;
+  const canSaveTask = Boolean(taskTitle.trim() && taskDueDate.trim() && taskEvidence.trim());
+
+  useEffect(() => {
+    setCompletedTaskIds(taskList.tasks.filter((task) => task.status === "done").map((task) => task.task_id));
+  }, [taskList.tasks]);
+
+  function toggleCompletedTask(taskId: string) {
+    setCompletedTaskIds((current) =>
+      current.includes(taskId)
+        ? current.filter((id) => id !== taskId)
+        : [...current, taskId],
+    );
+  }
 
   return (
     <>
@@ -2907,11 +2938,81 @@ function TaskCenter({
           <p>当前完成 {taskList.completed} / {taskList.total}，系统会根据任务证据生成阶段复盘。</p>
         </div>
         <div className="task-actions">
-          <button onClick={onSaveTask} disabled={loading}>保存推荐任务</button>
-          <button onClick={onGenerateReview} disabled={loading}>生成本周复盘</button>
+          <button
+            onClick={() =>
+              onGenerateReview({
+                period: reviewPeriod,
+                completed_task_ids: completedTaskIds,
+                notes: reviewNotes,
+              })
+            }
+            disabled={loading}
+          >
+            生成复盘
+          </button>
         </div>
       </section>
       <InlineNotice label="复盘说明" text="复盘会结合已完成任务和证据记录生成，适合每周更新一次。" />
+
+      <section className="panel task-create-panel">
+        <div className="panel-header">
+          <div>
+            <span className="section-label">新增任务</span>
+            <h2>记录新的学习、项目或竞赛任务</h2>
+          </div>
+          <button
+            onClick={() => {
+              onSaveTask({
+                title: taskTitle.trim(),
+                source: taskSource.trim() || "手动记录",
+                priority: taskPriority,
+                due_date: taskDueDate,
+                evidence_required: taskEvidence.trim(),
+              });
+            }}
+            disabled={loading || !canSaveTask}
+          >
+            {loading ? "保存中" : "保存任务"}
+          </button>
+        </div>
+        <div className="task-form-grid">
+          <label className="task-title-field">
+            <span>任务标题</span>
+            <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
+          </label>
+          <label>
+            <span>来源</span>
+            <input value={taskSource} onChange={(event) => setTaskSource(event.target.value)} />
+          </label>
+          <label>
+            <span>优先级</span>
+            <select
+              value={taskPriority}
+              onChange={(event) => setTaskPriority(event.target.value as "high" | "medium" | "low")}
+            >
+              <option value="high">高</option>
+              <option value="medium">中</option>
+              <option value="low">低</option>
+            </select>
+          </label>
+          <label>
+            <span>截止日期</span>
+            <input
+              type="date"
+              value={taskDueDate}
+              onChange={(event) => setTaskDueDate(event.target.value)}
+            />
+          </label>
+          <label className="task-evidence-field">
+            <span>完成证据</span>
+            <textarea
+              rows={2}
+              value={taskEvidence}
+              onChange={(event) => setTaskEvidence(event.target.value)}
+            />
+          </label>
+        </div>
+      </section>
 
       <section className="panel-grid">
         <article className="panel wide">
@@ -2931,6 +3032,45 @@ function TaskCenter({
 
         <article className="panel">
           <span className="section-label">复盘结果</span>
+          <div className="review-form">
+            <label>
+              <span>复盘周期</span>
+              <input value={reviewPeriod} onChange={(event) => setReviewPeriod(event.target.value)} />
+            </label>
+            <label>
+              <span>复盘备注</span>
+              <textarea
+                rows={4}
+                value={reviewNotes}
+                onChange={(event) => setReviewNotes(event.target.value)}
+              />
+            </label>
+            <div className="review-task-picker">
+              <strong>本轮已完成任务</strong>
+              {taskList.tasks.map((task) => (
+                <label key={task.task_id}>
+                  <input
+                    type="checkbox"
+                    checked={completedTaskIds.includes(task.task_id)}
+                    onChange={() => toggleCompletedTask(task.task_id)}
+                  />
+                  <span>{task.title}</span>
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={() =>
+                onGenerateReview({
+                  period: reviewPeriod,
+                  completed_task_ids: completedTaskIds,
+                  notes: reviewNotes,
+                })
+              }
+              disabled={loading}
+            >
+              {loading ? "生成中" : "生成阶段复盘"}
+            </button>
+          </div>
           {review ? (
             <div className="review-box">
               <strong>{review.period}</strong>

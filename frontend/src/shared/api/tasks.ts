@@ -3,7 +3,9 @@ import type {
   AgentTaskCreateRequest,
   AgentTaskStatus,
   LearningTask,
+  ReviewGeneratePayload,
   ReviewResponse,
+  SaveTaskPayload,
   TaskListResponse,
 } from "../types/tasks";
 
@@ -39,7 +41,7 @@ export function fetchStudentTasks(
 }
 
 export function saveTask(
-  title: string,
+  payload: SaveTaskPayload,
   studentId = "student_001",
   token?: string,
 ): Promise<LearningTask> {
@@ -48,11 +50,7 @@ export function saveTask(
     headers: authHeaders(token),
     body: JSON.stringify({
       student_id: studentId,
-      title,
-      source: "manual",
-      priority: "medium",
-      due_date: "2026-07-12",
-      evidence_required: "提交学习记录或项目产物",
+      ...payload,
     }),
   });
 }
@@ -60,15 +58,18 @@ export function saveTask(
 export function generateReview(
   studentId = "student_001",
   token?: string,
+  payload: ReviewGeneratePayload = {
+    period: "本周",
+    completed_task_ids: [],
+    notes: null,
+  },
 ): Promise<ReviewResponse> {
   return requestJson<ReviewResponse>("/reviews/generate", {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({
       student_id: studentId,
-      period: "本周",
-      completed_task_ids: ["task_assignment_report"],
-      notes: "已完成作业报告复查和 README 补充，继续补接口测试和算法复盘。",
+      ...payload,
     }),
   });
 }

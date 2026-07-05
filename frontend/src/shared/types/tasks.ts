@@ -10,6 +10,20 @@ export type LearningTask = {
   progress: number;
 };
 
+export type SaveTaskPayload = {
+  title: string;
+  source: string;
+  priority: "high" | "medium" | "low" | string;
+  due_date: string;
+  evidence_required: string;
+};
+
+export type ReviewGeneratePayload = {
+  period: string;
+  completed_task_ids: string[];
+  notes?: string | null;
+};
+
 export type TaskListResponse = {
   student_id: string;
   total: number;
