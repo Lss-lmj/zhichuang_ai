@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 
 
@@ -217,6 +218,7 @@ def test_local_token_can_authorize_assignment_access() -> None:
 def test_school_identity_session_maps_to_imported_accounts() -> None:
     client = TestClient(app)
     admin_header = {"Authorization": "Bearer demo-token-admin_001"}
+    school_secret = settings.school_identity_shared_secret
     import_response = client.post(
         "/api/academic/import",
         json={
@@ -251,12 +253,12 @@ def test_school_identity_session_maps_to_imported_accounts() -> None:
     student_session = client.post(
         "/api/auth/school-session",
         json={"student_no": "SCHOOLIDENTITY001"},
-        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+        headers={"X-School-Identity-Secret": school_secret},
     )
     teacher_session = client.post(
         "/api/auth/school-session",
         json={"teacher_no": "TSCHOOLIDENTITY"},
-        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+        headers={"X-School-Identity-Secret": school_secret},
     )
     wrong_secret_response = client.post(
         "/api/auth/school-session",
@@ -266,7 +268,7 @@ def test_school_identity_session_maps_to_imported_accounts() -> None:
     missing_identity_response = client.post(
         "/api/auth/school-session",
         json={"student_no": "UNKNOWN-SCHOOL-ID"},
-        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+        headers={"X-School-Identity-Secret": school_secret},
     )
 
     assert import_response.status_code == 200
@@ -289,6 +291,7 @@ def test_school_identity_session_maps_to_imported_accounts() -> None:
 def test_school_token_reuses_authorization_scope() -> None:
     client = TestClient(app)
     admin_header = {"Authorization": "Bearer demo-token-admin_001"}
+    school_secret = settings.school_identity_shared_secret
     client.post(
         "/api/academic/import",
         json={
@@ -323,12 +326,12 @@ def test_school_token_reuses_authorization_scope() -> None:
     teacher_session = client.post(
         "/api/auth/school-session",
         json={"teacher_no": "TSCHOOLSCOPE"},
-        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+        headers={"X-School-Identity-Secret": school_secret},
     )
     student_session = client.post(
         "/api/auth/school-session",
         json={"student_no": "SCHOOLSCOPE001"},
-        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+        headers={"X-School-Identity-Secret": school_secret},
     )
     teacher_header = {"Authorization": f"Bearer {teacher_session.json()['token']}"}
     student_header = {"Authorization": f"Bearer {student_session.json()['token']}"}

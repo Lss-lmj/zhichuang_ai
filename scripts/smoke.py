@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.error
 import urllib.parse
@@ -10,6 +11,7 @@ import uuid
 import zipfile
 from dataclasses import dataclass
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 
@@ -142,9 +144,28 @@ def zip_bytes(files: dict[str, str]) -> bytes:
     return buffer.getvalue()
 
 
+def load_school_identity_secret() -> str:
+    env_secret = os.environ.get("SCHOOL_IDENTITY_SHARED_SECRET")
+    if env_secret:
+        return env_secret
+
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            if key.strip() == "SCHOOL_IDENTITY_SHARED_SECRET":
+                return value.strip().strip('"').strip("'")
+
+    return "dev-school-identity-secret"
+
+
 def main() -> int:
     api_base = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000/api"
     web_base = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5173"
+    school_identity_secret = load_school_identity_secret()
     client = SmokeClient(api_base=api_base, web_base=web_base)
 
     health = client.get_json("/health")
@@ -647,12 +668,12 @@ def main() -> int:
     school_teacher_session = client.post_json(
         "/auth/school-session",
         {"teacher_no": "TSMOKE001"},
-        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+        headers={"X-School-Identity-Secret": school_identity_secret},
     )
     school_student_session = client.post_json(
         "/auth/school-session",
         {"student_no": "SMOKE2026001"},
-        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+        headers={"X-School-Identity-Secret": school_identity_secret},
     )
     school_teacher_header = {"Authorization": f"Bearer {school_teacher_session['token']}"}
     school_teacher_dashboard = client.get_json(

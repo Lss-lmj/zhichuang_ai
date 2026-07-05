@@ -1,8 +1,9 @@
-.PHONY: help init dev-backend dev-frontend test lint format check smoke docker-up docker-down
+.PHONY: help init dev dev-backend dev-frontend test lint format check smoke docker-up docker-down
 
 help:
 	@echo "智创Agent development commands"
 	@echo "  make init          Prepare local env files"
+	@echo "  make dev           Run backend and frontend locally"
 	@echo "  make dev-backend   Run FastAPI backend"
 	@echo "  make dev-frontend  Run Vite frontend"
 	@echo "  make test          Run backend tests"
@@ -15,6 +16,9 @@ init:
 	@test -f .env || cp .env.example .env
 	@mkdir -p data/local/uploads data/local/chroma
 	@echo "Local env prepared."
+
+dev:
+	./scripts/dev.sh
 
 dev-backend:
 	@if [ -x backend/.venv/bin/uvicorn ]; then \

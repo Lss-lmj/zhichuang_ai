@@ -60,6 +60,23 @@ make dev-backend
 make dev-frontend
 ```
 
+也可以一键启动本地前后端：
+
+```bash
+make dev
+```
+
+默认地址：
+
+- 前端：`http://localhost:5173`
+- 后端 API：`http://localhost:8000/api`
+
+如需改端口：
+
+```bash
+BACKEND_PORT=8010 FRONTEND_PORT=5174 make dev
+```
+
 检查：
 
 ```bash
