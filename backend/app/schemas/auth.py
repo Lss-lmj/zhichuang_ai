@@ -30,6 +30,13 @@ class LocalSessionRequest(BaseModel):
     user_id: str
 
 
+class SchoolIdentitySessionRequest(BaseModel):
+    user_id: str | None = None
+    student_no: str | None = None
+    teacher_no: str | None = None
+    email: str | None = None
+
+
 class DemoSessionResponse(BaseModel):
     token: str
     account: DemoAccount

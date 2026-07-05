@@ -1,4 +1,9 @@
-import type { DemoAccountsResponse, DemoSessionResponse, LocalAccountsResponse } from "../types/auth";
+import type {
+  DemoAccountsResponse,
+  DemoSessionResponse,
+  LocalAccountsResponse,
+  SchoolIdentitySessionRequest,
+} from "../types/auth";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -41,5 +46,18 @@ export function createLocalSession(userId: string): Promise<DemoSessionResponse>
   return requestJson<DemoSessionResponse>("/auth/local-session", {
     method: "POST",
     body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+export function createSchoolIdentitySession(
+  payload: SchoolIdentitySessionRequest,
+  sharedSecret: string,
+): Promise<DemoSessionResponse> {
+  return requestJson<DemoSessionResponse>("/auth/school-session", {
+    method: "POST",
+    headers: {
+      "X-School-Identity-Secret": sharedSecret,
+    },
+    body: JSON.stringify(payload),
   });
 }

@@ -57,6 +57,13 @@ docker compose up -d --build
 - 后端 API 域名或路径指向 `backend:8000`。
 - 如果前端和后端不同域名，更新 `VITE_API_BASE_URL`。
 
+学校身份接入：
+
+- 在 `.env` 中设置 `SCHOOL_IDENTITY_SHARED_SECRET`，部署时不要使用示例值。
+- 学校统一身份系统完成登录后，由受信任网关调用 `POST /api/auth/school-session`。
+- 网关至少传入 `user_id`、`student_no`、`teacher_no` 或 `email` 中的一个字段，并在请求头携带 `X-School-Identity-Secret`。
+- 平台只把身份断言映射到已导入的 SQLite 用户，课程、班级和本人访问范围仍由教学基础数据决定。
+
 ## 4. Smoke Check
 
 ```bash
@@ -74,6 +81,7 @@ docker compose up -d --build
 - 知识库资料新增、资料清单和检索接口。
 - Agent 问答引用来源。
 - 评测看板、课程列表。
+- 本地学校账号会话和学校身份网关会话。
 - 前端首页可访问。
 
 ## 5. 当前 Demo 范围

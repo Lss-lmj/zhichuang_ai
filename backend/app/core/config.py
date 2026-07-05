@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
     embedding_provider: str = Field(default="mock", alias="EMBEDDING_PROVIDER")
     jwt_secret: str = Field(default="dev-secret", alias="JWT_SECRET")
+    school_identity_shared_secret: str = Field(
+        default="dev-school-identity-secret",
+        alias="SCHOOL_IDENTITY_SHARED_SECRET",
+    )
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 

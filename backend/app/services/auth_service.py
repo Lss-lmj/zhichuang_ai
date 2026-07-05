@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+from secrets import compare_digest
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.base import Base
 from app.models.course import ClassGroup, Course, CourseMembership
 from app.models.user import User
-from app.schemas.auth import DemoAccount, DemoAccountsResponse, DemoSessionResponse
-from app.schemas.auth import LocalAccountsResponse
+from app.schemas.auth import (
+    DemoAccount,
+    DemoAccountsResponse,
+    DemoSessionResponse,
+    LocalAccountsResponse,
+    SchoolIdentitySessionRequest,
+)
 
 
 class AuthService:
@@ -77,6 +85,20 @@ class AuthService:
             expires_in=60 * 60 * 8,
         )
 
+    def create_school_identity_session(
+        self,
+        payload: SchoolIdentitySessionRequest,
+        shared_secret: str | None,
+    ) -> DemoSessionResponse:
+        self._verify_school_identity_secret(shared_secret)
+        user = self._find_local_identity(payload)
+        account = self._local_account(user.id)
+        return DemoSessionResponse(
+            token=f"school-token-{account.user_id}",
+            account=account,
+            expires_in=60 * 60 * 8,
+        )
+
     def current_account(self, authorization: str | None) -> DemoAccount:
         if not authorization:
             return self._find_account("teacher_001")
@@ -93,6 +115,9 @@ class AuthService:
             return self._find_account(user_id)
         if token.startswith("local-token-"):
             user_id = token.removeprefix("local-token-")
+            return self._local_account(user_id)
+        if token.startswith("school-token-"):
+            user_id = token.removeprefix("school-token-")
             return self._local_account(user_id)
 
         raise HTTPException(
@@ -133,6 +158,37 @@ class AuthService:
             authorized_courses=authorized_courses,
             authorized_classes=authorized_classes,
             modules=self._modules_for_role(user.role),
+        )
+
+    def _verify_school_identity_secret(self, shared_secret: str | None) -> None:
+        expected = settings.school_identity_shared_secret
+        if not shared_secret or not compare_digest(shared_secret, expected):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid school identity secret",
+            )
+
+    def _find_local_identity(self, payload: SchoolIdentitySessionRequest) -> User:
+        if self.db is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="School identity account not found",
+            )
+        lookups = [
+            ("id", payload.user_id),
+            ("student_no", payload.student_no),
+            ("teacher_no", payload.teacher_no),
+            ("email", payload.email),
+        ]
+        for field_name, value in lookups:
+            if not value:
+                continue
+            user = self.db.scalars(select(User).where(getattr(User, field_name) == value)).first()
+            if user is not None:
+                return user
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School identity account not found",
         )
 
     def _authorized_courses(self, user: User) -> list[str]:

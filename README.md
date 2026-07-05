@@ -76,7 +76,7 @@ docker compose up --build
 make smoke
 ```
 
-`make smoke` 会对公网或本地 Demo 做内容断言：演示账号、教师看板、学生报告、成长路径、竞赛推荐、教师梯队筛选、组队、任务复盘、知识库入库与检索、Agent 引用和前端入口。
+`make smoke` 会对公网或本地 Demo 做内容断言：演示账号、学校账号会话、教师看板、学生报告、成长路径、竞赛推荐、教师梯队筛选、组队、任务复盘、知识库入库与检索、Agent 引用和前端入口。
 
 RAG 或 LangGraph 开发需要进入 `backend/` 安装额外依赖：
 
@@ -106,5 +106,6 @@ python3.11 -m pip install -e ".[ai,rag,dev]"
 - 代码目录按前端、后端、鸿蒙端拆分
 - 公网 Demo 使用演示账号和示例课程数据
 - 真实学校使用场景通过角色、课程、班级权限控制数据访问范围
+- 学校统一身份系统通过受信任网关调用 `POST /auth/school-session`，再复用同一套权限边界
 - 教师端是 P0 核心场景，直接展示作业分析报告和班级学情看板
 - 长任务和多 Agent 编排使用 LangGraph，确定性业务逻辑放在 service 层

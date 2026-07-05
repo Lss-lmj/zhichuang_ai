@@ -612,6 +612,33 @@ def main() -> int:
         local_teacher_dashboard["access_scope"] == "teacher:authorized_course_class",
         "local teacher cannot access dashboard",
     )
+    school_teacher_session = client.post_json(
+        "/auth/school-session",
+        {"teacher_no": "TSMOKE001"},
+        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+    )
+    school_student_session = client.post_json(
+        "/auth/school-session",
+        {"student_no": "SMOKE2026001"},
+        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+    )
+    school_teacher_header = {"Authorization": f"Bearer {school_teacher_session['token']}"}
+    school_teacher_dashboard = client.get_json(
+        "/assignments/assignment_flask_mvp/dashboard",
+        headers=school_teacher_header,
+    )
+    assert_true(
+        school_teacher_session["token"] == "school-token-teacher_smoke_001",
+        "school identity teacher session token missing",
+    )
+    assert_true(
+        school_student_session["token"] == "school-token-student_smoke_001",
+        "school identity student session token missing",
+    )
+    assert_true(
+        school_teacher_dashboard["access_scope"] == "teacher:authorized_course_class",
+        "school identity teacher cannot access dashboard",
+    )
 
     web = client.get_text(web_base)
     assert_true("<html" in web.lower() or "root" in web.lower(), "web entry did not return HTML")

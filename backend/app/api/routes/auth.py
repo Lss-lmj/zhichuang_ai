@@ -2,9 +2,14 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.auth import DemoAccountsResponse, DemoSessionRequest, DemoSessionResponse
-from app.schemas.auth import LocalAccountsResponse
-from app.schemas.auth import LocalSessionRequest
+from app.schemas.auth import (
+    DemoAccountsResponse,
+    DemoSessionRequest,
+    DemoSessionResponse,
+    LocalAccountsResponse,
+    LocalSessionRequest,
+    SchoolIdentitySessionRequest,
+)
 from app.services.auth_service import AuthService
 
 router = APIRouter()
@@ -35,6 +40,18 @@ def create_local_session(
     db: Session = Depends(get_db),
 ) -> DemoSessionResponse:
     return AuthService(db).create_local_session(payload.user_id)
+
+
+@router.post("/school-session", response_model=DemoSessionResponse)
+def create_school_identity_session(
+    payload: SchoolIdentitySessionRequest,
+    x_school_identity_secret: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> DemoSessionResponse:
+    return AuthService(db).create_school_identity_session(
+        payload,
+        shared_secret=x_school_identity_secret,
+    )
 
 
 def _ensure_admin(authorization: str | None, db: Session) -> None:

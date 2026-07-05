@@ -214,6 +214,145 @@ def test_local_token_can_authorize_assignment_access() -> None:
     assert other_growth_response.status_code == 403
 
 
+def test_school_identity_session_maps_to_imported_accounts() -> None:
+    client = TestClient(app)
+    admin_header = {"Authorization": "Bearer demo-token-admin_001"}
+    import_response = client.post(
+        "/api/academic/import",
+        json={
+            "courses": [
+                {
+                    "course_id": "course_school_identity_2026",
+                    "name": "学校身份接入课程",
+                    "teacher_id": "teacher_school_identity",
+                    "teacher_name": "身份教师",
+                    "teacher_no": "TSCHOOLIDENTITY",
+                }
+            ],
+            "classes": [
+                {
+                    "class_id": "class_school_identity_2024_01",
+                    "course_id": "course_school_identity_2026",
+                    "name": "2024 级学校身份 1 班",
+                }
+            ],
+            "students": [
+                {
+                    "student_id": "student_school_identity",
+                    "name": "身份学生",
+                    "student_no": "SCHOOLIDENTITY001",
+                    "class_id": "class_school_identity_2024_01",
+                    "course_ids": ["course_school_identity_2026"],
+                }
+            ],
+        },
+        headers=admin_header,
+    )
+    student_session = client.post(
+        "/api/auth/school-session",
+        json={"student_no": "SCHOOLIDENTITY001"},
+        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+    )
+    teacher_session = client.post(
+        "/api/auth/school-session",
+        json={"teacher_no": "TSCHOOLIDENTITY"},
+        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+    )
+    wrong_secret_response = client.post(
+        "/api/auth/school-session",
+        json={"student_no": "SCHOOLIDENTITY001"},
+        headers={"X-School-Identity-Secret": "wrong-secret"},
+    )
+    missing_identity_response = client.post(
+        "/api/auth/school-session",
+        json={"student_no": "UNKNOWN-SCHOOL-ID"},
+        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+    )
+
+    assert import_response.status_code == 200
+    assert student_session.status_code == 200
+    assert student_session.json()["token"] == "school-token-student_school_identity"
+    assert student_session.json()["account"]["role"] == "student"
+    assert "class_school_identity_2024_01" in student_session.json()["account"][
+        "authorized_classes"
+    ]
+    assert teacher_session.status_code == 200
+    assert teacher_session.json()["token"] == "school-token-teacher_school_identity"
+    assert teacher_session.json()["account"]["role"] == "teacher"
+    assert "course_school_identity_2026" in teacher_session.json()["account"][
+        "authorized_courses"
+    ]
+    assert wrong_secret_response.status_code == 401
+    assert missing_identity_response.status_code == 404
+
+
+def test_school_token_reuses_authorization_scope() -> None:
+    client = TestClient(app)
+    admin_header = {"Authorization": "Bearer demo-token-admin_001"}
+    client.post(
+        "/api/academic/import",
+        json={
+            "courses": [
+                {
+                    "course_id": "course_web_2026",
+                    "name": "Web 应用开发",
+                    "teacher_id": "teacher_school_scope",
+                    "teacher_name": "School Scope 教师",
+                    "teacher_no": "TSCHOOLSCOPE",
+                }
+            ],
+            "classes": [
+                {
+                    "class_id": "class_cs_2024_01",
+                    "course_id": "course_web_2026",
+                    "name": "2024 级计算机科学与技术 1 班",
+                }
+            ],
+            "students": [
+                {
+                    "student_id": "student_school_scope",
+                    "name": "School Scope 学生",
+                    "student_no": "SCHOOLSCOPE001",
+                    "class_id": "class_cs_2024_01",
+                    "course_ids": ["course_web_2026"],
+                }
+            ],
+        },
+        headers=admin_header,
+    )
+    teacher_session = client.post(
+        "/api/auth/school-session",
+        json={"teacher_no": "TSCHOOLSCOPE"},
+        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+    )
+    student_session = client.post(
+        "/api/auth/school-session",
+        json={"student_no": "SCHOOLSCOPE001"},
+        headers={"X-School-Identity-Secret": "dev-school-identity-secret"},
+    )
+    teacher_header = {"Authorization": f"Bearer {teacher_session.json()['token']}"}
+    student_header = {"Authorization": f"Bearer {student_session.json()['token']}"}
+
+    dashboard_response = client.get(
+        "/api/assignments/assignment_flask_mvp/dashboard",
+        headers=teacher_header,
+    )
+    own_report_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_school_scope",
+        headers=student_header,
+    )
+    other_report_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_001",
+        headers=student_header,
+    )
+
+    assert dashboard_response.status_code == 200
+    assert dashboard_response.json()["access_scope"] == "teacher:authorized_course_class"
+    assert own_report_response.status_code == 200
+    assert own_report_response.json()["access_scope"] == "student:self"
+    assert other_report_response.status_code == 403
+
+
 def test_unknown_local_session_returns_not_found() -> None:
     client = TestClient(app)
     response = client.post("/api/auth/local-session", json={"user_id": "missing_local"})

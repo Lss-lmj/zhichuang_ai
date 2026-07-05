@@ -2,7 +2,7 @@
 
 接口前缀：`/api`
 
-鉴权约定：公网 Demo 使用 `POST /auth/demo-session` 返回的演示 token；本地学校数据可使用 `POST /auth/local-session` 基于 SQLite 用户生成会话 token。需要角色或授权范围控制的接口通过 `Authorization: Bearer <token>` 传入账号身份；未传 token 时，作业分析相关接口默认使用教师演示账号，便于本地快速演示。越权访问返回 `403`。
+鉴权约定：公网 Demo 使用 `POST /auth/demo-session` 返回的演示 token；本地学校数据可使用 `POST /auth/local-session` 基于 SQLite 用户生成会话 token；学校统一身份系统可通过受信任网关调用 `POST /auth/school-session`，用学号、工号、邮箱或用户 ID 映射到已导入账号。需要角色或授权范围控制的接口通过 `Authorization: Bearer <token>` 传入账号身份；未传 token 时，作业分析相关接口默认使用教师演示账号，便于本地快速演示。越权访问返回 `403`。
 
 学生端数据访问约定：`/students/{student_id}/profile`、学习计划、任务中心、组队状态和组队推荐等学生个人数据接口在传入 token 时只允许学生本人访问；教师只能访问授权班级内学生；管理员可访问全部本地账号数据。前端切换到本地学生账号后，会用该账号 token 重新加载本人画像、计划、任务和组队状态。
 
@@ -64,6 +64,29 @@ Authorization: Bearer demo-token-admin_001
 ```
 
 响应格式同 `POST /auth/demo-session`，token 示例为 `local-token-teacher_school_001`。教师账号的授权课程和班级会从 `course_memberships`、`courses`、`classes` 推导；学生账号会从自己的课程/班级成员关系推导；管理员账号保留管理模块。
+
+#### `POST /auth/school-session`
+
+学校身份网关适配入口。统一身份系统完成登录后，由受信任网关把学号、工号、邮箱或用户 ID 传给本接口；后端校验 `X-School-Identity-Secret` 后，只映射到已导入或已存在的 SQLite 用户，不在登录时静默创建账号。
+
+请求头：
+
+```http
+X-School-Identity-Secret: <shared-secret>
+```
+
+请求至少包含一个身份字段：
+
+```json
+{
+  "student_no": "2024010101",
+  "teacher_no": "T2026001",
+  "email": "teacher@example.edu",
+  "user_id": "teacher_school_001"
+}
+```
+
+响应格式同 `POST /auth/demo-session`，token 示例为 `school-token-teacher_school_001`。后续访问教师看板、学生报告、成长路径、任务中心等接口时，继续复用课程、班级和学生本人权限边界。
 
 ### 2.2 智能体对话
 

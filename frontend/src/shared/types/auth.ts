@@ -19,6 +19,13 @@ export type LocalAccountsResponse = {
   accounts: DemoAccount[];
 };
 
+export type SchoolIdentitySessionRequest = {
+  user_id?: string;
+  student_no?: string;
+  teacher_no?: string;
+  email?: string;
+};
+
 export type DemoSessionResponse = {
   token: string;
   account: DemoAccount;
