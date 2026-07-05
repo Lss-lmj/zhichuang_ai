@@ -13,6 +13,7 @@ from app.schemas.evaluations import (
     EvaluationCaseCreate,
     EvaluationCitation,
     EvaluationDashboardResponse,
+    EvaluationExportResponse,
     EvaluationRecord,
     EvaluationRecordCreate,
     EvaluationSummary,
@@ -177,6 +178,15 @@ class EvaluationService:
             ),
             cases=cases,
             records=records,
+        )
+
+    def export_report(self) -> EvaluationExportResponse:
+        dashboard = self.dashboard()
+        generated_at = datetime.utcnow().isoformat()
+        return EvaluationExportResponse(
+            filename="evaluation_reproducible_report.md",
+            markdown=self._report_markdown(dashboard, generated_at),
+            generated_at=generated_at,
         )
 
     def list_cases(self) -> list[EvaluationCase]:
@@ -388,3 +398,78 @@ class EvaluationService:
                 snippet="评测记录需要保存输入、输出、引用来源、评分和问题记录。",
             )
         ]
+
+    def _report_markdown(
+        self,
+        dashboard: EvaluationDashboardResponse,
+        generated_at: str,
+    ) -> str:
+        lines = [
+            "# 测试评测报告",
+            "",
+            f"- 生成时间：{generated_at}",
+            f"- 测试案例：{dashboard.summary.total_cases}",
+            f"- 输出记录：{dashboard.summary.completed_records}",
+            f"- 平均评分：{dashboard.summary.average_score}",
+            f"- 通过率：{dashboard.summary.pass_rate}%",
+            "",
+            "> 本报告由系统汇总测试案例、输出记录、引用来源、评分和问题记录生成，用于技术验证、演示复现和迭代跟踪。",
+            "",
+            "## 核心指标",
+            "",
+            "| 指标 | 数值 |",
+            "| --- | --- |",
+            f"| 测试案例 | {dashboard.summary.total_cases} |",
+            f"| 输出记录 | {dashboard.summary.completed_records} |",
+            f"| 平均评分 | {dashboard.summary.average_score} |",
+            f"| 通过率 | {dashboard.summary.pass_rate}% |",
+            "",
+            "## 测试案例",
+            "",
+            "| 场景 | 优先级 | 状态 | 输入问题 | 关注点 |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+        lines.extend(
+            (
+                f"| {item.scenario} | {item.priority} | {item.status} | "
+                f"{self._cell(item.input_question)} | "
+                f"{self._cell('；'.join(item.expected_focus)) or '-'} |"
+            )
+            for item in dashboard.cases
+        )
+        lines.extend(["", "## 输出记录", ""])
+        for record in dashboard.records:
+            lines.extend(
+                [
+                    f"### {record.scenario} · {record.manual_score} 分",
+                    "",
+                    f"- 记录 ID：{record.record_id}",
+                    f"- 案例 ID：{record.case_id}",
+                    f"- 输入问题：{record.input_question}",
+                    f"- 评价人：{record.reviewer}",
+                    f"- 评价时间：{record.evaluated_at}",
+                    f"- 问题记录：{record.issue_notes}",
+                    "",
+                    "**系统输出**",
+                    "",
+                    record.system_output,
+                    "",
+                    "**引用来源**",
+                    "",
+                ]
+            )
+            if record.citations:
+                lines.extend(
+                    (
+                        f"- {citation.title}（{citation.source_type} / {citation.path}）："
+                        f"{citation.snippet}"
+                    )
+                    for citation in record.citations
+                )
+            else:
+                lines.append("- 无")
+            lines.append("")
+        return "\n".join(lines)
+
+    def _cell(self, value: str) -> str:
+        return value.replace("|", "\\|").replace("\n", " ")

@@ -65,6 +65,29 @@ def test_admin_can_create_evaluation_case_and_record() -> None:
     )
 
 
+def test_admin_can_export_evaluation_report() -> None:
+    client = TestClient(app)
+    response = client.get(
+        "/api/evaluations/export",
+        headers={"Authorization": "Bearer demo-token-admin_001"},
+    )
+    forbidden_response = client.get(
+        "/api/evaluations/export",
+        headers={"Authorization": "Bearer demo-token-student_001"},
+    )
+
+    assert response.status_code == 200
+    assert forbidden_response.status_code == 403
+    payload = response.json()
+    assert payload["filename"].endswith(".md")
+    assert payload["content_type"] == "text/markdown; charset=utf-8"
+    assert "# 测试评测报告" in payload["markdown"]
+    assert "## 测试案例" in payload["markdown"]
+    assert "## 输出记录" in payload["markdown"]
+    assert "知识库问答" in payload["markdown"]
+    assert "引用来源" in payload["markdown"]
+
+
 def test_evaluation_case_and_record_persist_in_sqlite_session(tmp_path) -> None:
     engine = create_engine(
         f"sqlite:///{tmp_path / 'evaluations.db'}",

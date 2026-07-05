@@ -6,6 +6,7 @@ from app.schemas.evaluations import (
     EvaluationCase,
     EvaluationCaseCreate,
     EvaluationDashboardResponse,
+    EvaluationExportResponse,
     EvaluationRecord,
     EvaluationRecordCreate,
     EvaluationUpsertResponse,
@@ -21,6 +22,15 @@ def get_evaluation_dashboard(
     db: Session = Depends(get_db),
 ) -> EvaluationDashboardResponse:
     return EvaluationService(db).dashboard()
+
+
+@router.get("/export", response_model=EvaluationExportResponse)
+def export_evaluation_report(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> EvaluationExportResponse:
+    _ensure_admin(authorization, db)
+    return EvaluationService(db).export_report()
 
 
 @router.get("/cases", response_model=list[EvaluationCase])

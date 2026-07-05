@@ -500,10 +500,28 @@ def main() -> int:
     )
     assert_true(eval_case["item_id"], "evaluation case create failed")
     assert_true(eval_record["item_id"], "evaluation record create failed")
+    evaluation_export = client.get_json("/evaluations/export", headers=admin_header)
+    assert_true(
+        evaluation_export["filename"].endswith(".md"),
+        "evaluation export filename invalid",
+    )
+    assert_true(
+        "## 测试案例" in evaluation_export["markdown"],
+        "evaluation export missing cases",
+    )
+    assert_true(
+        "## 输出记录" in evaluation_export["markdown"],
+        "evaluation export missing records",
+    )
     client.expect_forbidden(
         "POST",
         "/evaluations/cases",
         {"scenario": "学生尝试维护评测"},
+        headers=student_header,
+    )
+    client.expect_forbidden(
+        "GET",
+        "/evaluations/export",
         headers=student_header,
     )
 

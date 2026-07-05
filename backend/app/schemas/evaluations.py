@@ -64,6 +64,13 @@ class EvaluationSummary(BaseModel):
     pass_rate: int
 
 
+class EvaluationExportResponse(BaseModel):
+    filename: str
+    content_type: str = "text/markdown; charset=utf-8"
+    markdown: str
+    generated_at: str
+
+
 class EvaluationDashboardResponse(BaseModel):
     summary: EvaluationSummary
     cases: list[EvaluationCase]

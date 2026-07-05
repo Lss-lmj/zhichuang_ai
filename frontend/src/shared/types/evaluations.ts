@@ -64,3 +64,10 @@ export type EvaluationDashboardResponse = {
   cases: EvaluationCase[];
   records: EvaluationRecord[];
 };
+
+export type EvaluationExportResponse = {
+  filename: string;
+  content_type: string;
+  markdown: string;
+  generated_at: string;
+};

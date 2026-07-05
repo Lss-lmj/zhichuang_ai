@@ -930,6 +930,22 @@ Authorization: Bearer demo-token-admin_001
 
 查询典型测试案例清单。
 
+### `GET /evaluations/export`
+
+管理员导出评测中心 Markdown 报告。学生或教师账号访问返回 `403`。
+接口汇总评测看板中的核心指标、测试案例、输出记录、引用来源、评分和问题记录，用于演示复现和技术验证归档。
+
+响应为结构化 JSON，前端会将 `markdown` 字段保存为 `.md` 文件：
+
+```json
+{
+  "filename": "evaluation_reproducible_report.md",
+  "content_type": "text/markdown; charset=utf-8",
+  "generated_at": "2026-07-05T12:00:00",
+  "markdown": "# 测试评测报告\n..."
+}
+```
+
 ### `POST /evaluations/cases`
 
 管理员新增典型测试案例。学生或教师账号访问返回 `403`。

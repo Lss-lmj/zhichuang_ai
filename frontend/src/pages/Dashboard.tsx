@@ -37,6 +37,7 @@ import {
 import {
   createEvaluationCase,
   createEvaluationRecord,
+  exportEvaluationReport,
   fetchEvaluationDashboard,
 } from "../shared/api/evaluations";
 import {
@@ -141,6 +142,8 @@ export function Dashboard() {
   const [evaluationDashboard, setEvaluationDashboard] =
     useState<EvaluationDashboardResponse | null>(null);
   const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [evaluationExportLoading, setEvaluationExportLoading] = useState(false);
+  const [evaluationExportResult, setEvaluationExportResult] = useState<string | null>(null);
   const [courses, setCourses] = useState<CourseListResponse | null>(null);
   const [classes, setClasses] = useState<ClassListResponse | null>(null);
   const [students, setStudents] = useState<StudentListResponse | null>(null);
@@ -757,6 +760,27 @@ export function Dashboard() {
     }
   }
 
+  async function handleExportEvaluationReport() {
+    try {
+      setEvaluationExportLoading(true);
+      setEvaluationExportResult(null);
+      setError(null);
+      const exported = await exportEvaluationReport(currentToken);
+      const blob = new Blob([exported.markdown], { type: exported.content_type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = exported.filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      setEvaluationExportResult(`${exported.filename} 已生成`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "评测报告导出失败");
+    } finally {
+      setEvaluationExportLoading(false);
+    }
+  }
+
   async function handleAcademicImportSample() {
     const courseId = "course_school_ai_2026";
     const classId = "class_school_ai_2024_01";
@@ -1084,7 +1108,10 @@ export function Dashboard() {
             dashboard={evaluationDashboard}
             isAdmin={currentAccount?.role === "admin"}
             loading={evaluationLoading}
+            exportLoading={evaluationExportLoading}
+            exportResult={evaluationExportResult}
             onCreateArtifact={handleCreateEvaluationArtifact}
+            onExportReport={handleExportEvaluationReport}
           />
         )}
 
@@ -2414,12 +2441,18 @@ function EvaluationDashboard({
   dashboard,
   isAdmin,
   loading,
+  exportLoading,
+  exportResult,
   onCreateArtifact,
+  onExportReport,
 }: {
   dashboard: EvaluationDashboardResponse;
   isAdmin: boolean;
   loading: boolean;
+  exportLoading: boolean;
+  exportResult: string | null;
   onCreateArtifact: () => void;
+  onExportReport: () => void;
 }) {
   return (
     <>
@@ -2487,6 +2520,10 @@ function EvaluationDashboard({
               <button onClick={onCreateArtifact} disabled={loading}>
                 {loading ? "保存中" : "新增案例与记录"}
               </button>
+              <button onClick={onExportReport} disabled={exportLoading}>
+                {exportLoading ? "导出中" : "导出 Markdown"}
+              </button>
+              {exportResult && <small>{exportResult}</small>}
             </div>
           )}
         </article>

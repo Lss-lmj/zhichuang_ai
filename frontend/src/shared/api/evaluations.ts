@@ -1,6 +1,7 @@
 import type {
   EvaluationCaseCreate,
   EvaluationDashboardResponse,
+  EvaluationExportResponse,
   EvaluationRecordCreate,
   EvaluationUpsertResponse,
 } from "../types/evaluations";
@@ -29,6 +30,12 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchEvaluationDashboard(): Promise<EvaluationDashboardResponse> {
   return requestJson<EvaluationDashboardResponse>("/evaluations/dashboard");
+}
+
+export function exportEvaluationReport(token?: string): Promise<EvaluationExportResponse> {
+  return requestJson<EvaluationExportResponse>("/evaluations/export", {
+    headers: authHeaders(token),
+  });
 }
 
 export function createEvaluationCase(
