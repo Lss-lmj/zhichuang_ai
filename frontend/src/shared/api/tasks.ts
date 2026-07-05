@@ -67,8 +67,8 @@ export function generateReview(
     body: JSON.stringify({
       student_id: studentId,
       period: "本周",
-      completed_task_ids: ["task_demo_script"],
-      notes: "已完成部署说明和演示脚本，继续补测试和算法复盘。",
+      completed_task_ids: ["task_assignment_report"],
+      notes: "已完成作业报告复查和 README 补充，继续补接口测试和算法复盘。",
     }),
   });
 }

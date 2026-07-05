@@ -45,7 +45,7 @@ class BasicProfileUpsert(BaseModel):
     competition_experiences: list[str] = Field(default_factory=lambda: ["蓝桥杯校内训练"])
     target_direction: str = "AI 应用开发 / 软件项目实践"
     weekly_hours: int = 8
-    github_url: str | None = "https://github.com/demo/zhichuang-agent"
+    github_url: str | None = "https://github.com/school-projects/zhichuang-agent"
 
 
 class GrowthProfileResponse(BaseModel):
@@ -71,7 +71,7 @@ class ProfileEvidenceCreate(BaseModel):
 
 class LearningPlanRequest(BaseModel):
     student_id: str = "student_001"
-    goal: str = "三个月内完成 AI 应用开发 Demo 并准备校级双创项目"
+    goal: str = "三个月内完成 AI 应用开发作品原型并准备校级双创项目"
     weeks: int = 8
     weekly_hours: int = 8
     foundation: str = "工程实践较好，算法和测试需要补强"
@@ -216,7 +216,7 @@ class TeacherCandidateScreenResponse(BaseModel):
 
 class TeamRecommendRequest(BaseModel):
     student_id: str = "student_001"
-    project_goal: str = "做一个课程作业代码分析与教师看板 Demo"
+    project_goal: str = "做一个课程作业代码分析与学情诊断作品"
     team_request_id: str | None = None
 
 

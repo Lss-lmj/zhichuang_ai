@@ -81,7 +81,7 @@ COMPETITION_CHUNKS = [
         source_type="competition_material",
         path="软件项目实践",
         tags=["计算机设计大赛", "软件应用", "AI 应用"],
-        content="计算机设计大赛适合软件应用、AI 应用和数字媒体类作品，需要可运行 Demo。",
+        content="计算机设计大赛适合软件应用、AI 应用和数字媒体类作品，需要可运行原型。",
         score=0,
     ),
     RetrievedChunk(
@@ -105,7 +105,7 @@ COMPETITION_CHUNKS = [
         source_type="competition_material",
         path="软件项目实践",
         tags=["服务外包", "企业命题", "工程实践"],
-        content="服务外包大赛强调企业命题理解、解决方案、系统原型、文档和演示视频。",
+        content="服务外包大赛强调企业命题理解、解决方案、系统原型、文档和展示视频。",
         score=0,
     ),
     RetrievedChunk(
@@ -257,7 +257,7 @@ SUPPORTING_CHUNKS = [
         tags=["RAG", "Agent", "大模型应用"],
         content=(
             "AI 应用开发首批路径包括 Prompt 基础、RAG 文档问答、Agent 工作流、"
-            "评测记录和应用部署。建议先完成一个带引用的课程知识库问答 Demo。"
+            "评测记录和应用部署。建议先完成一个带引用的课程知识库问答原型。"
         ),
         score=0,
     ),

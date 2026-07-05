@@ -36,7 +36,7 @@ class TaskService:
         LearningTask(
             task_id="task_rag_demo",
             student_id="student_001",
-            title="完成带引用的 RAG 知识库问答 Demo",
+            title="完成带引用的 RAG 知识库问答原型",
             source="成长路径",
             status="todo",
             priority="high",
@@ -58,12 +58,12 @@ class TaskService:
         LearningTask(
             task_id="task_demo_script",
             student_id="student_001",
-            title="整理公网 Demo 演示脚本",
+            title="整理公网访问环境与展示脚本",
             source="项目实践",
             status="done",
             priority="medium",
             due_date="2026-07-05",
-            evidence_required="演示脚本和部署说明",
+            evidence_required="展示脚本和部署说明",
             progress=100,
         ),
     ]
@@ -129,7 +129,7 @@ class TaskService:
             student_id=payload.student_id,
             period=payload.period,
             summary=(
-                "本轮复盘显示工程实践任务推进较快，知识库问答和演示脚本已经形成雏形；"
+                "本轮复盘显示工程实践任务推进较快，知识库问答和展示脚本已经形成雏形；"
                 "算法训练和自动化测试仍需要固定节奏。"
             ),
             completed_count=completed_count,

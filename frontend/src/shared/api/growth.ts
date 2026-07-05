@@ -62,11 +62,11 @@ export function upsertBasicProfile(
       major: "计算机科学与技术",
       course_foundation: ["程序设计基础", "数据结构", "数据库系统"],
       skill_tags: ["Flask", "RAG", "GitHub", "README"],
-      project_experiences: ["Flask Web 作业项目", "RAG 文档问答 Demo"],
+      project_experiences: ["Flask Web 作业项目", "RAG 文档问答课程项目"],
       competition_experiences: ["蓝桥杯校内训练"],
       target_direction: seed.targetDirection ?? "AI 应用开发 / 软件项目实践",
       weekly_hours: 8,
-      github_url: "https://github.com/demo/zhichuang-agent",
+      github_url: "https://github.com/school-projects/zhichuang-agent",
     }),
   });
 }
@@ -97,7 +97,7 @@ export function generateLearningPlan(
     headers: authHeaders(token),
     body: JSON.stringify({
       student_id: studentId,
-      goal: "三个月内完成 AI 应用开发 Demo 并准备校级双创项目",
+      goal: "三个月内完成 AI 应用开发作品原型并准备校级双创项目",
       weeks: 8,
     }),
   });
@@ -192,7 +192,7 @@ export function recommendTeam(
     headers: authHeaders(token),
     body: JSON.stringify({
       student_id: studentId,
-      project_goal: "做一个课程作业代码分析与教师看板 Demo",
+      project_goal: "做一个课程作业代码分析与学情诊断作品",
     }),
   });
 }

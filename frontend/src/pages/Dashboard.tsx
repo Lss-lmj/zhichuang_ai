@@ -81,6 +81,8 @@ import type { LearningTask, ReviewResponse, TaskListResponse } from "../shared/t
 type AssignmentSubmissionPayload = {
   assignmentId: string;
   assignmentTitle: string;
+  courseId: string;
+  classId: string;
   studentId: string;
   description: string;
   archive?: File;
@@ -117,6 +119,29 @@ function accountSubtitle(account: DemoAccount) {
     return "平台管理";
   }
   return account.title.replace(/演示账号|账号/g, "").trim() || "用户";
+}
+
+function workspaceLabel(account: DemoAccount | null) {
+  if (account?.role === "teacher") return "授课视角";
+  if (account?.role === "admin") return "管理视角";
+  return "学生端概览";
+}
+
+function workspaceTitle(account: DemoAccount | null) {
+  if (!account) return demoStudentAccount.name;
+  if (account.role === "teacher") return account.authorized_courses[0] ?? account.name;
+  if (account.role === "admin") return "平台配置与资料维护";
+  return account.name;
+}
+
+function workspaceDescription(account: DemoAccount | null) {
+  if (account?.role === "teacher") {
+    return "查看课程作业学情、学生报告、班级能力画像和教学改进建议。";
+  }
+  if (account?.role === "admin") {
+    return "维护课程班级、知识库资料、评测记录和学校账号接入。";
+  }
+  return "从课程作业、能力画像、竞赛准备和组队建议形成学生成长闭环。";
 }
 
 function evidenceLabels(items: ProfileEvidence[]) {
@@ -262,9 +287,9 @@ export function Dashboard() {
           classesData,
           studentsData,
         ] = await Promise.all([
-          analyzeDemoAssignment("demo-token-teacher_001"),
+          analyzeDemoAssignment("demo-token-student_001"),
           fetchAssignmentDashboard("demo-token-teacher_001"),
-          fetchAssignments("demo-token-teacher_001"),
+          fetchAssignments("demo-token-student_001"),
           upsertBasicProfile(demoStudentId, "demo-token-student_001", {
             studentName: demoStudentAccount.name,
           }),
@@ -589,6 +614,8 @@ export function Dashboard() {
     return currentAccount?.modules.includes(module) ?? true;
   }
 
+  const canSwitchWorkspace = accounts.length > 1;
+
   async function handleUpdateTeamStatus(enabled: boolean) {
     try {
       setTeamStatusLoading(true);
@@ -609,12 +636,13 @@ export function Dashboard() {
       setArchiveUploadLoading(true);
       setArchiveUploadResult(null);
       setError(null);
+      const isStudentSubmission = currentAccount?.role === "student";
       const commonPayload = {
         assignmentTitle: payload.assignmentTitle,
         assignmentId: payload.assignmentId,
-        studentId: payload.studentId,
-        courseId: dashboard?.course_id ?? "course_web_2026",
-        classId: dashboard?.class_id ?? "class_cs_2024_01",
+        studentId: isStudentSubmission ? activeStudentId : payload.studentId,
+        courseId: payload.courseId,
+        classId: payload.classId,
         description: payload.description,
       };
       const uploadedReport = payload.archive
@@ -632,18 +660,25 @@ export function Dashboard() {
             },
             currentToken,
           );
-      const nextDashboard = await fetchAssignmentDashboardById(
-        uploadedReport.assignment_id,
-        currentToken,
-      );
       const nextAssignments = await fetchAssignments(currentToken);
       setReport(uploadedReport);
-      setDashboard(nextDashboard);
       setAssignments(nextAssignments.assignments);
-      setArchiveUploadResult(
-        `${uploadedReport.student_name} 的 ${uploadedReport.code_structure.file_count} 个文件已分析`,
-      );
-      setMode("teacher");
+      if (isStudentSubmission) {
+        setArchiveUploadResult(
+          `已生成作业分析报告，${uploadedReport.code_structure.file_count} 个文件完成解析`,
+        );
+        setMode("student");
+      } else {
+        const nextDashboard = await fetchAssignmentDashboardById(
+          uploadedReport.assignment_id,
+          currentToken,
+        );
+        setDashboard(nextDashboard);
+        setArchiveUploadResult(
+          `${uploadedReport.student_name} 的 ${uploadedReport.code_structure.file_count} 个文件已分析`,
+        );
+        setMode("teacher");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "作业提交分析失败");
     } finally {
@@ -893,7 +928,7 @@ export function Dashboard() {
       setAcademicImportResult(`${session.account.name} 已通过本地账号进入系统`);
       setMode("teacher");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "本地教师账号登录失败，请先导入样例数据");
+      setError(err instanceof Error ? err.message : "教师账号登录失败，请先导入课程数据");
     } finally {
       setAcademicImportLoading(false);
     }
@@ -977,30 +1012,39 @@ export function Dashboard() {
         </nav>
 
         <div className="side-note">
-          <span>学生端概览</span>
-          <strong>{currentAccount?.role === "student" ? currentAccount.name : demoStudentAccount.name}</strong>
-          <p>从课程作业、能力画像、竞赛准备和组队建议形成学生成长闭环。</p>
+          <span>{workspaceLabel(currentAccount)}</span>
+          <strong>{workspaceTitle(currentAccount)}</strong>
+          <p>{workspaceDescription(currentAccount)}</p>
         </div>
 
         {currentAccount && (
           <div className="account-panel">
-            <label htmlFor="demo-account">当前身份</label>
-            <select
-              id="demo-account"
-              value={currentToken.startsWith("demo-token-") ? currentAccount.user_id : ""}
-              onChange={(event) => {
-                if (event.target.value) {
-                  handleAccountChange(event.target.value);
-                }
-              }}
-            >
-              <option value="">已接入学校账号</option>
-              {accounts.map((account) => (
-                <option key={account.user_id} value={account.user_id}>
-                  {account.name} · {accountSubtitle(account)}
-                </option>
-              ))}
-            </select>
+            <div className="identity-summary">
+              <span>工作空间</span>
+              <strong>{currentAccount.name}</strong>
+              <small>{accountSubtitle(currentAccount)}</small>
+            </div>
+            {canSwitchWorkspace && (
+              <>
+                <label htmlFor="demo-account">切换工作空间</label>
+                <select
+                  id="demo-account"
+                  value={currentToken.startsWith("demo-token-") ? currentAccount.user_id : ""}
+                  onChange={(event) => {
+                    if (event.target.value) {
+                      handleAccountChange(event.target.value);
+                    }
+                  }}
+                >
+                  <option value="">学校统一身份</option>
+                  {accounts.map((account) => (
+                    <option key={account.user_id} value={account.user_id}>
+                      {account.name} · {accountSubtitle(account)}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             {localAccounts.length > 0 && (
               <>
                 <label htmlFor="local-account">学校账号</label>
@@ -1075,8 +1119,8 @@ export function Dashboard() {
           </button>
         </header>
 
-        {loading && <div className="state-box">正在加载个人工作台...</div>}
-        {error && <div className="state-box error">接口未连接：{error}</div>}
+        {loading && <div className="state-box">正在加载学习空间...</div>}
+        {error && <div className="state-box error">当前操作未完成：{error}</div>}
 
         {!loading && !error && mode === "teacher" && dashboard && (
           <TeacherDashboard
@@ -1101,7 +1145,10 @@ export function Dashboard() {
             assignments={assignments}
             loading={studentReportLoading}
             averageScore={averageScore}
+            uploadLoading={archiveUploadLoading}
+            uploadResult={archiveUploadResult}
             onSelectAssignment={handleSelectStudentReport}
+            onArchiveUpload={handleArchiveUpload}
           />
         )}
 
@@ -1230,7 +1277,15 @@ function TeacherDashboard({
         onSelectAssignment={onSelectAssignment}
       />
       <AssignmentArchiveUploader
-        dashboard={dashboard}
+        assignment={{
+          assignment_id: dashboard.assignment_id,
+          title: dashboard.assignment_title,
+          course_id: dashboard.course_id,
+          course_name: dashboard.course_name,
+          class_id: dashboard.class_id,
+          class_name: dashboard.class_name,
+        }}
+        variant="teacher"
         loading={uploadLoading}
         result={uploadResult}
         onUpload={onArchiveUpload}
@@ -1457,7 +1512,7 @@ function AssignmentManager({
           <h2>发布作业并切换学情看板</h2>
         </div>
         <button onClick={onCreateAssignment} disabled={loading}>
-          {loading ? "发布中" : "发布样例作业"}
+          {loading ? "发布中" : "发布课程作业"}
         </button>
       </div>
       <div className="assignment-list">
@@ -1479,42 +1534,65 @@ function AssignmentManager({
   );
 }
 
+type UploadAssignmentContext = {
+  assignment_id: string;
+  title: string;
+  course_id: string;
+  course_name: string;
+  class_id: string;
+  class_name: string;
+};
+
 function AssignmentArchiveUploader({
-  dashboard,
+  assignment,
+  variant,
+  studentId,
   loading,
   result,
   onUpload,
 }: {
-  dashboard: AssignmentDashboard;
+  assignment: UploadAssignmentContext;
+  variant: "student" | "teacher";
+  studentId?: string;
   loading: boolean;
   result: string | null;
   onUpload: (payload: AssignmentSubmissionPayload) => void;
 }) {
   const [sourceMode, setSourceMode] = useState<"zip" | "repo">("zip");
-  const [assignmentTitle, setAssignmentTitle] = useState(dashboard.assignment_title);
-  const [studentId, setStudentId] = useState("student_006");
-  const [description, setDescription] = useState("学生提交作业代码，系统提取代码、测试、文档和配置文件生成分析报告。");
+  const [assignmentTitle, setAssignmentTitle] = useState(assignment.title);
+  const [targetStudentId, setTargetStudentId] = useState(studentId ?? "");
+  const [description, setDescription] = useState(
+    variant === "student"
+      ? "提交课程作业代码，系统将提取代码结构、测试、文档和能力证据生成分析报告。"
+      : "教师代录学生作业代码，系统提取代码、测试、文档和配置文件生成班级学情分析。",
+  );
   const [archive, setArchive] = useState<File | null>(null);
   const [repositoryUrl, setRepositoryUrl] = useState("");
 
   useEffect(() => {
-    setAssignmentTitle(dashboard.assignment_title);
-  }, [dashboard.assignment_title]);
+    setAssignmentTitle(assignment.title);
+  }, [assignment.title]);
+
+  useEffect(() => {
+    setTargetStudentId(studentId ?? "");
+  }, [studentId]);
 
   const canSubmit =
     !loading &&
-    studentId.trim() &&
+    (variant === "student" || targetStudentId.trim()) &&
     assignmentTitle.trim() &&
     (sourceMode === "zip" ? archive : repositoryUrl.trim());
 
   return (
-    <section className="panel upload-panel">
+    <section className={`panel upload-panel ${variant === "student" ? "student-upload-panel" : ""}`}>
       <div className="panel-header">
         <div>
-          <span className="section-label">作业上传分析</span>
-          <h2>提交学生作业代码</h2>
+          <span className="section-label">{variant === "student" ? "提交作业" : "作业上传分析"}</span>
+          <h2>{variant === "student" ? "上传代码并生成分析报告" : "录入学生作业代码"}</h2>
         </div>
-        <span className="muted">{dashboard.course_name}</span>
+        <span className="muted">
+          {assignment.course_name} · {assignment.class_name}
+        </span>
       </div>
       <div className="upload-form">
         <div className="source-mode-toggle">
@@ -1540,10 +1618,16 @@ function AssignmentArchiveUploader({
             onChange={(event) => setAssignmentTitle(event.target.value)}
           />
         </label>
-        <label>
-          <span>学生 ID</span>
-          <input value={studentId} onChange={(event) => setStudentId(event.target.value)} />
-        </label>
+        {variant === "teacher" && (
+          <label>
+            <span>学生 ID</span>
+            <input
+              value={targetStudentId}
+              placeholder="输入学号或系统学生 ID"
+              onChange={(event) => setTargetStudentId(event.target.value)}
+            />
+          </label>
+        )}
         <label className="upload-description">
           <span>提交说明</span>
           <textarea
@@ -1580,9 +1664,11 @@ function AssignmentArchiveUploader({
                 ? { archive: archive ?? undefined }
                 : { repositoryUrl: repositoryUrl.trim() };
             onUpload({
-              assignmentId: dashboard.assignment_id,
+              assignmentId: assignment.assignment_id,
               assignmentTitle,
-              studentId,
+              courseId: assignment.course_id,
+              classId: assignment.class_id,
+              studentId: variant === "student" ? studentId ?? "" : targetStudentId,
               description,
               ...sourcePayload,
             });
@@ -1596,7 +1682,7 @@ function AssignmentArchiveUploader({
         <span>zip 最大 5MB</span>
         <span>支持公开 Git 仓库</span>
         <span>最多 80 个文本文件</span>
-        <span>新增学生会进入看板</span>
+        <span>{variant === "student" ? "提交后进入作业报告" : "分析后进入班级看板"}</span>
         {result && <strong>{result}</strong>}
       </div>
     </section>
@@ -1608,16 +1694,68 @@ function StudentReport({
   assignments,
   loading,
   averageScore,
+  uploadLoading,
+  uploadResult,
   onSelectAssignment,
+  onArchiveUpload,
 }: {
   report: AssignmentReport;
   assignments: AssignmentItem[];
   loading: boolean;
   averageScore: number;
+  uploadLoading: boolean;
+  uploadResult: string | null;
   onSelectAssignment: (assignmentId: string) => void;
+  onArchiveUpload: (payload: AssignmentSubmissionPayload) => void;
 }) {
+  const highPriorityFindings = report.findings.filter((finding) => finding.severity === "high").length;
+  const currentAssignment =
+    assignments.find((assignment) => assignment.assignment_id === report.assignment_id) ?? {
+      assignment_id: report.assignment_id,
+      title: report.assignment_title,
+      course_id: report.course_id,
+      course_name: report.course_name,
+      class_id: report.class_id,
+      class_name: report.class_name,
+    };
+
   return (
     <>
+      <section className="student-report-overview">
+        <div className="student-report-copy">
+          <span className="section-label">{report.course_name}</span>
+          <h2>{report.assignment_title}</h2>
+          <p>{report.summary}</p>
+        </div>
+        <div className="student-report-stats">
+          <article>
+            <span>综合评分</span>
+            <strong>{averageScore}</strong>
+          </article>
+          <article>
+            <span>待处理问题</span>
+            <strong>{report.findings.length}</strong>
+          </article>
+          <article>
+            <span>高优先级</span>
+            <strong>{highPriorityFindings}</strong>
+          </article>
+          <article>
+            <span>文件数量</span>
+            <strong>{report.code_structure.file_count}</strong>
+          </article>
+        </div>
+      </section>
+
+      <AssignmentArchiveUploader
+        assignment={currentAssignment}
+        variant="student"
+        studentId={report.student_id}
+        loading={uploadLoading}
+        result={uploadResult}
+        onUpload={onArchiveUpload}
+      />
+
       {assignments.length > 0 && (
         <section className="panel student-assignment-switcher">
           <div className="panel-header">
@@ -1656,7 +1794,7 @@ function StudentReport({
         </div>
         <strong className="big-score">{averageScore}</strong>
       </section>
-      <InlineNotice label="报告说明" text="分数依据代码结构、测试、文档和问题证据生成，可作为作业改进参考。" />
+      <InlineNotice label="报告说明" text="评分是基于代码结构、测试、文档和问题证据形成的相对画像，用于帮助定位改进方向。" />
 
       <section className="code-structure-panel">
         <div>
@@ -2270,7 +2408,7 @@ function KnowledgeAdmin({
         <article className="metric">
           <span>资料总数</span>
           <strong>{documents.total}</strong>
-          <small>首批知识库样例</small>
+          <small>首批知识库资料</small>
         </article>
         <article className="metric">
           <span>重点路径</span>
@@ -2546,7 +2684,7 @@ function EvaluationDashboard({
           </div>
           {isAdmin && (
             <div className="evaluation-admin-card">
-              <strong>维护评测样例</strong>
+              <strong>维护评测记录</strong>
               <span>新增竞赛准备计划测试案例和输出记录。</span>
               <button onClick={onCreateArtifact} disabled={loading}>
                 {loading ? "保存中" : "新增案例与记录"}
@@ -2564,7 +2702,7 @@ function EvaluationDashboard({
         <div className="panel-header">
           <div>
             <span className="section-label">输出记录</span>
-            <h2>完整评测样例</h2>
+            <h2>完整评测记录</h2>
           </div>
           <span className="muted">{dashboard.records.length} 条记录</span>
         </div>
@@ -2649,7 +2787,7 @@ function AcademicDirectory({
               <h2>管理员导入课程、班级、教师和学生</h2>
             </div>
             <button onClick={onImportSample} disabled={importLoading}>
-              {importLoading ? "导入中" : "导入样例数据"}
+              {importLoading ? "导入中" : "导入课程数据"}
             </button>
           </div>
           <div className="academic-import-grid">

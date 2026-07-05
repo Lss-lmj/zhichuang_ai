@@ -133,7 +133,7 @@ class EvaluationService:
                     source_type="project_case",
                     path="AI 应用开发",
                     snippet=(
-                        "首个 Demo 应聚焦可演示、可复现、"
+                        "首个作品原型应聚焦可展示、可复现、"
                         "可解释的真实学习或教学场景。"
                     ),
                 ),

@@ -132,11 +132,11 @@ class GrowthService:
                     ],
                 ),
             ],
-            strengths=["工程实践推进快", "适合承担后端接口和 Demo 集成", "能把作业产出转成项目案例"],
+            strengths=["工程实践推进快", "适合承担后端接口和 原型集成", "能把作业产出转成项目案例"],
             risks=["自动化测试证据不足", "竞赛训练节奏容易被项目开发挤压", "项目表达材料需要模板约束"],
             next_actions=[
                 "本周补齐 Flask 作业测试和 README 模板。",
-                "两周内完成一个带引用的 RAG 问答 Demo。",
+                "两周内完成一个带引用的 RAG 问答原型。",
                 "每周至少保留 3 次算法专题训练记录。",
             ],
         )
@@ -191,7 +191,7 @@ class GrowthService:
                 evidence_id=f"evidence_{student_id}_ai_001",
                 dimension="AI 应用开发",
                 source_type="project_plan",
-                source_title="RAG 知识库问答 Demo 计划",
+                source_title="RAG 知识库问答原型计划",
                 evidence_text="计划包含文档入库、检索、引用展示和评测记录。",
                 confidence=0.68,
                 created_at=self.generated_at,
@@ -562,7 +562,7 @@ class GrowthService:
         if "算法" in goal or "竞赛" in goal:
             tasks = self._prioritize(tasks, ["算法", "复盘", "竞赛"])
         if "AI" in goal or "RAG" in goal or "大模型" in goal:
-            tasks = self._prioritize(tasks, ["RAG", "评测", "Demo"])
+            tasks = self._prioritize(tasks, ["RAG", "评测", "原型"])
         if "软件" in goal or "项目" in goal or "工程" in goal:
             tasks = self._prioritize(tasks, ["工程", "测试", "文档"])
         if weekly_hours <= 4 or (feedback and "时间不足" in feedback):
@@ -570,7 +570,7 @@ class GrowthService:
         if "基础薄弱" in foundation or (feedback and "基础薄弱" in feedback):
             tasks = self._prioritize(tasks, ["基础", "训练", "补齐"])
         if feedback and "转方向" in feedback:
-            tasks = self._prioritize(tasks, ["方向", "Demo", "案例"])
+            tasks = self._prioritize(tasks, ["方向", "原型", "案例"])
 
         capped_weeks = max(1, min(weeks, 8))
         selected = [
@@ -596,12 +596,12 @@ class GrowthService:
             PlanTask(
                 week=0,
                 title="补齐工程基线",
-                outcome="作业项目具备 README、接口列表、测试入口和演示数据。",
+                outcome="作业项目具备 README、接口列表、测试入口和示例数据。",
                 resources=["Web 应用开发课程 Rubric", "软件项目实践案例模板"],
             ),
             PlanTask(
                 week=0,
-                title="完成 RAG 问答 Demo",
+                title="完成 RAG 问答原型",
                 outcome="知识库问答能返回答案、引用来源和推荐路径。",
                 resources=["AI 应用开发学习路径", "RAG 知识库建设 SOP"],
             ),
@@ -626,8 +626,8 @@ class GrowthService:
             PlanTask(
                 week=0,
                 title="完成最小可展示版本",
-                outcome="保留一条学生端和一条教师端演示主线，压缩非关键功能。",
-                resources=["开发 SOP", "公网 Demo 部署说明"],
+                outcome="保留一条学生端和一条教师端产品主线，压缩非关键功能。",
+                resources=["开发 SOP", "公网访问环境 部署说明"],
             ),
             PlanTask(
                 week=0,
@@ -649,8 +649,8 @@ class GrowthService:
             ),
             PlanTask(
                 week=0,
-                title="演示与评测",
-                outcome="准备固定演示账号、示例作业、知识库问答和教师看板脚本。",
+                title="展示与评测",
+                outcome="准备固定试用账号、示例作业、知识库问答和教师看板脚本。",
                 resources=["开发 SOP", "评测样例清单"],
             ),
             PlanTask(
@@ -690,7 +690,7 @@ class GrowthService:
         if "转方向" in feedback:
             return "转向 AI 应用开发并保留软件项目实践基础"
         if "基础薄弱" in feedback:
-            return "补齐计算机基础并完成一个可运行项目 Demo"
+            return "补齐计算机基础并完成一个可运行项目原型"
         if "时间不足" in feedback:
             return "用更少时间完成 AI 应用开发最小可展示版本"
         return "根据阶段反馈更新 AI 应用开发学习计划"
@@ -706,17 +706,17 @@ class GrowthService:
                     name="中国大学生计算机设计大赛",
                     category="软件应用 / AI 应用",
                     match_score=88,
-                    reason="当前项目具备教学场景、AI 应用、知识库问答和可展示 Demo，适合软件应用类作品。",
+                    reason="当前项目具备教学场景、AI 应用、知识库问答和可展示原型，适合软件应用类作品。",
                     fit_reasons=[
                         "已有课程作业分析、教师看板和知识库问答闭环，符合软件应用作品展示要求。",
                         "学生画像显示工程实践和 AI 应用开发能力较匹配。",
                     ],
                     gap_abilities=[
                         "需要补足自动化测试证据和评测记录。",
-                        "需要整理作品说明书、演示视频和可复现部署材料。",
+                        "需要整理作品说明书、展示视频和可复现部署材料。",
                     ],
-                    preparation=["补齐作品说明书", "准备公网 Demo", "整理教师看板和学生报告演示脚本"],
-                    risk="需要尽快补充真实课程样例和稳定演示流程。",
+                    preparation=["补齐作品说明书", "准备公网访问环境", "整理教师看板和学生报告展示脚本"],
+                    risk="需要尽快补充真实课程样例和稳定展示流程。",
                 ),
                 CompetitionRecommendation(
                     name="中国国际大学生创新大赛",
@@ -729,10 +729,10 @@ class GrowthService:
                     ],
                     gap_abilities=[
                         "需要补足推广路径、用户场景证明和学校试用说明。",
-                        "需要把项目价值从技术 Demo 转成可落地服务表达。",
+                        "需要把项目价值从技术样板 转成可落地服务表达。",
                     ],
                     preparation=["梳理用户场景", "准备商业/推广路径", "补充学校部署方案"],
-                    risk="需要把产品价值讲清楚，避免只像技术 Demo。",
+                    risk="需要把产品价值讲清楚，避免只像技术样板。",
                 ),
                 CompetitionRecommendation(
                     name="蓝桥杯",
@@ -805,7 +805,7 @@ class GrowthService:
                 participant_requirements=(
                     "普通高校在校学生组队参赛，具体组别以官方通知为准。"
                 ),
-                work_requirements="提交可运行作品、说明材料、演示视频和证明材料。",
+                work_requirements="提交可运行作品、说明材料、展示视频和证明材料。",
                 official_url="https://jsjds.blcu.edu.cn/",
                 updated_at=self.competition_updated_at,
                 source_note=self.competition_source_note,
@@ -820,7 +820,7 @@ class GrowthService:
                 participant_requirements=(
                     "高校学生团队参赛，负责人和成员要求以官方通知为准。"
                 ),
-                work_requirements="提交项目计划书、路演材料、佐证材料和展示 Demo。",
+                work_requirements="提交项目计划书、路演材料、佐证材料和作品展示材料。",
                 official_url="https://cy.ncss.cn/",
                 updated_at=self.competition_updated_at,
                 source_note=self.competition_source_note,
@@ -876,7 +876,7 @@ class GrowthService:
                 tracks=["企业命题", "创业实践", "软件服务"],
                 registration_time="以当年官方通知为准",
                 participant_requirements="高校学生组队参赛，命题和资格以官方通知为准。",
-                work_requirements="围绕命题提交解决方案、系统原型、演示视频和文档。",
+                work_requirements="围绕命题提交解决方案、系统原型、展示视频和文档。",
                 official_url="https://www.fwwb.org.cn/",
                 updated_at=self.competition_updated_at,
                 source_note=self.competition_source_note,
@@ -963,8 +963,8 @@ class GrowthService:
             },
             {
                 "focus": "最小可展示原型",
-                "tasks": ["确定核心功能闭环", "完成可运行 Demo 主线", "补齐 README 和部署说明"],
-                "deliverable": "可运行 Demo、接口说明和部署步骤。",
+                "tasks": ["确定核心功能闭环", "完成可运行原型 主线", "补齐 README 和部署说明"],
+                "deliverable": "可运行原型、接口说明和部署步骤。",
                 "official_basis": competition.work_requirements,
             },
             {
@@ -975,8 +975,8 @@ class GrowthService:
             },
             {
                 "focus": "报名节点与展示材料",
-                "tasks": ["核对报名时间和组别要求", "整理演示视频脚本", "完成答辩提纲和风险说明"],
-                "deliverable": "报名检查表、演示视频脚本和答辩提纲。",
+                "tasks": ["核对报名时间和组别要求", "整理展示视频脚本", "完成答辩提纲和风险说明"],
+                "deliverable": "报名检查表、展示视频脚本和答辩提纲。",
                 "official_basis": competition.registration_time,
             },
         ]
@@ -993,10 +993,10 @@ class GrowthService:
             project_goal=payload.project_goal,
             candidates=candidates,
             collaboration_tips=[
-                "先固定一条演示主线：学生提交作业 -> 系统分析 -> 教师看板 -> 学生成长建议。",
+                "先固定一条产品主线：学生提交作业 -> 系统分析 -> 教师看板 -> 学生成长建议。",
                 "每周保留一次项目复盘，记录完成内容、阻塞和下周任务。",
                 "推荐池只包含主动开启组队状态的同学，联系方式默认不公开。",
-                "接口、页面和演示数据同时推进，避免答辩前只剩单点功能。",
+                "接口、页面和示例数据同时推进，避免答辩前只剩单点功能。",
             ],
         )
         self._save_team_recommendation(response, payload)
@@ -1145,17 +1145,17 @@ class GrowthService:
                 name="陈星然",
                 role="前端与交互",
                 match_score=86,
-                complement="补足工作台界面、演示流程和移动端适配。",
+                complement="补足工作台界面、展示流程和移动端适配。",
                 evidence=["课程项目中负责过 React 页面", "表达材料完成度高"],
                 skill_complement_graph=[
                     "林一舟: 后端接口/RAG 集成",
                     "陈星然: React 页面/交互流程",
-                    "共同缺口: 移动端适配与演示脚本联调",
+                    "共同缺口: 移动端适配与展示脚本联调",
                 ],
                 suggested_questions=[
                     "你能每周投入几小时完成前端页面和演示联调？",
                     "你希望用 Web 优先，还是同步考虑鸿蒙端页面结构？",
-                    "哪些页面需要先做成比赛可演示闭环？",
+                    "哪些页面需要先做成比赛可展示闭环？",
                 ],
             ),
             TeamCandidate(
@@ -1189,7 +1189,7 @@ class GrowthService:
                     "共同缺口: 学校使用场景和演示叙事打磨",
                 ],
                 suggested_questions=[
-                    "你能负责哪几页作品方案和演示脚本？",
+                    "你能负责哪几页作品方案和展示脚本？",
                     "教师端学情诊断应该优先讲哪些真实教学价值？",
                     "答辩中如何解释分数是基于证据的相对画像？",
                 ],
@@ -1210,8 +1210,8 @@ class GrowthService:
                     "AI 与数据能力": 79,
                     "协作表达": 73,
                 },
-                "evidence": ["Flask Web 作业报告", "RAG 文档问答 Demo", "蓝桥杯校内训练"],
-                "strength": "适合承担后端接口、RAG 集成和演示主线搭建。",
+                "evidence": ["Flask Web 作业报告", "RAG 文档问答项目", "蓝桥杯校内训练"],
+                "strength": "适合承担后端接口、RAG 集成和产品主线搭建。",
             },
             {
                 "student_id": "student_002",
