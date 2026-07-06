@@ -1,6 +1,6 @@
 import type {
-  DemoAccountsResponse,
-  DemoSessionResponse,
+  SchoolAccountsResponse,
+  SchoolSessionResponse,
   LocalAccountsResponse,
   SchoolIdentitySessionRequest,
 } from "../types/auth";
@@ -24,8 +24,8 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function fetchDemoAccounts(): Promise<DemoAccountsResponse> {
-  return requestJson<DemoAccountsResponse>("/auth/demo-accounts");
+export function fetchSchoolAccounts(): Promise<SchoolAccountsResponse> {
+  return requestJson<SchoolAccountsResponse>("/auth/demo-accounts");
 }
 
 export function fetchLocalAccounts(token: string): Promise<LocalAccountsResponse> {
@@ -36,15 +36,15 @@ export function fetchLocalAccounts(token: string): Promise<LocalAccountsResponse
   });
 }
 
-export function createDemoSession(userId: string): Promise<DemoSessionResponse> {
-  return requestJson<DemoSessionResponse>("/auth/demo-session", {
+export function createSchoolAccountSession(userId: string): Promise<SchoolSessionResponse> {
+  return requestJson<SchoolSessionResponse>("/auth/demo-session", {
     method: "POST",
     body: JSON.stringify({ user_id: userId }),
   });
 }
 
-export function createLocalSession(userId: string): Promise<DemoSessionResponse> {
-  return requestJson<DemoSessionResponse>("/auth/local-session", {
+export function createLocalSession(userId: string): Promise<SchoolSessionResponse> {
+  return requestJson<SchoolSessionResponse>("/auth/local-session", {
     method: "POST",
     body: JSON.stringify({ user_id: userId }),
   });
@@ -53,8 +53,8 @@ export function createLocalSession(userId: string): Promise<DemoSessionResponse>
 export function createSchoolIdentitySession(
   payload: SchoolIdentitySessionRequest,
   sharedSecret: string,
-): Promise<DemoSessionResponse> {
-  return requestJson<DemoSessionResponse>("/auth/school-session", {
+): Promise<SchoolSessionResponse> {
+  return requestJson<SchoolSessionResponse>("/auth/school-session", {
     method: "POST",
     headers: {
       "X-School-Identity-Secret": sharedSecret,

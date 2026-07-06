@@ -1,6 +1,6 @@
 import type { ViewMode } from "./navigation";
 
-export type DemoAccount = {
+export type SchoolAccount = {
   user_id: string;
   name: string;
   role: "student" | "teacher" | "admin" | string;
@@ -11,12 +11,12 @@ export type DemoAccount = {
   modules: string[];
 };
 
-export type DemoAccountsResponse = {
-  accounts: DemoAccount[];
+export type SchoolAccountsResponse = {
+  accounts: SchoolAccount[];
 };
 
 export type LocalAccountsResponse = {
-  accounts: DemoAccount[];
+  accounts: SchoolAccount[];
 };
 
 export type SchoolIdentitySessionRequest = {
@@ -26,8 +26,8 @@ export type SchoolIdentitySessionRequest = {
   email?: string;
 };
 
-export type DemoSessionResponse = {
+export type SchoolSessionResponse = {
   token: string;
-  account: DemoAccount;
+  account: SchoolAccount;
   expires_in: number;
 };

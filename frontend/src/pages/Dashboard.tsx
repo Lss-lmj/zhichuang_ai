@@ -14,10 +14,10 @@ import {
   uploadAssignmentArchive,
 } from "../shared/api/assignments";
 import {
-  createDemoSession,
+  createSchoolAccountSession,
   createLocalSession,
   createSchoolIdentitySession,
-  fetchDemoAccounts,
+  fetchSchoolAccounts,
   fetchLocalAccounts,
 } from "../shared/api/auth";
 import {
@@ -63,7 +63,7 @@ import type {
   AssignmentItem,
   AssignmentReport,
 } from "../shared/types/assignments";
-import type { DemoAccount } from "../shared/types/auth";
+import type { SchoolAccount } from "../shared/types/auth";
 import type {
   EvaluationCaseCreate,
   EvaluationDashboardResponse,
@@ -157,7 +157,7 @@ type ConfirmDialogState = {
 };
 
 type StoredSession = {
-  account: DemoAccount;
+  account: SchoolAccount;
   token: string;
   mode: ViewMode;
   savedAt: string;
@@ -165,20 +165,20 @@ type StoredSession = {
 };
 
 type AccountSession = {
-  account: DemoAccount;
+  account: SchoolAccount;
   token: string;
   expires_in?: number;
 };
 
 type LoginView = "school" | "account";
 
-const demoStudentId = "student_001";
+const defaultStudentId = "student_001";
 const sessionStorageKey = "zhichuang-agent-session";
 const projectUploadDraftPrefix = "zhichuang-project-upload-draft";
 const schoolIdentitySecret =
   import.meta.env.VITE_SCHOOL_IDENTITY_SECRET ?? "change-me-school-identity-secret";
-const demoStudentAccount: DemoAccount = {
-  user_id: demoStudentId,
+const fallbackStudentAccount: SchoolAccount = {
+  user_id: defaultStudentId,
   name: "林一舟",
   role: "student",
   title: "学生",
@@ -195,7 +195,7 @@ function roleLabel(role: string) {
   return role;
 }
 
-function accountSubtitle(account: DemoAccount) {
+function accountSubtitle(account: SchoolAccount) {
   if (account.role === "student") {
     return account.authorized_classes[0] ?? "学生";
   }
@@ -229,8 +229,8 @@ function evidenceLabels(items: ProfileEvidence[]) {
   return labels;
 }
 
-function reportStudentIdForAccount(account: DemoAccount | null) {
-  return account?.role === "student" ? account.user_id : demoStudentId;
+function reportStudentIdForAccount(account: SchoolAccount | null) {
+  return account?.role === "student" ? account.user_id : defaultStudentId;
 }
 
 function titleForMode(mode: ViewMode) {
@@ -389,7 +389,7 @@ function readStoredSession(): StoredSession | null {
 }
 
 function writeStoredSession(
-  account: DemoAccount,
+  account: SchoolAccount,
   token: string,
   mode: ViewMode,
   expiresInSeconds = 8 * 60 * 60,
@@ -454,7 +454,7 @@ function removeProjectUploadDraft(key: string) {
 function initialProjectTypeForContext(assignment: UploadAssignmentContext) {
   if (!assignment.assignment_id || assignment.title === "新的项目") return "个人作品";
   if (assignment.course_name && !["个人项目", "个人空间", "项目空间"].includes(assignment.course_name)) {
-    return "课程作业";
+    return "课程项目";
   }
   return "个人作品";
 }
@@ -517,13 +517,13 @@ export function Dashboard() {
   const [knowledgeQuery, setKnowledgeQuery] = useState("项目 Rubric");
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [knowledgeCreateLoading, setKnowledgeCreateLoading] = useState(false);
-  const [accounts, setAccounts] = useState<DemoAccount[]>([]);
-  const [localAccounts, setLocalAccounts] = useState<DemoAccount[]>([]);
-  const [currentAccount, setCurrentAccount] = useState<DemoAccount | null>(null);
+  const [accounts, setAccounts] = useState<SchoolAccount[]>([]);
+  const [localAccounts, setLocalAccounts] = useState<SchoolAccount[]>([]);
+  const [currentAccount, setCurrentAccount] = useState<SchoolAccount | null>(null);
   const [currentToken, setCurrentToken] = useState("");
   const [schoolIdentity, setSchoolIdentity] = useState("");
   const [schoolLoginLoading, setSchoolLoginLoading] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState(demoStudentId);
+  const [selectedAccountId, setSelectedAccountId] = useState(defaultStudentId);
   const [accountLoginLoading, setAccountLoginLoading] = useState(false);
   const [loginView, setLoginView] = useState<LoginView>("school");
   const [taskList, setTaskList] = useState<TaskListResponse | null>(null);
@@ -557,7 +557,7 @@ export function Dashboard() {
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
 
   const activeStudentId =
-    currentAccount?.role === "student" ? currentAccount.user_id : demoStudentId;
+    currentAccount?.role === "student" ? currentAccount.user_id : defaultStudentId;
 
   function pushNotice(tone: AppNotice["tone"], title: string, text?: string) {
     const id = Date.now() + Math.floor(Math.random() * 1000);
@@ -627,7 +627,7 @@ export function Dashboard() {
     return () => window.clearTimeout(timer);
   }, [sessionExpiresAt, currentAccount, currentToken]);
 
-  async function loadStudentWorkspace(account: DemoAccount, token?: string) {
+  async function loadStudentWorkspace(account: SchoolAccount, token?: string) {
     const studentId = account.user_id;
     const [
       profileData,
@@ -672,7 +672,7 @@ export function Dashboard() {
         ] = await Promise.all([
           fetchKnowledgeDocuments(),
           searchKnowledge("项目 Rubric"),
-          fetchDemoAccounts(),
+          fetchSchoolAccounts(),
           fetchEvaluationDashboard(),
           fetchCourses(),
           fetchClasses(),
@@ -686,7 +686,7 @@ export function Dashboard() {
           setAccounts(accountsData.accounts);
           setSelectedAccountId(
             accountsData.accounts.find((account) => account.role === "student")?.user_id ??
-              demoStudentId,
+              defaultStudentId,
           );
           setLocalAccounts([]);
           setEvaluationDashboard(evaluationData);
@@ -915,7 +915,7 @@ export function Dashboard() {
       await loadStudentWorkspace(session.account, session.token);
     }
     if (session.account.role !== "student") {
-      const profileData = await fetchGrowthProfile(demoStudentId, session.token);
+      const profileData = await fetchGrowthProfile(defaultStudentId, session.token);
       setProfile(profileData);
       setProfileEvidence(null);
     }
@@ -948,7 +948,7 @@ export function Dashboard() {
       setAccountLoginLoading(true);
       setError(null);
       setSessionMessage(null);
-      const session = await createDemoSession(userId);
+      const session = await createSchoolAccountSession(userId);
       await loginWithSession(session);
     } catch (err) {
       setError(err instanceof Error ? err.message : "身份切换失败");
@@ -1942,7 +1942,7 @@ function LoginPage({
   onSchoolLogin,
   onAccountLogin,
 }: {
-  accounts: DemoAccount[];
+  accounts: SchoolAccount[];
   selectedAccountId: string;
   schoolIdentity: string;
   loginView: LoginView;
@@ -2065,7 +2065,7 @@ function LoginPage({
               <span>学号、工号或邮箱</span>
               <input
                 value={schoolIdentity}
-                placeholder="输入学校统一身份账号"
+                placeholder="学号、工号或邮箱"
                 onChange={(event) => onSchoolIdentityChange(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && schoolIdentity.trim()) {
@@ -2170,10 +2170,10 @@ function ProfileCenter({
   onLocalAccountChange,
   onLogout,
 }: {
-  account: DemoAccount;
+  account: SchoolAccount;
   token: string;
   sessionExpiresAt: string | null;
-  localAccounts: DemoAccount[];
+  localAccounts: SchoolAccount[];
   profile: GrowthProfile;
   saving: boolean;
   accountLoading: boolean;
@@ -3060,7 +3060,7 @@ function AssignmentManager({
           <span>项目名称</span>
           <input
             value={title}
-            placeholder="例如：智能体 RAG 应用实践"
+            placeholder="项目名称"
             onChange={(event) => setTitle(event.target.value)}
           />
         </label>
@@ -3081,7 +3081,7 @@ function AssignmentManager({
           <textarea
             rows={2}
             value={description}
-            placeholder="说明项目目标、提交范围、评分关注点或关联资料"
+            placeholder="目标、提交范围、评分关注点"
             onChange={(event) => setDescription(event.target.value)}
           />
         </label>
@@ -3138,8 +3138,8 @@ function AssignmentArchiveUploader({
       detail: "绑定个人项目、原型或作品主题",
     },
     {
-      value: "课程作业",
-      title: "课程作业",
+      value: "课程项目",
+      title: "课程项目",
       detail: "绑定课程实践、实验或阶段项目",
     },
     {
@@ -3516,7 +3516,7 @@ function AssignmentArchiveUploader({
             <span>学生 ID</span>
             <input
               value={targetStudentId}
-              placeholder="输入学号或系统学生 ID"
+              placeholder="学号或系统 ID"
               onChange={(event) => setTargetStudentId(event.target.value)}
             />
           </label>
@@ -3526,7 +3526,7 @@ function AssignmentArchiveUploader({
           <textarea
             value={teamRoles}
             onChange={(event) => setTeamRoles(event.target.value)}
-            placeholder="例如：张三负责后端，李四负责前端，王五负责文档与测试"
+            placeholder="成员职责与贡献说明"
             rows={2}
           />
         </label>
@@ -3639,16 +3639,16 @@ function projectProfileFromDescription(description: string | undefined, report: 
 function projectSourceLabel(assignment: AssignmentItem) {
   const description = assignment.description ?? "";
   if (description.includes("竞赛获奖作品") || description.includes("竞赛作品")) return "竞赛作品";
-  if (description.includes("个人作品") || description.includes("个人 Demo")) return "个人作品";
+  if (description.includes("个人作品") || description.includes("个人项目")) return "个人作品";
   if (description.includes("双创项目")) return "双创项目";
-  if (description.includes("课程项目") || description.includes("课程作业")) return "课程作业";
+  if (description.includes("课程项目") || description.includes("课程作业")) return "课程项目";
   return "项目";
 }
 
 function projectMatchesSource(assignment: AssignmentItem, filter: ProjectSourceFilter) {
   if (filter === "all") return true;
   const source = projectSourceLabel(assignment);
-  if (filter === "course") return source === "课程作业";
+  if (filter === "course") return source === "课程项目";
   if (filter === "competition") return source === "竞赛作品";
   if (filter === "personal") return source === "个人作品";
   return source === "双创项目";
@@ -3736,7 +3736,7 @@ function ProjectNavigator({
             onChange={(event) => setSourceFilter(event.target.value as ProjectSourceFilter)}
           >
             <option value="all">全部来源</option>
-            <option value="course">课程作业</option>
+            <option value="course">课程项目</option>
             <option value="competition">竞赛作品</option>
             <option value="personal">个人作品</option>
             <option value="venture">双创项目</option>
@@ -3801,7 +3801,7 @@ function ProjectStart({
   onArchiveUpload,
   onSelectAssignment,
 }: {
-  account: DemoAccount;
+  account: SchoolAccount;
   assignments: AssignmentItem[];
   loading: boolean;
   result: string | null;
@@ -3838,7 +3838,7 @@ function ProjectStart({
         <span className="section-label">项目管理</span>
         <h2>项目中心</h2>
         <p>
-          上传代码、文档或仓库后，可绑定课程作业、竞赛获奖作品、个人作品或双创项目，并记录项目作者与团队分工。系统会分析项目材料，生成项目分析报告、能力证据和改进事项。
+          上传代码、文档或仓库后，可绑定课程项目、竞赛获奖作品、个人作品或双创项目，并记录项目作者与团队分工。系统会分析项目材料，生成项目分析报告、能力证据和改进事项。
         </p>
         <div className="project-start-flow">
           <span>项目入库</span>
@@ -3883,7 +3883,7 @@ function ProjectStart({
         <div className="project-start-support">
           <article>
             <span>资产来源</span>
-            <strong>课程作业、竞赛获奖作品、个人作品、双创项目</strong>
+            <strong>课程项目、竞赛获奖作品、个人作品、双创项目</strong>
           </article>
           <article>
             <span>分析对象</span>
@@ -4193,7 +4193,7 @@ function StudentReport({
               <div className="project-submit-guide">
                 <article>
                   <span>可绑定</span>
-                  <strong>课程作业 / 竞赛获奖作品 / 个人作品 / 双创项目</strong>
+                  <strong>课程项目 / 竞赛获奖作品 / 个人作品 / 双创项目</strong>
                   <p>入库时填写绑定场景、项目作者和团队分工，系统会把这些信息纳入项目分析报告和画像证据。</p>
                 </article>
                 <article>
@@ -4650,7 +4650,7 @@ function KnowledgeAssistant({
           <input
             value={question}
             onChange={(event) => onQuestionChange(event.target.value)}
-            placeholder="输入课程、项目、竞赛或案例问题"
+            placeholder="课程、项目、竞赛或案例问题"
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 onAsk();
@@ -5121,7 +5121,7 @@ function GrowthPath({
             <textarea
               rows={3}
               value={planFeedbackDraft}
-              placeholder="例如：下周有考试，希望保留项目实践但减少刷题；或者希望把计划改成两周冲刺。"
+              placeholder="调整周期、投入时间或目标方向"
               onChange={(event) => setPlanFeedbackDraft(event.target.value)}
             />
           </label>
@@ -5730,7 +5730,7 @@ function KnowledgeAdmin({
               <span>资料标题</span>
               <input
                 value={draftTitle}
-                placeholder="例如：AI 应用开发项目案例：校园问答助手"
+                placeholder="资料标题"
                 onChange={(event) => setDraftTitle(event.target.value)}
               />
             </label>
@@ -5786,7 +5786,7 @@ function KnowledgeAdmin({
                 placeholder={
                   draftMode === "edit"
                     ? "留空则保留原正文；填写后会生成新版本。"
-                    : "粘贴课程资料、竞赛资料或项目案例正文。"
+                    : "课程、竞赛或项目案例正文。"
                 }
                 onChange={(event) => setDraftContent(event.target.value)}
               />
@@ -6026,7 +6026,7 @@ function KnowledgeAdmin({
                 <p>{result.snippet}</p>
               </div>
             ))}
-            {!search && <p className="muted">输入关键词检索知识库。</p>}
+            {!search && <p className="muted">等待检索。</p>}
           </div>
           {versions && (
             <div className="version-list">
@@ -6147,7 +6147,7 @@ function PlanExecution({
             <span>事项标题</span>
             <input
               value={taskTitle}
-              placeholder="输入学习、项目或竞赛事项"
+              placeholder="事项标题"
               onChange={(event) => setTaskTitle(event.target.value)}
             />
           </label>
@@ -6183,7 +6183,7 @@ function PlanExecution({
             <textarea
               rows={2}
               value={taskEvidence}
-              placeholder="例如提交链接、截图、测试记录或项目产物"
+              placeholder="提交链接、截图、测试记录或项目产物"
               onChange={(event) => setTaskEvidence(event.target.value)}
             />
           </label>
@@ -6598,7 +6598,7 @@ function EvaluationDashboard({
         <article className="panel">
           <span className="section-label">评测口径</span>
           <div className="evaluation-rubric">
-            <p>每条记录保留输入、系统输出、引用来源、人工评分和问题记录。</p>
+            <p>记录输入、系统输出、引用来源、人工评分和问题记录。</p>
             <p>事实性内容重点检查是否可追溯，推荐类内容重点检查是否解释适合原因与短板。</p>
           </div>
           {isAdmin && (
@@ -6619,7 +6619,7 @@ function EvaluationDashboard({
                 <textarea
                   rows={2}
                   value={draftQuestion}
-                  placeholder="输入需要评测的学生问题、项目分析请求或推荐请求"
+                  placeholder="学生问题、项目分析请求或推荐请求"
                   onChange={(event) => setDraftQuestion(event.target.value)}
                 />
               </label>
@@ -6654,7 +6654,7 @@ function EvaluationDashboard({
                 <textarea
                   rows={4}
                   value={draftOutput}
-                  placeholder="粘贴本次系统输出摘要"
+                  placeholder="系统输出摘要"
                   onChange={(event) => setDraftOutput(event.target.value)}
                 />
               </label>
@@ -6682,7 +6682,7 @@ function EvaluationDashboard({
                 <textarea
                   rows={2}
                   value={draftIssues}
-                  placeholder="记录事实性、引用、评分口径或交互问题"
+                  placeholder="事实性、引用、评分口径或交互问题"
                   onChange={(event) => setDraftIssues(event.target.value)}
                 />
               </label>

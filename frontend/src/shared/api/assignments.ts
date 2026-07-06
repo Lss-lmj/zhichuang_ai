@@ -32,7 +32,7 @@ function authHeaders(token?: string): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export function analyzeDemoAssignment(token?: string): Promise<AssignmentReport> {
+export function analyzeSampleAssignment(token?: string): Promise<AssignmentReport> {
   return requestJson<AssignmentReport>("/assignments/analyze", {
     method: "POST",
     headers: authHeaders(token),
@@ -41,7 +41,7 @@ export function analyzeDemoAssignment(token?: string): Promise<AssignmentReport>
       course_id: "course_web_2026",
       class_id: "class_cs_2024_01",
       student_id: "student_001",
-      repository_url: "https://example.edu/demo/flask-project",
+      repository_url: "https://example.edu/projects/flask-project",
       description: "示例项目包含 Flask 路由、SQLite 数据访问、README 和基础测试。",
       files: [
         {
@@ -51,7 +51,7 @@ export function analyzeDemoAssignment(token?: string): Promise<AssignmentReport>
         },
         {
           path: "services/todo_service.py",
-          content: "import sqlite3\ndef create_todo(title): return sqlite3.connect('demo.db')",
+          content: "import sqlite3\ndef create_todo(title): return sqlite3.connect('sample.db')",
         },
         { path: "tests/test_app.py", content: "def test_todos_page(): assert True" },
         { path: "requirements.txt", content: "flask\npytest" },
