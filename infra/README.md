@@ -1,6 +1,6 @@
-# Infrastructure
+# 部署资产
 
-Deployment and operations assets live here.
+本目录用于放置部署相关配置和说明。
 
 Suggested structure:
 
@@ -12,17 +12,17 @@ infra/
   monitoring/
 ```
 
-Current development entrypoint is `docker-compose.yml` at repository root.
+当前开发入口为仓库根目录的 `docker-compose.yml`。
 
-Public Demo target:
+公网访问环境目标：
 
 - FastAPI backend container.
 - Static frontend build.
 - PostgreSQL + pgvector.
 - Redis.
-- Demo accounts and sample course data.
+- 学校账号和示例课程数据。
 
 See also:
 
-- `docs/公网Demo部署.md`
-- `docs/演示脚本.md`
+- `docs/公网访问环境部署.md`
+- `docs/操作说明与展示脚本.md`

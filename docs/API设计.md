@@ -2,9 +2,9 @@
 
 接口前缀：`/api`
 
-鉴权约定：公网 Demo 使用 `POST /auth/demo-session` 返回的演示 token；本地学校数据可使用 `POST /auth/local-session` 基于 SQLite 用户生成会话 token；学校统一身份系统可通过受信任网关调用 `POST /auth/school-session`，用学号、工号、邮箱或用户 ID 映射到已导入账号。需要角色或授权范围控制的接口通过 `Authorization: Bearer <token>` 传入账号身份；未传 token 时，项目分析相关接口默认使用教师演示账号，便于本地快速演示。越权访问返回 `403`。
+鉴权约定：公网访问环境可使用 `POST /auth/demo-session` 返回的示例 token；本地学校数据可使用 `POST /auth/local-session` 基于 SQLite 用户生成会话 token；学校统一身份系统可通过受信任网关调用 `POST /auth/school-session`，用学号、工号、邮箱或用户 ID 映射到已导入账号。需要角色或授权范围控制的接口通过 `Authorization: Bearer <token>` 传入账号身份；未传 token 时，项目分析相关接口默认使用教师示例账号，便于本地快速验证。越权访问返回 `403`。
 
-学生端数据访问约定：`/students/{student_id}/profile`、学习计划、计划执行事项、组队状态和组队推荐等学生个人数据接口在传入 token 时只允许学生本人访问；教师只能访问授权班级内学生；管理员可访问全部本地账号数据。前端切换到本地学生账号后，会用该账号 token 重新加载本人画像、计划、执行事项和组队状态。
+学生端数据访问约定：`/students/{student_id}/profile`、学习计划、计划执行事项、组队状态和组队推荐等学生个人数据接口在传入 token 时只允许学生本人访问；教师只能访问授权班级内学生；管理员可访问全部账号数据。前端切换到学生账号后，会用该账号 token 重新加载本人画像、计划、执行事项和组队状态。
 
 ## 1. 健康检查
 
@@ -20,11 +20,11 @@
 
 ## 2. 账号与智能体
 
-### 2.1 演示账号
+### 2.1 学校账号
 
 #### `GET /auth/demo-accounts`
 
-公网 Demo 获取学生、教师、管理员三个演示账号。
+公网访问环境获取学生、教师、管理员三个示例学校账号。
 
 #### `POST /auth/demo-session`
 
@@ -36,12 +36,12 @@
 }
 ```
 
-响应包含演示 token、账号角色、授权课程、授权班级和可访问模块。
-示例 token 格式为 `demo-token-teacher_001`，仅用于 Demo 和本地开发。
+响应包含示例 token、账号角色、授权课程、授权班级和可访问模块。
+示例 token 格式为 `demo-token-teacher_001`，仅用于公网访问环境和本地开发。
 
 #### `GET /auth/local-accounts`
 
-管理员查看已导入或已存在的本地学校账号目录，用于学校数据导入后切换到对应教师或学生视角。
+管理员查看已导入或已存在的学校账号列表，用于学校数据导入后切换到对应教师或学生视角。
 
 请求头：
 
@@ -53,7 +53,7 @@ Authorization: Bearer demo-token-admin_001
 
 #### `POST /auth/local-session`
 
-基于已导入或已存在的 SQLite 用户生成本地学校账号会话。该接口用于首版学校试运行和演示导入数据验证；后续可替换为统一身份认证入口。
+基于已导入或已存在的 SQLite 用户生成本地学校账号会话。该接口用于首版学校使用和导入数据验证；后续可替换为统一身份认证入口。
 
 请求：
 
@@ -122,7 +122,7 @@ X-School-Identity-Secret: <shared-secret>
       "source_type": "competition_material",
       "path": "算法竞赛",
       "updated_at": "2026-07-05T09:30:00+08:00",
-      "snippet": "算法竞赛准备建议按基础语法、常用数据结构、搜索、动态规划、图论和真题复盘推进。"
+      "snippet": "算法竞赛准备建议按基础语法、常用数据结构、搜索、动态规划、图论和真题回顾推进。"
     }
   ],
   "is_uncertain": false,
@@ -288,12 +288,12 @@ X-School-Identity-Secret: <shared-secret>
 - 最多分析 80 个文本文件。
 - 跳过 `node_modules`、`.git`、`.venv`、`venv`、`__MACOSX` 等目录。
 
-响应同 `POST /assignments/analyze`。教师可为授权班级学生上传，学生只能上传并查看自己的项目报告，管理员可维护演示范围内数据。
+响应同 `POST /assignments/analyze`。教师可为授权班级学生上传，学生只能上传并查看自己的项目报告，管理员可维护示例范围内数据。
 
 ### `GET /assignments/{assignment_id}/reports/{student_id}`
 
 查看某个学生的项目分析报告。
-学生只能查看自己的报告；教师只能查看授权课程和班级下的项目报告；管理员可查看演示范围内报告。
+学生只能查看自己的报告；教师只能查看授权课程和班级下的项目报告；管理员可查看示例范围内报告。
 若该学生已通过 `POST /assignments/analyze` 生成报告，接口优先读取持久化报告；否则返回演示项目报告。
 
 ### `GET /assignments/{assignment_id}/dashboard`
@@ -312,7 +312,7 @@ X-School-Identity-Secret: <shared-secret>
 - 项目报告列表。
 - 讲评建议。
 
-当前演示接口返回字段：
+当前示例接口返回字段：
 
 ```json
 {
@@ -354,7 +354,7 @@ X-School-Identity-Secret: <shared-secret>
       "class_evidence": "5 份已分析提交中出现“测试覆盖偏弱”；测试意识均分 71。",
       "suggested_activity": "用一份学生提交演示 pytest/TestClient 的成功、失败、空输入三类测试写法。",
       "practice_task": "下一次提交至少包含 3 个 API 测试和 2 个 service 层单元测试。",
-      "expected_improvement": "让学生把功能完成从人工试运行推进到可复现验证，提升测试意识维度。"
+      "expected_improvement": "让学生把功能完成从人工使用验证推进到可复现验证，提升测试意识维度。"
     }
   ],
   "reports": []
@@ -385,7 +385,7 @@ X-School-Identity-Secret: <shared-secret>
 ### `GET /courses`
 
 查询当前用户可访问课程。
-课程、班级、学生和课程成员关系从 SQLite 基础教学数据表读取；首次启动会写入公开 Demo 的示例课程和班级。
+课程、班级、学生和课程成员关系从 SQLite 基础教学数据表读取；首次启动会写入公网访问环境的示例课程和班级。
 
 响应：
 
@@ -503,9 +503,9 @@ X-School-Identity-Secret: <shared-secret>
 
 ### `GET /students/{student_id}/profile`
 
-学生查看本人画像；教师在授权课程或班级范围内查看学生画像摘要；管理员可查看本地账号数据。越权访问返回 `403`。
+学生查看本人画像；教师在授权课程或班级范围内查看学生画像摘要；管理员可查看账号数据。越权访问返回 `403`。
 
-已填写的基础画像和补充证据从 SQLite 读取；未填写时返回演示冷启动画像，保证公开 Demo 可直接展示。
+已填写的基础画像和补充证据从 SQLite 读取；未填写时返回冷启动画像，保证公网访问环境可直接展示。
 
 画像返回：
 
@@ -559,7 +559,7 @@ X-School-Identity-Secret: <shared-secret>
 
 响应返回已记录的证据项。学生自评证据可用于冷启动或补充说明，置信度低于项目报告、竞赛证书、教师评价等可验证证据。
 
-演示接口返回字段：
+示例接口返回字段：
 
 ```json
 {
@@ -584,7 +584,7 @@ X-School-Identity-Secret: <shared-secret>
 ```json
 {
   "student_id": "student_001",
-  "goal": "三个月内完成 AI 应用开发 Demo 并准备校级双创项目",
+  "goal": "三个月内完成 AI 应用开发作品并准备校级双创项目",
   "weeks": 8,
   "weekly_hours": 8,
   "foundation": "工程实践较好，算法和测试需要补强"
@@ -652,8 +652,8 @@ X-School-Identity-Secret: <shared-secret>
 {
   "student_id": "student_001",
   "period": "本周",
-  "completed_task_ids": ["task_demo_script"],
-  "notes": "已完成部署说明和演示脚本。"
+  "completed_task_ids": ["task_deploy_note"],
+  "notes": "已完成部署说明和展示材料。"
 }
 ```
 
@@ -676,7 +676,7 @@ X-School-Identity-Secret: <shared-secret>
 - 官方链接。
 - 更新时间。
 
-当前演示版本内置至少 8 个竞赛或赛道。具体报名时间、组别和规则以官方通知为准，管理员可维护更新。
+当前版本内置至少 8 个竞赛或赛道。具体报名时间、组别和规则以官方通知为准，管理员可维护更新。
 
 ### `POST /competitions/recommend`
 
@@ -692,7 +692,7 @@ X-School-Identity-Secret: <shared-secret>
 - 风险提示。
 - 引用来源。
 
-演示接口返回中国大学生计算机设计大赛、中国国际大学生创新大赛、蓝桥杯等推荐项。每个推荐项必须同时包含“适合原因”和“需要补足的能力”，避免只给出无法解释的匹配分。
+示例接口返回中国大学生计算机设计大赛、中国国际大学生创新大赛、蓝桥杯等推荐项。每个推荐项必须同时包含“适合原因”和“需要补足的能力”，避免只给出无法解释的匹配分。
 学生只能为本人生成推荐；教师和管理员按授权范围生成。
 
 ### `POST /competitions/preparation-plan`
@@ -749,7 +749,7 @@ X-School-Identity-Secret: <shared-secret>
 - 缺口提醒。
 - 画像和项目证据。
 
-结果仅作为教学和竞赛指导参考，不作为审核结论。
+结果仅作为教学和竞赛指导参考，不作为最终评价结论。
 
 ## 9. 组队推荐
 
@@ -804,8 +804,8 @@ X-School-Identity-Secret: <shared-secret>
 - 合作建议。
 - 推荐证据。
 
-推荐候选只包含主动开启组队状态的学生；未授权学生不会出现在结果中。演示接口返回前端交互、算法评测等互补角色。
-推荐结果写入 SQLite `team_recommendations`，用于后续复盘推荐依据和项目组队过程。
+推荐候选只包含主动开启组队状态的学生；未授权学生不会出现在结果中。示例接口返回前端交互、算法评测等互补角色。
+推荐结果写入 SQLite `team_recommendations`，用于后续阶段反馈依据和项目组队过程。
 组队相关接口同样遵循学生本人、授权教师、管理员的访问控制。
 
 ## 10. 知识库
@@ -818,11 +818,11 @@ X-School-Identity-Secret: <shared-secret>
 
 ```json
 {
-  "title": "课程项目复盘模板",
+  "title": "课程项目阶段反馈模板",
   "source_type": "project_case",
   "path": "软件项目实践",
-  "tags": ["复盘", "项目文档"],
-  "content": "课程项目复盘需要记录目标、完成情况、阻塞问题、下周任务和证据链接。",
+  "tags": ["阶段反馈", "项目文档"],
+  "content": "课程项目阶段反馈需要记录目标、完成情况、阻塞问题、下周任务和证据链接。",
   "source_url": "https://example.edu/templates/review",
   "maintainer": "平台管理员"
 }
@@ -877,7 +877,7 @@ X-School-Identity-Secret: <shared-secret>
 }
 ```
 
-当前演示版本覆盖至少 5 门核心课程、10 条竞赛资料、10 个项目案例或学习资源，并额外包含 Rubric、组队规则和教师看板说明等支撑资料。
+当前版本覆盖至少 5 门核心课程、10 条竞赛资料、10 个项目案例或学习资源，并额外包含 Rubric、组队规则和教师看板说明等支撑资料。
 
 ### `GET /knowledge/search`
 
@@ -892,7 +892,7 @@ X-School-Identity-Secret: <shared-secret>
 
 响应包含命中文本、来源、引用元数据。
 
-当前演示接口返回字段：
+当前示例接口返回字段：
 
 ```json
 {
@@ -1011,7 +1011,7 @@ X-School-Identity-Secret: <shared-secret>
 }
 ```
 
-当前演示版本至少提供 3 个典型测试案例和 3 条完整输出记录。
+当前版本至少提供 3 个典型测试案例和 3 条完整输出记录。
 
 ## 12. 任务状态
 

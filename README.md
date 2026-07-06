@@ -15,14 +15,14 @@
 - `docs/API设计.md`：首版 API 草案
 - `docs/数据模型.md`：首版数据模型草案
 - `docs/知识库资料清单.md`：首批知识库资料需求
-- `docs/公网Demo部署.md`：公网 Demo 部署说明
-- `docs/演示脚本.md`：比赛和学校试用演示脚本
+- `docs/公网访问环境部署.md`：公网访问环境部署说明
+- `docs/操作说明与展示脚本.md`：操作说明与展示脚本
 - `docs/交付验收报告.md`：当前版本交付结论、需求证据和复验步骤
 - `backend/`：FastAPI 后端骨架
 - `frontend/`：React + Vite 前端骨架
 - `harmony/`：鸿蒙端 P1 客户端规划
-- `evals/`：RAG、Prompt、Agent 工作流评测资产
-- `infra/`：部署和运维资产
+- `evals/`：RAG、模型提示模板与 Agent 工作流评测资产
+- `infra/`：部署资产
 
 ## 项目定位
 
@@ -93,14 +93,14 @@ make check
 make reset-local-data
 ```
 
-Docker Demo：
+Docker 部署：
 
 ```bash
 docker compose up --build
 make smoke
 ```
 
-`make smoke` 会对公网或本地 Demo 做内容断言：演示账号、学校账号会话、学生成长规划、项目管理与分析、竞赛推荐、组队、计划执行与阶段反馈、知识库入库与检索、Agent 引用、教师看板、教师梯队筛选和前端入口。
+`make smoke` 会对公网访问环境或本地环境做内容断言：学校账号入口、学校账号会话、学生成长规划、项目管理与分析、竞赛推荐、组队、计划执行与阶段反馈、知识库入库与检索、Agent 引用、教师看板、教师梯队筛选和前端入口。
 
 RAG 或 LangGraph 开发需要进入 `backend/` 安装额外依赖：
 
@@ -116,9 +116,9 @@ python3.11 -m pip install -e ".[ai,rag,dev]"
 ├── frontend/       # React + TypeScript + Vite Web 前端
 ├── harmony/        # ArkTS + ArkUI 鸿蒙端规划
 ├── docs/           # 开发 SOP、API、数据模型、路线图
-├── evals/          # RAG、Prompt、Graph 评测样例
-├── infra/          # 部署和运维配置
-├── data/           # 本地开发和 Demo 运行数据
+├── evals/          # RAG、模型提示模板、Graph 评测样例
+├── infra/          # 部署配置
+├── data/           # 本地开发运行数据
 ├── scripts/        # 开发脚本
 └── 立项/           # 需求、架构、立项 PPT 和赛题资料
 ```
@@ -128,7 +128,7 @@ python3.11 -m pip install -e ".[ai,rag,dev]"
 - 文档优先放在 `立项/`
 - 开发规范、API 草案、数据模型放在 `docs/`
 - 代码目录按前端、后端、鸿蒙端拆分
-- 公网 Demo 使用演示账号和示例课程数据
+- 公网访问环境使用学校账号和示例课程数据
 - 真实学校使用场景通过角色、课程、班级权限控制数据访问范围
 - 学校统一身份系统通过受信任网关调用 `POST /auth/school-session`，再复用同一套权限边界
 - 学生端是默认主入口，围绕画像、项目管理、学习路径、竞赛推荐、组队和计划执行形成成长闭环
