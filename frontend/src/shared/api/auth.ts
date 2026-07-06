@@ -4,6 +4,7 @@ import type {
   LocalAccountsResponse,
   SchoolIdentitySessionRequest,
 } from "../types/auth";
+import { responseErrorMessage } from "./errors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -17,7 +18,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
 
   return response.json() as Promise<T>;

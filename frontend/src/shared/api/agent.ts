@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatResponse } from "../types/agent";
+import { responseErrorMessage } from "./errors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -17,7 +18,7 @@ export async function askAgent(
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
 
   return response.json() as Promise<ChatResponse>;

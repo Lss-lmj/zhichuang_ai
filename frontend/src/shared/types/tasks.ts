@@ -18,6 +18,11 @@ export type SaveTaskPayload = {
   evidence_required: string;
 };
 
+export type LearningTaskUpdatePayload = {
+  status: "todo" | "doing" | "done" | string;
+  progress?: number | null;
+};
+
 export type ReviewGeneratePayload = {
   period: string;
   completed_task_ids: string[];

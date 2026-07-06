@@ -104,6 +104,15 @@ export type AssignmentListResponse = {
   assignments: AssignmentItem[];
 };
 
+export type AssignmentCreatePayload = {
+  assignmentId?: string;
+  title: string;
+  courseId: string;
+  classId: string;
+  description?: string;
+  rubricId?: string;
+};
+
 export type AssignmentExportResponse = {
   assignment_id: string;
   filename: string;

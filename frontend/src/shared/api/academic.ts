@@ -5,6 +5,7 @@ import type {
   CourseListResponse,
   StudentListResponse,
 } from "../types/academic";
+import { responseErrorMessage } from "./errors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -12,7 +13,7 @@ async function requestJson<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`);
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
 
   return response.json() as Promise<T>;
@@ -29,7 +30,7 @@ async function postJson<T>(path: string, payload: unknown, token?: string): Prom
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
 
   return response.json() as Promise<T>;

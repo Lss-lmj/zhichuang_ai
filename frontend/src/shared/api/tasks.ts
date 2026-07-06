@@ -3,11 +3,13 @@ import type {
   AgentTaskCreateRequest,
   AgentTaskStatus,
   LearningTask,
+  LearningTaskUpdatePayload,
   ReviewGeneratePayload,
   ReviewResponse,
   SaveTaskPayload,
   TaskListResponse,
 } from "../types/tasks";
+import { responseErrorMessage } from "./errors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -21,7 +23,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
 
   return response.json() as Promise<T>;
@@ -52,6 +54,19 @@ export function saveTask(
       student_id: studentId,
       ...payload,
     }),
+  });
+}
+
+export function updateLearningTask(
+  studentId: string,
+  taskId: string,
+  payload: LearningTaskUpdatePayload,
+  token?: string,
+): Promise<LearningTask> {
+  return requestJson<LearningTask>(`/students/${studentId}/tasks/${taskId}`, {
+    method: "PATCH",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
   });
 }
 

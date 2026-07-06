@@ -24,6 +24,7 @@ export type KnowledgeDocumentCreate = {
   tags: string[];
   content: string;
   source_url?: string | null;
+  maintainer?: string;
 };
 
 export type KnowledgeDocumentUpdate = {

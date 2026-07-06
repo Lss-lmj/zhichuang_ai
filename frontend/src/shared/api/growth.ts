@@ -12,6 +12,7 @@ import type {
   TeamRecommendResponse,
   TeamRequestCard,
 } from "../types/growth";
+import { responseErrorMessage } from "./errors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -25,7 +26,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
 
   return response.json() as Promise<T>;
@@ -67,7 +68,7 @@ export function addProfileEvidence(
       dimension: "工程实践",
       source_type: "student_self_report",
       source_title: "学生补充自评",
-      evidence_text: "补充了 Flask 作业测试截图和 README 运行说明。",
+      evidence_text: "补充了 Flask 项目测试截图和 README 运行说明。",
       confidence: 0.42,
     }),
   });
@@ -177,7 +178,7 @@ export function recommendTeam(
     headers: authHeaders(token),
     body: JSON.stringify({
       student_id: studentId,
-      project_goal: "做一个课程作业代码分析与学情诊断作品",
+      project_goal: "做一个项目代码分析与学情诊断作品",
     }),
   });
 }
