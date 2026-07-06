@@ -42,7 +42,7 @@ class AgentService:
         if scenario == "teacher":
             return [
                 "哪些学生需要重点讲评？",
-                "这次作业共性问题对应哪些知识点？",
+                "这次项目共性问题对应哪些知识点？",
                 "下次课可以安排什么练习？",
             ]
 

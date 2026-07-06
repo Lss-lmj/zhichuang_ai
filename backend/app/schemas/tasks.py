@@ -31,6 +31,11 @@ class SaveTaskRequest(BaseModel):
     evidence_required: str = "提交学习记录或项目产物"
 
 
+class LearningTaskUpdateRequest(BaseModel):
+    status: str
+    progress: int | None = None
+
+
 class ReviewRequest(BaseModel):
     student_id: str = "student_001"
     period: str = "本周"

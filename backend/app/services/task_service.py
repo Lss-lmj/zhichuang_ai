@@ -15,6 +15,7 @@ from app.schemas.tasks import (
     LearningTask,
     ReviewRequest,
     ReviewResponse,
+    LearningTaskUpdateRequest,
     SaveTaskRequest,
     TaskListResponse,
 )
@@ -25,8 +26,8 @@ class TaskService:
         LearningTask(
             task_id="task_readme_tests",
             student_id="student_001",
-            title="补齐 Flask 作业 README 与接口测试",
-            source="作业分析报告",
+            title="补齐 Flask 项目 README 与接口测试",
+            source="项目分析报告",
             status="doing",
             priority="high",
             due_date="2026-07-07",
@@ -37,7 +38,7 @@ class TaskService:
             task_id="task_rag_demo",
             student_id="student_001",
             title="完成带引用的 RAG 知识库问答原型",
-            source="成长路径",
+            source="成长规划",
             status="todo",
             priority="high",
             due_date="2026-07-10",
@@ -111,6 +112,39 @@ class TaskService:
         self.db.commit()
         return task
 
+    def update_task(
+        self,
+        student_id: str,
+        task_id: str,
+        payload: LearningTaskUpdateRequest,
+    ) -> LearningTask:
+        if payload.status not in {"todo", "doing", "done"}:
+            raise ValueError("任务状态必须是 todo、doing 或 done。")
+        base_task = self._find_task(student_id, task_id)
+        if base_task is None:
+            raise LookupError("Learning task not found")
+        progress = payload.progress
+        if progress is None:
+            progress = 100 if payload.status == "done" else min(base_task.progress, 80)
+        progress = max(0, min(100, progress))
+        if payload.status == "done":
+            progress = 100
+        elif payload.status == "todo" and progress == 100:
+            progress = 0
+        updated = base_task.model_copy(update={"status": payload.status, "progress": progress})
+        if self.db is None:
+            return updated
+
+        record = self.db.get(LearningTaskRecord, task_id)
+        if record is None:
+            record = self._record_from_task(base_task)
+            self.db.add(record)
+        record.status = updated.status
+        record.progress = updated.progress
+        record.updated_at = datetime.utcnow()
+        self.db.commit()
+        return updated
+
     def review(self, payload: ReviewRequest) -> ReviewResponse:
         completed_ids = set(payload.completed_task_ids)
         all_tasks = self._tasks_for_student(payload.student_id)
@@ -132,7 +166,7 @@ class TaskService:
                 "算法训练和自动化测试仍需要固定节奏。"
             ),
             completed_count=completed_count,
-            risk="如果下周仍不补测试，作业报告中的工程规范维度会继续拖累画像可信度。",
+            risk="如果下周仍不补测试，项目报告中的工程规范维度会继续拖累画像可信度。",
             next_tasks=next_tasks[:3],
         )
 
@@ -243,8 +277,16 @@ class TaskService:
             .order_by(LearningTaskRecord.created_at.asc(), LearningTaskRecord.id.asc())
         ).all()
         stored_tasks = [self._task_from_record(record) for record in records]
+        stored_by_id = {task.task_id: task for task in stored_tasks}
+        merged_seed_tasks = [stored_by_id.get(task.task_id, task) for task in seed_tasks]
         seed_ids = {task.task_id for task in seed_tasks}
-        return [*seed_tasks, *[task for task in stored_tasks if task.task_id not in seed_ids]]
+        return [*merged_seed_tasks, *[task for task in stored_tasks if task.task_id not in seed_ids]]
+
+    def _find_task(self, student_id: str, task_id: str) -> LearningTask | None:
+        return next(
+            (task for task in self._tasks_for_student(student_id) if task.task_id == task_id),
+            None,
+        )
 
     def _manual_task_id(self, payload: SaveTaskRequest) -> str:
         raw = f"{payload.student_id}:{payload.title}:{payload.due_date}".encode("utf-8")

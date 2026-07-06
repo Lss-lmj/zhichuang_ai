@@ -81,7 +81,7 @@ class SubmissionArchiveService:
                     continue
                 total_text_bytes += file_size
                 if total_text_bytes > self.max_total_text_bytes:
-                    raise ValueError("仓库内文本文件总量超过 1MB，请只提交本次作业核心代码。")
+                    raise ValueError("仓库内文本文件总量超过 1MB，请只提交本次项目核心代码。")
 
                 content_bytes = path.read_bytes()
                 if b"\x00" in content_bytes:
@@ -111,7 +111,7 @@ class SubmissionArchiveService:
                 continue
             total_text_bytes += member.file_size
             if total_text_bytes > self.max_total_text_bytes:
-                raise ValueError("压缩包内文本文件总量超过 1MB，请只上传本次作业核心代码。")
+                raise ValueError("压缩包内文本文件总量超过 1MB，请只上传本次项目核心代码。")
 
             content_bytes = archive.read(member)
             if b"\x00" in content_bytes:

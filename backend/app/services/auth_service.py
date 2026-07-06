@@ -26,10 +26,10 @@ class AuthService:
             name="林一舟",
             role="student",
             title="学生账号",
-            default_view="growth",
+            default_view="student",
             authorized_courses=["Web 应用开发", "算法设计与分析"],
             authorized_classes=["2024 级计算机科学与技术 1 班"],
-            modules=["成长路径", "作业报告", "任务复盘", "知识库问答"],
+            modules=["成长规划", "项目管理", "知识库问答"],
         ),
         DemoAccount(
             user_id="teacher_001",
@@ -39,7 +39,7 @@ class AuthService:
             default_view="teacher",
             authorized_courses=["Web 应用开发"],
             authorized_classes=["2024 级计算机科学与技术 1 班"],
-            modules=["教师看板", "作业报告", "知识库问答"],
+            modules=["教师看板", "项目管理", "知识库问答"],
         ),
         DemoAccount(
             user_id="admin_001",
@@ -49,7 +49,7 @@ class AuthService:
             default_view="kb",
             authorized_courses=["全部课程"],
             authorized_classes=["全部班级"],
-            modules=["知识库管理", "教师看板", "成长路径", "知识库问答"],
+            modules=["知识库管理", "教师看板", "成长规划", "知识库问答"],
         ),
     ]
 
@@ -260,14 +260,14 @@ class AuthService:
             return "academic"
         if role == "teacher":
             return "teacher"
-        return "growth"
+        return "student"
 
     def _modules_for_role(self, role: str) -> list[str]:
         if role == "admin":
-            return ["课程班级", "知识库管理", "教师看板", "成长路径", "任务复盘", "知识库问答", "测试评测"]
+            return ["课程班级", "知识库管理", "教师看板", "成长规划", "知识库问答", "测试评测"]
         if role == "teacher":
-            return ["教师看板", "作业报告", "课程班级", "知识库问答"]
-        return ["成长路径", "作业报告", "任务复盘", "知识库问答"]
+            return ["教师看板", "项目管理", "课程班级", "知识库问答"]
+        return ["成长规划", "项目管理", "知识库问答"]
 
     def _dedupe(self, values: list[str]) -> list[str]:
         seen: set[str] = set()

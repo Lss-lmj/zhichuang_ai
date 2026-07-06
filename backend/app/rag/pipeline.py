@@ -49,7 +49,7 @@ COURSE_CHUNKS = [
         score=0,
     ),
     RetrievedChunk(
-        title="数据库系统课程作业说明",
+        title="数据库系统课程项目说明",
         source_type="course_material",
         path="软件项目实践",
         tags=["数据库", "SQL", "数据模型"],
@@ -145,11 +145,11 @@ COMPETITION_CHUNKS = [
 
 PROJECT_CASE_CHUNKS = [
     RetrievedChunk(
-        title="课程作业管理系统案例",
+        title="课程项目管理平台案例",
         source_type="project_case",
         path="软件项目实践",
-        tags=["作业管理", "教师看板", "权限"],
-        content="案例包含作业发布、提交记录、评分 Rubric、教师看板和学生反馈。",
+        tags=["项目管理", "教师看板", "权限"],
+        content="案例包含项目发布、提交记录、评分 Rubric、教师看板和学生反馈。",
         score=0,
     ),
     RetrievedChunk(
@@ -229,12 +229,12 @@ PROJECT_CASE_CHUNKS = [
 
 SUPPORTING_CHUNKS = [
     RetrievedChunk(
-        title="Web 应用开发课程作业 Rubric",
+        title="Web 应用开发课程项目 Rubric",
         source_type="rubric",
         path="软件项目实践",
-        tags=["作业分析", "Rubric", "Web"],
+        tags=["项目分析", "Rubric", "Web"],
         content=(
-            "课程作业评分参考功能完成度、代码结构、工程规范、测试意识和文档表达。"
+            "课程项目评分参考功能完成度、代码结构、工程规范、测试意识和文档表达。"
             "报告需要给出证据，不把分数表达为绝对能力判断。"
         ),
         score=0,
@@ -287,9 +287,9 @@ SUPPORTING_CHUNKS = [
         title="教师学情诊断看板说明",
         source_type="teacher_dashboard",
         path="软件项目实践",
-        tags=["教师看板", "作业分析", "学情诊断"],
+        tags=["教师看板", "项目分析", "学情诊断"],
         content=(
-            "教师端直接查看班级提交情况、维度分布、共性问题和学生个人作业报告。"
+            "教师端直接查看班级提交情况、维度分布、共性问题和学生个人项目报告。"
             "教师端不是审核流程，而是学情分析结果消费端。"
         ),
         score=0,
@@ -341,8 +341,8 @@ class RagPipeline:
         lead = "基于当前首批知识库资料，可以这样处理："
         if "竞赛" in query or "蓝桥" in query or "算法" in query:
             lead = "如果目标是算法竞赛准备，建议按训练路径拆成阶段任务："
-        elif "作业" in query or "代码" in query or "教师" in query:
-            lead = "如果目标是课程作业分析和教师学情诊断，建议围绕证据生成报告："
+        elif "项目" in query or "作业" in query or "代码" in query or "教师" in query:
+            lead = "如果目标是项目分析和教师学情诊断，建议围绕证据生成报告："
         elif "组队" in query:
             lead = "如果目标是组队推荐，建议先明确项目目标和能力互补关系："
         elif "RAG" in query or "知识库" in query or "Agent" in query:
@@ -356,6 +356,7 @@ class RagPipeline:
         words = set(findall(r"[a-zA-Z0-9_]+", normalized))
         keywords = {
             "作业",
+            "项目",
             "代码",
             "教师",
             "看板",

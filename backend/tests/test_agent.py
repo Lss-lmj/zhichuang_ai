@@ -30,7 +30,7 @@ def test_agent_chat_keeps_context_for_three_turns() -> None:
     client = TestClient(app)
     history = []
     questions = [
-        "教师怎么看本次代码作业共性问题？",
+        "教师怎么看本次代码项目共性问题？",
         "哪些问题适合课堂讲评？",
         "下一次课应该安排什么练习？",
     ]

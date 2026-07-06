@@ -39,8 +39,8 @@ class EvaluationService:
         ),
         EvaluationCase(
             case_id="eval_assignment_report",
-            scenario="课程作业分析",
-            input_question="分析 Flask Web 作业的工程质量和改进建议",
+            scenario="项目分析",
+            input_question="分析 Flask Web 项目的工程质量和改进建议",
             expected_focus=["展示多维度评分", "关联代码证据", "给出下一步任务"],
             priority="P0",
             status="已记录",
@@ -92,8 +92,8 @@ class EvaluationService:
         EvaluationRecord(
             record_id="record_002",
             case_id="eval_assignment_report",
-            scenario="课程作业分析",
-            input_question="分析 Flask Web 作业的工程质量和改进建议",
+            scenario="项目分析",
+            input_question="分析 Flask Web 项目的工程质量和改进建议",
             system_output=(
                 "报告识别出路由、数据库模块和 README 基础完整，"
                 "但测试覆盖、异常处理和输入校验不足；"
@@ -101,18 +101,18 @@ class EvaluationService:
             ),
             citations=[
                 EvaluationCitation(
-                    title="Web 应用开发课程作业 Rubric",
+                    title="Web 应用开发项目 Rubric",
                     source_type="rubric",
                     path="软件项目实践",
                     snippet=(
-                        "课程作业评分参考功能完成度、代码结构、工程规范、"
+                        "课程项目评分参考功能完成度、代码结构、工程规范、"
                         "测试意识和文档表达。"
                     ),
                 ),
             ],
             manual_score=90,
             issue_notes=(
-                "能关联 Rubric 和作业证据；可继续补充具体文件级定位。"
+                "能关联 Rubric 和项目证据；可继续补充具体文件级定位。"
             ),
             reviewer="项目评测组",
             evaluated_at=evaluated_at,

@@ -96,7 +96,7 @@ class GrowthService:
                     score=self._dimension_score("算法基础", 76, profile_input),
                     confidence=0.72,
                     summary="能完成基础题和常见数据结构应用，动态规划和图论需要继续训练。",
-                    evidence=["课程作业中能拆解主流程", "算法竞赛训练记录显示基础专题完成度较高"],
+                    evidence=["课程项目中能拆解主流程", "算法竞赛训练记录显示基础专题完成度较高"],
                     evidence_items=[
                         item for item in evidence_items if item.dimension == "算法基础"
                     ],
@@ -106,7 +106,7 @@ class GrowthService:
                     score=self._dimension_score("工程实践", 84, profile_input),
                     confidence=0.81,
                     summary="具备 Web 项目搭建和接口联调能力，工程边界意识正在形成。",
-                    evidence=["Flask 作业完成了页面、接口和数据流闭环", "README 有基本运行说明"],
+                    evidence=["Flask 项目完成了页面、接口和数据流闭环", "README 有基本运行说明"],
                     evidence_items=[
                         item for item in evidence_items if item.dimension == "工程实践"
                     ],
@@ -132,10 +132,10 @@ class GrowthService:
                     ],
                 ),
             ],
-            strengths=["工程实践推进快", "适合承担后端接口和 原型集成", "能把作业产出转成项目案例"],
+            strengths=["工程实践推进快", "适合承担后端接口和原型集成", "能把课程产出转成项目案例"],
             risks=["自动化测试证据不足", "竞赛训练节奏容易被项目开发挤压", "项目表达材料需要模板约束"],
             next_actions=[
-                "本周补齐 Flask 作业测试和 README 模板。",
+                "本周补齐 Flask 项目测试和 README 模板。",
                 "两周内完成一个带引用的 RAG 问答原型。",
                 "每周至少保留 3 次算法专题训练记录。",
             ],
@@ -182,7 +182,7 @@ class GrowthService:
                 evidence_id=f"evidence_{student_id}_engineering_001",
                 dimension="工程实践",
                 source_type="assignment_report",
-                source_title="Flask Web 作业分析报告",
+                source_title="Flask Web 项目分析报告",
                 evidence_text="提交物包含页面、接口和数据流闭环，测试覆盖仍需补齐。",
                 confidence=0.81,
                 created_at=self.generated_at,
@@ -596,7 +596,7 @@ class GrowthService:
             PlanTask(
                 week=0,
                 title="补齐工程基线",
-                outcome="作业项目具备 README、接口列表、测试入口和示例数据。",
+                outcome="课程项目具备 README、接口列表、测试入口和示例数据。",
                 resources=["Web 应用开发课程 Rubric", "软件项目实践案例模板"],
             ),
             PlanTask(
@@ -613,15 +613,15 @@ class GrowthService:
             ),
             PlanTask(
                 week=0,
-                title="接入作业分析报告",
-                outcome="系统能生成学生报告和教师班级看板。",
-                resources=["课程作业代码分析 SOP", "教师学情诊断看板说明"],
+                title="接入项目分析报告",
+                outcome="系统能生成项目报告和教师班级看板。",
+                resources=["项目代码分析 SOP", "教师学情诊断看板说明"],
             ),
             PlanTask(
                 week=0,
                 title="补齐自动化测试",
                 outcome="为核心接口和异常路径补充可复现测试记录。",
-                resources=["Web 应用开发课程作业 Rubric", "评测样例清单"],
+                resources=["Web 应用开发项目 Rubric", "评测样例清单"],
             ),
             PlanTask(
                 week=0,
@@ -650,7 +650,7 @@ class GrowthService:
             PlanTask(
                 week=0,
                 title="展示与评测",
-                outcome="准备固定试用账号、示例作业、知识库问答和教师看板脚本。",
+                outcome="准备固定试用账号、示例项目、知识库问答和教师看板脚本。",
                 resources=["开发 SOP", "评测样例清单"],
             ),
             PlanTask(
@@ -708,14 +708,14 @@ class GrowthService:
                     match_score=88,
                     reason="当前项目具备教学场景、AI 应用、知识库问答和可展示原型，适合软件应用类作品。",
                     fit_reasons=[
-                        "已有课程作业分析、教师看板和知识库问答闭环，符合软件应用作品展示要求。",
+                        "已有项目分析、教师看板和知识库问答闭环，符合软件应用作品展示要求。",
                         "学生画像显示工程实践和 AI 应用开发能力较匹配。",
                     ],
                     gap_abilities=[
                         "需要补足自动化测试证据和评测记录。",
                         "需要整理作品说明书、展示视频和可复现部署材料。",
                     ],
-                    preparation=["补齐作品说明书", "准备公网访问环境", "整理教师看板和学生报告展示脚本"],
+                    preparation=["补齐作品说明书", "准备公网访问环境", "整理教师看板和项目报告展示脚本"],
                     risk="需要尽快补充真实课程样例和稳定展示流程。",
                 ),
                 CompetitionRecommendation(
@@ -725,7 +725,7 @@ class GrowthService:
                     reason="平台面向学校真实使用，有教学应用和双创能力赋能叙事。",
                     fit_reasons=[
                         "项目服务学校教学场景，具备学生成长和教师诊断两条价值主线。",
-                        "已有竞赛推荐、组队推荐和任务复盘，能支撑双创能力培养叙事。",
+                        "已有竞赛推荐、组队推荐和计划执行反馈，能支撑双创能力培养叙事。",
                     ],
                     gap_abilities=[
                         "需要补足推广路径、用户场景证明和学校试用说明。",
@@ -969,7 +969,7 @@ class GrowthService:
             },
             {
                 "focus": "证明材料与评测记录",
-                "tasks": ["整理测试用例和输出记录", "补充教师看板和学生报告截图", "形成项目价值说明"],
+                "tasks": ["整理测试用例和输出记录", "补充教师看板和项目报告截图", "形成项目价值说明"],
                 "deliverable": "测试记录、效果截图和作品说明书初稿。",
                 "official_basis": competition.work_requirements,
             },
@@ -993,7 +993,7 @@ class GrowthService:
             project_goal=payload.project_goal,
             candidates=candidates,
             collaboration_tips=[
-                "先固定一条产品主线：学生提交作业 -> 系统分析 -> 教师看板 -> 学生成长建议。",
+                "先固定一条产品主线：学生提交项目 -> 系统分析 -> 教师看板 -> 学生成长建议。",
                 "每周保留一次项目复盘，记录完成内容、阻塞和下周任务。",
                 "推荐池只包含主动开启组队状态的同学，联系方式默认不公开。",
                 "接口、页面和示例数据同时推进，避免答辩前只剩单点功能。",
@@ -1017,7 +1017,7 @@ class GrowthService:
             target_type=payload.target_type,
             class_id=payload.class_id,
             generated_at=self.generated_at,
-            source_note="结果基于授权班级内学生画像、作业证据和竞赛经历生成，仅作为教学和竞赛指导参考。",
+            source_note="结果基于授权班级内学生画像、项目证据和竞赛经历生成，仅作为教学和竞赛指导参考。",
             candidates=candidates,
         )
 
@@ -1210,7 +1210,7 @@ class GrowthService:
                     "AI 与数据能力": 79,
                     "协作表达": 73,
                 },
-                "evidence": ["Flask Web 作业报告", "RAG 文档问答项目", "蓝桥杯校内训练"],
+                "evidence": ["Flask Web 项目报告", "RAG 文档问答项目", "蓝桥杯校内训练"],
                 "strength": "适合承担后端接口、RAG 集成和产品主线搭建。",
             },
             {
@@ -1234,7 +1234,7 @@ class GrowthService:
                     "AI 与数据能力": 70,
                     "协作表达": 69,
                 },
-                "evidence": ["算法专题训练记录", "测试用例整理", "数据结构课程作业"],
+                "evidence": ["算法专题训练记录", "测试用例整理", "数据结构课程项目"],
                 "strength": "适合承担算法训练、评测样例和复杂度分析。",
             },
             {

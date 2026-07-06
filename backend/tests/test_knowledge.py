@@ -10,7 +10,7 @@ from app.services.knowledge_service import KnowledgeService
 def test_knowledge_documents_and_search() -> None:
     client = TestClient(app)
     documents_response = client.get("/api/knowledge/documents")
-    search_response = client.get("/api/knowledge/search", params={"q": "作业 Rubric"})
+    search_response = client.get("/api/knowledge/search", params={"q": "项目 Rubric"})
 
     assert documents_response.status_code == 200
     assert search_response.status_code == 200

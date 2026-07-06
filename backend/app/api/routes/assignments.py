@@ -72,7 +72,7 @@ async def upload_assignment_archive(
     }:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="请上传 zip 格式的作业压缩包。",
+            detail="请上传 zip 格式的项目压缩包。",
         )
     archive_bytes = await archive.read()
     try:
@@ -103,6 +103,20 @@ def export_assignment_dashboard(
 ) -> AssignmentExportResponse:
     account = AuthService(db).current_account(authorization)
     return AssignmentService(db).export_dashboard(assignment_id, account=account)
+
+
+@router.get(
+    "/{assignment_id}/reports/{student_id}/export",
+    response_model=AssignmentExportResponse,
+)
+def export_assignment_report(
+    assignment_id: str,
+    student_id: str,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> AssignmentExportResponse:
+    account = AuthService(db).current_account(authorization)
+    return AssignmentService(db).export_report(assignment_id, student_id, account=account)
 
 
 @router.get("/{assignment_id}/reports/{student_id}", response_model=AssignmentAnalysisResponse)

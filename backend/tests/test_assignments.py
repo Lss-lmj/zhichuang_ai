@@ -22,7 +22,7 @@ def test_assignment_analysis_returns_report() -> None:
             "assignment_title": "Flask Web 项目实践",
             "student_id": "student_001",
             "repository_url": "https://example.edu/demo/flask-project",
-            "description": "示例作业包含 Flask 路由、SQLite 数据访问、README 和基础测试。",
+            "description": "示例项目包含 Flask 路由、SQLite 数据访问、README 和基础测试。",
             "files": [
                 {
                     "path": "app.py",
@@ -85,10 +85,10 @@ def test_teacher_can_read_assignment_agent_task_for_authorized_class() -> None:
             "course_id": "course_web_2026",
             "class_id": "class_cs_2024_01",
             "student_id": "student_temp_agent_task",
-            "description": "临时学生提交作业，用于验证教师可查看授权班级内分析任务状态。",
+            "description": "临时学生提交项目，用于验证教师可查看授权班级内分析任务状态。",
             "files": [
                 {"path": "main.py", "content": "from fastapi import FastAPI\napp = FastAPI()"},
-                {"path": "README.md", "content": "临时学生作业说明"},
+                {"path": "README.md", "content": "临时学生项目说明"},
             ],
         },
         headers=teacher_header,
@@ -158,8 +158,78 @@ def test_assignment_dashboard_export_returns_markdown() -> None:
     assert payload["content_type"].startswith("text/markdown")
     assert "# Flask Web 项目实践 学情诊断报告" in payload["markdown"]
     assert "## 教学改进建议" in payload["markdown"]
-    assert "## 作业报告摘要" in payload["markdown"]
+    assert "## 项目报告摘要" in payload["markdown"]
     assert "AI" in payload["markdown"] or "系统" in payload["markdown"]
+    assert forbidden_response.status_code == 403
+
+
+def test_assignment_report_export_returns_markdown_with_access_control() -> None:
+    client = TestClient(app)
+    admin_header = {"Authorization": "Bearer demo-token-admin_001"}
+    teacher_header = {"Authorization": "Bearer demo-token-teacher_001"}
+    student_header = {"Authorization": "Bearer demo-token-student_001"}
+    client.post(
+        "/api/academic/import",
+        json={
+            "courses": [
+                {
+                    "course_id": "course_web_2026",
+                    "name": "Web 应用开发",
+                    "teacher_id": "teacher_001",
+                    "teacher_name": "周老师",
+                }
+            ],
+            "classes": [
+                {
+                    "class_id": "class_cs_2024_01",
+                    "course_id": "course_web_2026",
+                    "name": "2024 级计算机科学与技术 1 班",
+                }
+            ],
+            "students": [
+                {
+                    "student_id": "student_export_other",
+                    "name": "越权学生",
+                    "student_no": "EXPORT-OTHER",
+                    "class_id": "class_cs_2024_01",
+                }
+            ],
+        },
+        headers=admin_header,
+    )
+    other_student_session = client.post(
+        "/api/auth/local-session",
+        json={"user_id": "student_export_other"},
+    )
+    other_student_header = {
+        "Authorization": f"Bearer {other_student_session.json()['token']}",
+    }
+
+    teacher_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_001/export",
+        headers=teacher_header,
+    )
+    student_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_001/export",
+        headers=student_header,
+    )
+    forbidden_response = client.get(
+        "/api/assignments/assignment_flask_mvp/reports/student_001/export",
+        headers=other_student_header,
+    )
+
+    assert teacher_response.status_code == 200
+    payload = teacher_response.json()
+    assert payload["assignment_id"] == "assignment_flask_mvp"
+    assert payload["filename"] == "assignment_flask_mvp_student_001_project_report.md"
+    assert payload["content_type"].startswith("text/markdown")
+    assert "# Flask Web 项目实践 项目分析报告" in payload["markdown"]
+    assert "## 多维度评分" in payload["markdown"]
+    assert "## 代码证据片段" in payload["markdown"]
+    assert "## 改进任务" in payload["markdown"]
+    assert "评分基于本次项目提交物" in payload["markdown"]
+    assert student_response.status_code == 200
+    assert student_response.json()["access_scope"] == "student:self"
     assert forbidden_response.status_code == 403
 
 
@@ -230,7 +300,7 @@ def test_student_cannot_create_assignment() -> None:
     response = client.post(
         "/api/assignments",
         json={
-            "title": "学生尝试发布作业",
+            "title": "学生尝试发布项目",
             "course_id": "course_web_2026",
             "class_id": "class_cs_2024_01",
         },
@@ -273,7 +343,7 @@ def test_local_teacher_assignment_list_respects_course_scope() -> None:
         "/api/assignments",
         json={
             "assignment_id": f"assignment_scope_only_{uuid4().hex[:8]}",
-            "title": "权限范围内作业",
+            "title": "权限范围内项目",
             "course_id": "course_scope_only_2026",
             "class_id": "class_scope_only_2024_01",
         },
@@ -328,7 +398,7 @@ def test_assignment_analysis_fetches_repository_when_files_missing(monkeypatch) 
             ),
             CodeFile(path="tests/test_main.py", content="def test_items(): assert True\n"),
             CodeFile(path="requirements.txt", content="fastapi\npytest\n"),
-            CodeFile(path="README.md", content="仓库提交作业说明\n"),
+            CodeFile(path="README.md", content="仓库提交项目说明\n"),
         ]
 
     monkeypatch.setattr(RepositoryFetchService, "fetch_repository_files", fake_fetch)
@@ -337,12 +407,12 @@ def test_assignment_analysis_fetches_repository_when_files_missing(monkeypatch) 
         "/api/assignments/analyze",
         json={
             "assignment_id": assignment_id,
-            "assignment_title": "仓库链接作业",
+            "assignment_title": "仓库链接项目",
             "course_id": "course_web_2026",
             "class_id": "class_cs_2024_01",
             "student_id": "student_repo_001",
             "repository_url": "https://github.com/example/course-homework.git",
-            "description": "学生提交公开 Git 仓库地址，系统拉取核心代码并生成作业报告。",
+            "description": "学生提交公开 Git 仓库地址，系统拉取核心代码并生成项目报告。",
         },
         headers=teacher_header,
     )
@@ -400,7 +470,7 @@ def test_assignment_archive_upload_returns_report() -> None:
     response = client.post(
         "/api/assignments/upload-archive",
         data={
-            "assignment_title": "FastAPI Zip 作业",
+            "assignment_title": "FastAPI Zip 项目",
             "course_id": "course_web_2026",
             "class_id": "class_cs_2024_01",
             "student_id": "student_zip_001",
@@ -409,14 +479,13 @@ def test_assignment_archive_upload_returns_report() -> None:
         files={"archive": ("homework.zip", archive, "application/zip")},
         headers={"Authorization": "Bearer demo-token-teacher_001"},
     )
-    report_response = client.get(
-        "/api/assignments/assignment_flask_mvp/reports/student_zip_001",
-        headers={"Authorization": "Bearer demo-token-teacher_001"},
-    )
-
     assert response.status_code == 200
     payload = response.json()
-    assert payload["assignment_title"] == "FastAPI Zip 作业"
+    report_response = client.get(
+        f"/api/assignments/{payload['assignment_id']}/reports/student_zip_001",
+        headers={"Authorization": "Bearer demo-token-teacher_001"},
+    )
+    assert payload["assignment_title"] == "FastAPI Zip 项目"
     assert payload["student_id"] == "student_zip_001"
     assert payload["code_structure"]["file_count"] == 4
     assert "FastAPI" in payload["code_structure"]["detected_frameworks"]
@@ -533,7 +602,7 @@ def test_student_assignment_list_includes_accessible_reports_only() -> None:
         "/api/assignments/analyze",
         json={
             "assignment_id": visible_assignment_id,
-            "assignment_title": "学生可见作业",
+            "assignment_title": "学生可见项目",
             "course_id": "course_web_2026",
             "class_id": "class_cs_2024_01",
             "student_id": "student_001",
@@ -545,7 +614,7 @@ def test_student_assignment_list_includes_accessible_reports_only() -> None:
         "/api/assignments/analyze",
         json={
             "assignment_id": hidden_assignment_id,
-            "assignment_title": "其他学生作业",
+            "assignment_title": "其他学生项目",
             "course_id": "course_web_2026",
             "class_id": "class_cs_2024_01",
             "student_id": "student_002",
@@ -599,10 +668,10 @@ def test_assignment_report_persists_in_sqlite_session(tmp_path) -> None:
     with SessionLocal() as second_session:
         service = AssignmentService(second_session)
         persisted = service.get_report(
-            "assignment_flask_mvp",
+            created.assignment_id,
             "student_009",
         )
-        dashboard = service.get_dashboard("assignment_flask_mvp")
+        dashboard = service.get_dashboard(created.assignment_id)
 
     assert persisted.report_id == created.report_id
     assert persisted.assignment_title == "FastAPI 课程项目分析"
@@ -612,7 +681,7 @@ def test_assignment_report_persists_in_sqlite_session(tmp_path) -> None:
     assert persisted.evidence_snippets[0].path == "main.py"
     assert persisted.analysis_trace[-1].node == "generate_report"
     assert any(report.student_id == "student_009" for report in dashboard.reports)
-    assert dashboard.submitted_count == 6
+    assert dashboard.submitted_count == 1
 
 
 def test_assignment_report_syncs_capability_evidence_to_profile(tmp_path) -> None:
@@ -626,30 +695,30 @@ def test_assignment_report_syncs_capability_evidence_to_profile(tmp_path) -> Non
         AssignmentService(first_session).analyze(
             AssignmentAnalysisRequest(
                 assignment_id="assignment_profile_sync",
-                assignment_title="画像证据同步作业",
+                assignment_title="画像证据同步项目",
                 course_id="course_web_2026",
                 class_id="class_cs_2024_01",
                 student_id="student_profile_sync_001",
-                description="学生提交了接口、测试和 README，用于验证作业报告沉淀为画像证据。",
+                description="学生提交了接口、测试和 README，用于验证项目报告沉淀为画像证据。",
                 files=[
                     CodeFile(path="main.py", content="from fastapi import FastAPI\napp = FastAPI()\n"),
                     CodeFile(path="tests/test_main.py", content="def test_main(): assert True\n"),
-                    CodeFile(path="README.md", content="画像证据同步作业说明\n"),
+                    CodeFile(path="README.md", content="画像证据同步项目说明\n"),
                 ],
             )
         )
         AssignmentService(first_session).analyze(
             AssignmentAnalysisRequest(
                 assignment_id="assignment_profile_sync",
-                assignment_title="画像证据同步作业",
+                assignment_title="画像证据同步项目",
                 course_id="course_web_2026",
                 class_id="class_cs_2024_01",
                 student_id="student_profile_sync_001",
-                description="学生提交了接口、测试和 README，用于验证作业报告沉淀为画像证据。",
+                description="学生提交了接口、测试和 README，用于验证项目报告沉淀为画像证据。",
                 files=[
                     CodeFile(path="main.py", content="from fastapi import FastAPI\napp = FastAPI()\n"),
                     CodeFile(path="tests/test_main.py", content="def test_main(): assert True\n"),
-                    CodeFile(path="README.md", content="画像证据同步作业说明\n"),
+                    CodeFile(path="README.md", content="画像证据同步项目说明\n"),
                 ],
             )
         )
@@ -662,7 +731,7 @@ def test_assignment_report_syncs_capability_evidence_to_profile(tmp_path) -> Non
             if dimension.dimension == "工程实践"
             for item in dimension.evidence_items
             if item.source_type == "assignment_report"
-            and item.source_title == "画像证据同步作业"
+            and item.source_title == "画像证据同步项目"
         ]
 
     assert len(engineering_evidence) == 1

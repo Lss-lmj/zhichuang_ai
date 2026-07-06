@@ -41,7 +41,7 @@ class BasicProfileUpsert(BaseModel):
     major: str = "计算机科学与技术"
     course_foundation: list[str] = Field(default_factory=lambda: ["程序设计基础", "数据库系统"])
     skill_tags: list[str] = Field(default_factory=lambda: ["Flask", "RAG", "后端接口"])
-    project_experiences: list[str] = Field(default_factory=lambda: ["Flask Web 作业项目"])
+    project_experiences: list[str] = Field(default_factory=lambda: ["Flask Web 课程项目"])
     competition_experiences: list[str] = Field(default_factory=lambda: ["蓝桥杯校内训练"])
     target_direction: str = "AI 应用开发 / 软件项目实践"
     weekly_hours: int = 8
@@ -65,7 +65,7 @@ class ProfileEvidenceCreate(BaseModel):
     dimension: str = "工程实践"
     source_type: str = "student_self_report"
     source_title: str = "学生补充自评"
-    evidence_text: str = "补充了 Flask 作业测试截图和 README 运行说明。"
+    evidence_text: str = "补充了 Flask 项目测试截图和 README 运行说明。"
     confidence: float = 0.42
 
 
@@ -216,7 +216,7 @@ class TeacherCandidateScreenResponse(BaseModel):
 
 class TeamRecommendRequest(BaseModel):
     student_id: str = "student_001"
-    project_goal: str = "做一个课程作业代码分析与学情诊断作品"
+    project_goal: str = "做一个项目分析与学情诊断作品"
     team_request_id: str | None = None
 
 

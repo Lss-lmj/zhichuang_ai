@@ -76,7 +76,7 @@ def test_local_session_uses_imported_academic_users() -> None:
     assert "course_local_auth_2026" in teacher_session.json()["account"]["authorized_courses"]
     assert "2024 级本地账号 1 班" in teacher_session.json()["account"]["authorized_classes"]
     assert student_session.status_code == 200
-    assert student_session.json()["account"]["default_view"] == "growth"
+    assert student_session.json()["account"]["default_view"] == "student"
     assert "class_local_auth_2024_01" in student_session.json()["account"]["authorized_classes"]
 
 
@@ -187,6 +187,21 @@ def test_local_token_can_authorize_assignment_access() -> None:
         "/api/assignments/assignment_flask_mvp/reports/student_web_local",
         headers=student_header,
     )
+    upload_response = client.post(
+        "/api/assignments/analyze",
+        json={
+            "assignment_title": "Web 本地学生项目",
+            "course_id": "course_web_2026",
+            "class_id": "class_cs_2024_01",
+            "student_id": "student_web_local",
+            "description": "本地学生上传自己的项目后生成真实项目报告。",
+            "files": [
+                {"path": "main.py", "content": "from fastapi import FastAPI\napp = FastAPI()"},
+                {"path": "README.md", "content": "Web 本地学生项目说明"},
+            ],
+        },
+        headers=student_header,
+    )
     other_report_response = client.get(
         "/api/assignments/assignment_flask_mvp/reports/student_001",
         headers=student_header,
@@ -206,8 +221,10 @@ def test_local_token_can_authorize_assignment_access() -> None:
 
     assert dashboard_response.status_code == 200
     assert dashboard_response.json()["access_scope"] == "teacher:authorized_course_class"
-    assert own_report_response.status_code == 200
-    assert own_report_response.json()["access_scope"] == "student:self"
+    assert own_report_response.status_code == 404
+    assert upload_response.status_code == 200
+    assert upload_response.json()["student_name"] == "Web 本地学生"
+    assert upload_response.json()["access_scope"] == "student:self"
     assert other_report_response.status_code == 403
     assert growth_response.status_code == 200
     assert growth_response.json()["student_id"] == "student_web_local"
@@ -344,6 +361,7 @@ def test_school_token_reuses_authorization_scope() -> None:
         "/api/assignments/assignment_flask_mvp/reports/student_school_scope",
         headers=student_header,
     )
+    assignment_list_response = client.get("/api/assignments", headers=student_header)
     other_report_response = client.get(
         "/api/assignments/assignment_flask_mvp/reports/student_001",
         headers=student_header,
@@ -351,8 +369,9 @@ def test_school_token_reuses_authorization_scope() -> None:
 
     assert dashboard_response.status_code == 200
     assert dashboard_response.json()["access_scope"] == "teacher:authorized_course_class"
-    assert own_report_response.status_code == 200
-    assert own_report_response.json()["access_scope"] == "student:self"
+    assert own_report_response.status_code == 404
+    assert assignment_list_response.status_code == 200
+    assert assignment_list_response.json()["assignments"] == []
     assert other_report_response.status_code == 403
 
 

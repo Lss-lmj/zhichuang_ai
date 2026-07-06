@@ -27,7 +27,7 @@ def test_student_profile_returns_capability_dimensions() -> None:
             "major": "计算机科学与技术",
             "course_foundation": ["程序设计基础", "数据结构", "数据库系统"],
             "skill_tags": ["Flask", "RAG", "GitHub", "README"],
-            "project_experiences": ["Flask Web 作业项目", "RAG 文档问答 Demo"],
+            "project_experiences": ["Flask Web 课程项目", "RAG 文档问答 Demo"],
             "competition_experiences": ["蓝桥杯校内训练"],
             "target_direction": "AI 应用开发 / 软件项目实践",
             "weekly_hours": 8,
@@ -40,7 +40,7 @@ def test_student_profile_returns_capability_dimensions() -> None:
             "dimension": "工程实践",
             "source_type": "student_self_report",
             "source_title": "学生补充自评",
-            "evidence_text": "补充了 Flask 作业测试截图和 README 运行说明。",
+            "evidence_text": "补充了 Flask 项目测试截图和 README 运行说明。",
             "confidence": 0.42,
         },
     )
@@ -128,7 +128,7 @@ def test_learning_plan_and_recommendations() -> None:
     )
     team_response = client.post(
         "/api/teams/recommend",
-        json={"student_id": "student_001", "project_goal": "作业代码分析 Demo"},
+        json={"student_id": "student_001", "project_goal": "项目代码分析 Demo"},
     )
 
     assert plan_response.status_code == 200
@@ -233,7 +233,7 @@ def test_team_request_and_pool_status() -> None:
     )
     team_response_after_revoke = client.post(
         "/api/teams/recommend",
-        json={"student_id": "student_001", "project_goal": "作业代码分析 Demo"},
+        json={"student_id": "student_001", "project_goal": "项目代码分析 Demo"},
     )
     restore_response = client.patch(
         "/api/students/student_002/team-status",
@@ -276,7 +276,7 @@ def test_student_profile_and_evidence_persist_in_sqlite_session(tmp_path) -> Non
                 major="软件工程",
                 course_foundation=["数据结构", "软件工程"],
                 skill_tags=["React", "FastAPI", "RAG"],
-                project_experiences=["课程作业分析平台"],
+                project_experiences=["课程项目分析平台"],
                 competition_experiences=["中国大学生计算机设计大赛校赛"],
                 target_direction="AI 应用开发 / 软件项目实践",
                 weekly_hours=10,
@@ -288,8 +288,8 @@ def test_student_profile_and_evidence_persist_in_sqlite_session(tmp_path) -> Non
             ProfileEvidenceCreate(
                 dimension="工程实践",
                 source_type="assignment_report",
-                source_title="课程作业代码分析报告",
-                evidence_text="上传了作业代码，系统识别到接口、测试和 README 证据。",
+                source_title="项目代码分析报告",
+                evidence_text="上传了项目代码，系统识别到接口、测试和 README 证据。",
                 confidence=0.77,
             ),
         )
@@ -309,7 +309,7 @@ def test_student_profile_and_evidence_persist_in_sqlite_session(tmp_path) -> Non
         for item in dimension.evidence_items
     )
     assert any(
-        item.source_title == "课程作业代码分析报告"
+        item.source_title == "项目代码分析报告"
         for dimension in persisted.dimensions
         for item in dimension.evidence_items
     )
@@ -327,7 +327,7 @@ def test_learning_plan_generation_and_revision_persist_in_sqlite_session(tmp_pat
         generated = service.generate_plan(
             LearningPlanRequest(
                 student_id="student_010",
-                goal="四周内完成课程作业分析 Demo",
+                goal="四周内完成课程项目分析 Demo",
                 weeks=4,
                 weekly_hours=6,
                 foundation="工程基础较好，需要补测试和展示材料",
@@ -382,7 +382,7 @@ def test_team_request_status_and_recommendation_persist_in_sqlite_session(tmp_pa
         recommendation = service.recommend_team(
             TeamRecommendRequest(
                 student_id="student_001",
-                project_goal="作业代码分析 Demo",
+                project_goal="项目代码分析 Demo",
                 team_request_id=request.team_request_id,
             )
         )
@@ -394,7 +394,7 @@ def test_team_request_status_and_recommendation_persist_in_sqlite_session(tmp_pa
         pool_status = second_session.get(TeamPoolStatusRecord, "student_002")
         recommendations = second_session.scalars(select(TeamRecommendation)).all()
         recommendation_after_reload = service.recommend_team(
-            TeamRecommendRequest(student_id="student_001", project_goal="作业代码分析 Demo")
+            TeamRecommendRequest(student_id="student_001", project_goal="项目代码分析 Demo")
         )
         team_request_exists = team_request is not None
         pool_status_enabled = pool_status.team_status_enabled if pool_status else None

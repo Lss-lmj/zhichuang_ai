@@ -86,7 +86,9 @@ class AssignmentService:
         items = (
             [self._demo_assignment_item(account)]
             if account.role == "student"
-            or self._can_view_assignment(account, self.course["id"], self.class_group["id"])
+            and account.user_id in self.students
+            or account.role != "student"
+            and self._can_view_assignment(account, self.course["id"], self.class_group["id"])
             else []
         )
         if self.db is not None:
@@ -162,7 +164,9 @@ class AssignmentService:
     ) -> AssignmentAnalysisResponse:
         account = account or self._demo_teacher_account()
         student_id = payload.student_id or "student_001"
-        assignment_id = payload.assignment_id or self.assignment["id"]
+        assignment_id = payload.assignment_id or self._assignment_id_from_title(
+            payload.assignment_title
+        )
         course_id = payload.course_id or self.course["id"]
         class_id = payload.class_id or self.class_group["id"]
         self._ensure_report_access(account, course_id, class_id, student_id)
@@ -200,6 +204,11 @@ class AssignmentService:
         if stored_report is not None:
             stored_report.access_scope = self._access_scope(account)
             return stored_report
+        if student_id not in self.students:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project report not found. Submit a project first.",
+            )
         return self._build_report(
             assignment_id=assignment_id,
             student_id=student_id,
@@ -207,7 +216,7 @@ class AssignmentService:
             course_id=assignment_meta["course_id"],
             class_id=assignment_meta["class_id"],
             repository_url="https://example.edu/demo/flask-project",
-            description="示例作业包含 Flask 路由、SQLite 数据访问、README 和基础测试。",
+            description="示例项目包含 Flask 路由、SQLite 数据访问、README 和基础测试。",
             files=self._demo_files(),
             access_scope=self._access_scope(account),
         )
@@ -265,7 +274,7 @@ class AssignmentService:
                 severity="medium",
                 title="测试覆盖偏弱",
                 detail="示例提交中只有少量同学提供接口测试或 service 层单元测试。",
-                suggestion="下一次作业要求提交至少 3 个 API 测试和 2 个业务逻辑测试。",
+                suggestion="下一轮项目提交要求至少包含 3 个 API 测试和 2 个业务逻辑测试。",
             ),
             AssignmentFinding(
                 severity="low",
@@ -335,6 +344,22 @@ class AssignmentService:
             access_scope=dashboard.access_scope,
         )
 
+    def export_report(
+        self,
+        assignment_id: str,
+        student_id: str,
+        account: DemoAccount | None = None,
+    ) -> AssignmentExportResponse:
+        report = self.get_report(assignment_id, student_id, account=account)
+        markdown = self._report_markdown(report)
+        return AssignmentExportResponse(
+            assignment_id=report.assignment_id,
+            filename=f"{report.assignment_id}_{report.student_id}_project_report.md",
+            markdown=markdown,
+            generated_at=report.generated_at,
+            access_scope=report.access_scope,
+        )
+
     def _dashboard_markdown(self, dashboard: AssignmentDashboardResponse) -> str:
         lines = [
             f"# {dashboard.assignment_title} 学情诊断报告",
@@ -345,7 +370,7 @@ class AssignmentService:
             f"- 已分析提交：{dashboard.submitted_count}/{dashboard.total_students}",
             f"- 班级平均分：{dashboard.average_score}",
             "",
-            "> 本报告由系统基于作业提交物、代码结构证据和课程 Rubric 自动生成，仅供教学诊断和学习改进参考。",
+            "> 本报告由系统基于项目提交物、代码结构证据和课程 Rubric 自动生成，仅供教学诊断和学习改进参考。",
             "",
             "## 核心指标",
             "",
@@ -366,7 +391,7 @@ class AssignmentService:
             f"- **{finding.title}**：{finding.detail} 建议：{finding.suggestion}"
             for finding in dashboard.common_findings
         )
-        lines.extend(["", "## 异常作业提示", ""])
+        lines.extend(["", "## 异常项目提示", ""])
         lines.extend(
             (
                 f"- **{anomaly.title}（{anomaly.severity}）**：{anomaly.evidence} "
@@ -385,7 +410,7 @@ class AssignmentService:
             )
             for suggestion in dashboard.teaching_suggestions
         )
-        lines.extend(["", "## 作业报告摘要", "", "| 学生 | 综合分 | 状态 | 摘要 |", "| --- | --- | --- | --- |"])
+        lines.extend(["", "## 项目报告摘要", "", "| 学生 | 综合分 | 状态 | 摘要 |", "| --- | --- | --- | --- |"])
         lines.extend(
             (
                 f"| {report.student_name}（{report.student_id}） | "
@@ -410,6 +435,93 @@ class AssignmentService:
             f"| {metric.label} | {metric.covered}/{metric.total} | {round(metric.ratio * 100)}% |"
             for metric in dashboard.class_profile.data_coverage
         )
+        lines.append("")
+        return "\n".join(lines)
+
+    def _report_markdown(self, report: AssignmentAnalysisResponse) -> str:
+        average_score = self._overall_score(report)
+        lines = [
+            f"# {report.assignment_title} 项目分析报告",
+            "",
+            f"- 学生：{report.student_name}（{report.student_id}）",
+            f"- 课程：{report.course_name}",
+            f"- 班级：{report.class_name}",
+            f"- 生成时间：{report.generated_at}",
+            f"- 综合评分：{average_score}",
+            "",
+            "> 评分基于本次项目提交物、代码结构、文档和可识别证据形成，是用于定位改进方向的相对画像。",
+            "",
+            "## 项目摘要",
+            "",
+            report.summary,
+            "",
+            "## 代码结构",
+            "",
+            f"- 文件数量：{report.code_structure.file_count}",
+            f"- 入口文件：{', '.join(report.code_structure.entry_files) or '未识别'}",
+            f"- 测试文件：{', '.join(report.code_structure.test_files) or '未识别'}",
+            f"- 文档文件：{', '.join(report.code_structure.documentation_files) or '未识别'}",
+            f"- 配置文件：{', '.join(report.code_structure.config_files) or '未识别'}",
+            f"- 技术框架：{', '.join(report.code_structure.detected_frameworks) or '未识别'}",
+            f"- 能力信号：{', '.join(report.code_structure.detected_capabilities) or '未识别'}",
+            f"- 风险信号：{', '.join(report.code_structure.risk_signals) or '无'}",
+            "",
+            "## 多维度评分",
+            "",
+            "| 维度 | 分数 | 摘要 | 证据 |",
+            "| --- | --- | --- | --- |",
+        ]
+        lines.extend(
+            (
+                f"| {score.dimension} | {score.score} | {score.summary} | "
+                f"{'；'.join(score.evidence) or '-'} |"
+            )
+            for score in report.scores
+        )
+        lines.extend(["", "## 主要问题", ""])
+        lines.extend(
+            f"- **{finding.title}（{finding.severity}）**：{finding.detail} 建议：{finding.suggestion}"
+            for finding in report.findings
+        )
+        lines.extend(["", "## 能力证据", ""])
+        lines.extend(
+            f"- **{item.dimension}**：{item.evidence} 来源：{item.source}"
+            for item in report.capability_evidence
+        )
+        lines.extend(["", "## 代码证据片段", ""])
+        for snippet in report.evidence_snippets:
+            lines.extend(
+                [
+                    f"### {snippet.capability}",
+                    "",
+                    f"- 文件：{snippet.path}",
+                    f"- 模块：{snippet.module}",
+                    f"- 行号：L{snippet.line_start}-L{snippet.line_end}",
+                    "",
+                    "```text",
+                    snippet.snippet,
+                    "```",
+                    "",
+                ]
+            )
+        lines.extend(["## 分析过程", ""])
+        lines.extend(
+            (
+                f"- **{step.title}（{step.status}）**：{step.summary} "
+                f"证据：{'；'.join(step.evidence) or '-'}"
+            )
+            for step in report.analysis_trace
+        )
+        lines.extend(["", "## 改进任务", ""])
+        lines.extend(f"- {task}" for task in report.improvement_tasks)
+        lines.extend(["", "## 引用来源", ""])
+        if report.citations:
+            lines.extend(
+                f"- **{citation.title}**（{citation.source_type}）：{citation.snippet}"
+                for citation in report.citations
+            )
+        else:
+            lines.append("- 暂无引用来源。")
         lines.append("")
         return "\n".join(lines)
 
@@ -464,9 +576,9 @@ class AssignmentService:
             anomalies.append(
                 AssignmentAnomaly(
                     severity="low",
-                    title="暂无高风险异常作业",
+                    title="暂无高风险异常项目",
                     affected_students=[],
-                    evidence="当前演示提交均具备入口、测试或文档等基础证据。",
+                    evidence="当前项目提交均具备入口、测试或文档等基础证据。",
                     suggested_action="继续按班级维度跟踪测试覆盖、文档复现和风险信号变化。",
                 )
             )
@@ -512,7 +624,7 @@ class AssignmentService:
             ],
             data_coverage=[
                 DataCoverageMetric(
-                    label="作业提交覆盖",
+                    label="项目提交覆盖",
                     covered=submitted_count,
                     total=32,
                     ratio=round(submitted_count / 32, 2),
@@ -538,8 +650,8 @@ class AssignmentService:
             ],
             common_weaknesses=common_weaknesses or ["当前维度均分稳定，建议继续补充可验证过程证据。"],
             summary=(
-                f"已基于 {submitted_count} 份作业报告生成班级能力分布，"
-                "覆盖作业提交、代码结构、测试和文档证据。"
+                f"已基于 {submitted_count} 份项目报告生成班级能力分布，"
+                "覆盖项目提交、代码结构、测试和文档证据。"
             ),
         )
 
@@ -555,7 +667,7 @@ class AssignmentService:
         files: list[CodeFile],
         access_scope: str,
     ) -> AssignmentAnalysisResponse:
-        student_name = self.students.get(student_id, "演示学生")
+        student_name = self._student_name(student_id)
         structure = self._analyze_files(files)
         repository_signal = bool(repository_url)
         description_signal = bool(description and len(description) >= 20)
@@ -634,12 +746,12 @@ class AssignmentService:
                 score=document_score,
                 summary=self._score_summary(
                     has_docs,
-                    "说明文档或作业描述能支撑教师快速理解项目。",
+                    "说明文档或项目描述能支撑教师快速理解项目。",
                     "文档证据不足，建议补充运行步骤、接口说明和已知限制。",
                 ),
                 evidence=[
                     self._format_paths("文档文件", structure.documentation_files),
-                    "作业描述达到有效长度" if description_signal else "作业描述信息偏少",
+                    "项目描述达到有效长度" if description_signal else "项目描述信息偏少",
                 ],
             ),
         ]
@@ -699,7 +811,7 @@ class AssignmentService:
             improvement_tasks=improvement_tasks,
             citations=[
                 Citation(
-                    title="Web 应用开发课程作业 Rubric",
+                    title="Web 应用开发项目 Rubric",
                     source_type="rubric",
                     snippet="评分参考功能完成度、代码结构、工程规范、测试意识和文档表达。",
                 ),
@@ -712,6 +824,17 @@ class AssignmentService:
             access_scope=access_scope,
         )
 
+    def _student_name(self, student_id: str) -> str:
+        if student_id in self.students:
+            return self.students[student_id]
+        if self.db is not None:
+            from app.models.user import User
+
+            user = self.db.get(User, student_id)
+            if user is not None:
+                return user.name
+        return student_id
+
     def _empty_dashboard_response(
         self,
         assignment_id: str,
@@ -723,7 +846,7 @@ class AssignmentService:
             AssignmentScore(
                 dimension=dimension,
                 score=0,
-                summary="当前作业尚无已分析提交。",
+                summary="当前项目尚无已分析提交。",
                 evidence=["等待学生提交后生成维度证据。"],
             )
             for dimension in dimensions
@@ -732,8 +855,8 @@ class AssignmentService:
             AssignmentFinding(
                 severity="low",
                 title="等待学生提交",
-                detail="当前作业还没有可分析的提交物。",
-                suggestion="发布作业后提醒学生提交 zip 包或仓库链接，系统会自动生成报告。",
+                detail="当前项目还没有可分析的提交物。",
+                suggestion="发布项目后提醒学生提交 zip 包或仓库链接，系统会自动生成报告。",
             )
         ]
         return AssignmentDashboardResponse(
@@ -758,32 +881,32 @@ class AssignmentService:
             anomalies=[
                 AssignmentAnomaly(
                     severity="low",
-                    title="暂无作业提交",
+                    title="暂无项目提交",
                     affected_students=[],
-                    evidence="当前作业尚无已分析提交。",
-                    suggested_action="等待学生提交后再查看异常作业和讲评建议。",
+                    evidence="当前项目尚无已分析提交。",
+                    suggested_action="等待学生提交后再查看异常项目和讲评建议。",
                 )
             ],
             teaching_suggestions=[
                 TeachingSuggestion(
                     knowledge_point="提交规范说明",
-                    class_evidence="当前作业尚无已分析提交。",
+                    class_evidence="当前项目尚无已分析提交。",
                     suggested_activity="课前明确 zip 包结构、README、测试文件和运行说明要求。",
                     practice_task="要求学生提交代码、测试、README 和必要配置文件。",
-                    expected_improvement="提高后续作业分析的数据覆盖率和报告可解释性。",
+                    expected_improvement="提高后续项目分析的数据覆盖率和报告可解释性。",
                 )
             ],
             class_profile=ClassAbilityProfile(
                 heatmap=[],
                 direction_distribution=[],
                 data_coverage=[
-                    DataCoverageMetric(label="作业提交覆盖", covered=0, total=32, ratio=0),
+                    DataCoverageMetric(label="项目提交覆盖", covered=0, total=32, ratio=0),
                     DataCoverageMetric(label="代码结构证据", covered=0, total=0, ratio=0),
                     DataCoverageMetric(label="测试证据", covered=0, total=0, ratio=0),
                     DataCoverageMetric(label="文档证据", covered=0, total=0, ratio=0),
                 ],
-                common_weaknesses=["当前作业尚无提交，暂不能形成班级共性短板。"],
-                summary="当前作业尚无已分析提交。",
+                common_weaknesses=["当前项目尚无提交，暂不能形成班级共性短板。"],
+                summary="当前项目尚无已分析提交。",
             ),
             reports=[],
             access_scope=self._access_scope(account),
@@ -951,7 +1074,7 @@ class AssignmentService:
         record.state_json = {
             "current_node": "generate_report",
             "completed_nodes": [step.node for step in report.analysis_trace],
-            "next_action": "报告已生成，可查看作业报告和班级看板",
+            "next_action": "报告已生成，可查看项目报告和班级看板",
             "scores": {score.dimension: score.score for score in report.scores},
         }
         record.result_ref = report.report_id
@@ -1165,7 +1288,7 @@ class AssignmentService:
             return f"{dimension}整体表现较好，可作为讲评中的正向样例。"
         if score >= 75:
             return f"{dimension}达到课程阶段要求，但仍有集中改进空间。"
-        return f"{dimension}低于预期，需要在下一次作业中重点跟进。"
+        return f"{dimension}低于预期，需要在下一轮项目中重点跟进。"
 
     def _score_level(self, score: int) -> str:
         if score >= 85:
@@ -1233,7 +1356,7 @@ class AssignmentService:
                     class_evidence=f"{evidence_prefix}中{weakest.dimension}均分 {weakest.score}，是当前最低维度。",
                     suggested_activity=f"围绕{weakest.dimension}选取一份高分样例和一份待改进样例进行对比讲评。",
                     practice_task=f"要求学生提交一项针对{weakest.dimension}的修订记录。",
-                    expected_improvement="把班级均分短板转化为下一次作业的明确改进动作。",
+                    expected_improvement="把班级均分短板转化为下一轮项目的明确改进动作。",
                 )
             )
 
@@ -1597,7 +1720,7 @@ class AssignmentService:
             default_view="teacher",
             authorized_courses=[self.course["name"]],
             authorized_classes=[self.class_group["name"]],
-            modules=["教师看板", "作业报告", "知识库问答"],
+            modules=["教师看板", "项目管理", "知识库问答"],
         )
 
     def _demo_files(self) -> list[CodeFile]:

@@ -10,6 +10,7 @@ from app.schemas.tasks import (
     AgentTaskCreateRequest,
     AgentTaskStatus,
     LearningTask,
+    LearningTaskUpdateRequest,
     ReviewRequest,
     ReviewResponse,
     SaveTaskRequest,
@@ -41,6 +42,26 @@ def save_task(
 ) -> LearningTask:
     ensure_student_access(payload.student_id, authorization, db)
     return TaskService(db).save_task(payload)
+
+
+@router.patch("/students/{student_id}/tasks/{task_id}", response_model=LearningTask)
+def update_learning_task(
+    student_id: str,
+    task_id: str,
+    payload: LearningTaskUpdateRequest,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> LearningTask:
+    ensure_student_access(student_id, authorization, db)
+    try:
+        return TaskService(db).update_task(student_id, task_id, payload)
+    except LookupError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learning task not found",
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.post("/reviews/generate", response_model=ReviewResponse)
