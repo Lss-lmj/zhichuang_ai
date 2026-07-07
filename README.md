@@ -6,10 +6,17 @@
 
 ## 当前内容
 
-- `立项/需求分析文档_智创Agent.md`：项目需求分析文档
-- `立项/项目架构设计与技术选型_智创Agent.md`：架构设计与技术选型文档
-- `立项/智创Agent_立项PPT/index.html`：HTML 形式立项 PPT
-- `立项/XH-202620_面向一流学科建设的学科垂类大模型与创新应用开发.pdf`：赛题原始材料
+- `立项/挑战杯/需求分析文档_智创Agent.md`：挑战杯方向项目需求分析文档
+- `立项/挑战杯/项目架构设计与技术选型_智创Agent.md`：挑战杯方向架构设计与技术选型文档
+- `立项/挑战杯/智创Agent_立项PPT/index.html`：HTML 形式立项 PPT
+- `立项/挑战杯/XH-202620_面向一流学科建设的学科垂类大模型与创新应用开发.pdf`：挑战杯赛题原始材料
+- `立项/开源创新大赛/赛题要求.md`：开源创新大赛赛题要求
+- `立项/软件杯/赛题要求.md`：软件杯赛题要求
+- `立项/三赛题适配方案_智创Agent.md`：挑战杯、开源创新大赛与软件杯三赛题适配方案
+- `立项/开源创新大赛/智创Agent_软件工程课程实践开源教学案例包.md`：开源创新大赛课程案例包设计
+- `立项/软件杯/智创Agent_个性化资源生成与学习多智能体系统适配方案.md`：软件杯适配方案
+- `course-cases/software-engineering-project-practice/`：软件工程项目实践开源教学案例包骨架
+- `course-cases/personalized-learning-resource-generation/`：个性化学习资源生成案例包骨架
 - `docs/开发SOP.md`：开发流程、协作规范、验收标准
 - `docs/架构约定.md`：系统架构、模块边界、技术选型约定
 - `docs/API设计.md`：首版 API 草案
@@ -18,6 +25,7 @@
 - `docs/公网访问环境部署.md`：公网访问环境部署说明
 - `docs/操作说明与展示脚本.md`：操作说明与展示脚本
 - `docs/交付验收报告.md`：当前版本交付结论、需求证据和复验步骤
+- `docs/三赛题验收矩阵.md`：挑战杯、开源创新大赛与软件杯要求映射
 - `backend/`：FastAPI 后端骨架
 - `frontend/`：React + Vite 前端骨架
 - `harmony/`：鸿蒙端 P1 客户端规划
@@ -33,7 +41,7 @@
 直接用浏览器打开：
 
 ```bash
-open 立项/智创Agent_立项PPT/index.html
+open 立项/挑战杯/智创Agent_立项PPT/index.html
 ```
 
 快捷键：
@@ -116,6 +124,7 @@ python3.11 -m pip install -e ".[ai,rag,dev]"
 ├── frontend/       # React + TypeScript + Vite Web 前端
 ├── harmony/        # ArkTS + ArkUI 鸿蒙端规划
 ├── docs/           # 开发 SOP、API、数据模型、路线图
+├── course-cases/   # 面向开源创新大赛和软件杯的课程/资源案例包
 ├── evals/          # RAG、模型提示模板、Graph 评测样例
 ├── infra/          # 部署配置
 ├── data/           # 本地开发运行数据
