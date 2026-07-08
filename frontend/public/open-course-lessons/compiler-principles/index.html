@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>编译原理 · 交互式开源课堂</title>
+<style>
+:root{--bg:#0f1226;--bg-soft:#171a35;--bg-code:#0a0c1c;--fg:#e7ebff;--fg-dim:#a0a8d0;--line:#2a2f55;--accent:#6ee7ff;--accent-2:#ffb86b;--success:#7ee787;--danger:#ff6b8a;--purple:#b78cff;--shadow:0 10px 30px rgba(0,0,0,.35);--radius:14px;--radius-sm:8px}
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;line-height:1.6}a{color:inherit;text-decoration:none}.mono{font-family:"JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+.shell{max-width:1320px;margin:0 auto;padding:24px 24px 56px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0 18px;border-bottom:1px solid var(--line);margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px}.logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--purple));display:grid;place-items:center;color:#0a0c1c;font-weight:800;box-shadow:0 0 24px rgba(110,231,255,.22)}.title{font-weight:700;letter-spacing:.3px}.subtitle{color:var(--fg-dim);font-size:12px;margin-top:2px}.badge{border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--fg-dim);font-size:12px;background:rgba(10,12,28,.55)}
+.hero{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;border:1px solid var(--line);border-radius:var(--radius);padding:28px;background:radial-gradient(800px 360px at 0% 0%,rgba(110,231,255,.14),transparent 60%),radial-gradient(680px 360px at 100% 0%,rgba(183,140,255,.13),transparent 58%),linear-gradient(135deg,#141735,#1a1e42);box-shadow:var(--shadow);overflow:hidden}.hero h1{margin:0 0 10px;font-size:31px;line-height:1.25}.hero p{margin:0;color:var(--fg-dim);line-height:1.8}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.chip{border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--fg-dim);font-size:12px;background:rgba(10,12,28,.5)}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.stat{border:1px solid var(--line);border-radius:12px;background:rgba(10,12,28,.62);padding:14px}.stat b{display:block;font-family:"JetBrains Mono",monospace;font-size:23px;color:var(--accent)}.stat span{color:var(--fg-dim);font-size:12px}
+.pipeline{margin-top:20px;border:1px solid var(--line);border-radius:var(--radius);background:rgba(23,26,53,.7);padding:16px;overflow:auto}.pipe{display:grid;grid-template-columns:repeat(6,150px);gap:12px;min-width:940px}.pipe a,.pipe span{border:1px solid var(--line);border-radius:12px;background:var(--bg-code);padding:12px;text-align:center;font-size:13px}.pipe a:hover{border-color:var(--accent);color:var(--accent)}.pipe small{display:block;margin-top:4px;color:var(--fg-dim);font-family:"JetBrains Mono",monospace;font-size:10px}
+.chapter{margin-top:22px;border:1px solid var(--line);border-radius:var(--radius);background:rgba(23,26,53,.72);overflow:hidden}.chapter-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:18px 20px;background:rgba(10,12,28,.55);border-bottom:1px solid var(--line)}.chapter-head h2{margin:0 0 6px;font-size:19px}.chapter-head p{margin:0;color:var(--fg-dim);font-size:13px;line-height:1.65}.lessons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:16px}.lesson{display:grid;gap:10px;min-height:220px;border:1px solid var(--line);border-radius:12px;padding:16px;background:linear-gradient(180deg,rgba(28,32,70,.72),rgba(10,12,28,.64));transition:.15s}.lesson:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 16px 36px rgba(0,0,0,.36)}.lesson .num{font-family:"JetBrains Mono",monospace;color:var(--accent);font-size:12px}.lesson h3{margin:0;font-size:17px}.lesson p{margin:0;color:var(--fg-dim);font-size:13px;line-height:1.65}.tags{display:flex;flex-wrap:wrap;gap:6px}.tag{border:1px solid var(--line);border-radius:999px;color:var(--fg-dim);padding:3px 8px;font-family:"JetBrains Mono",monospace;font-size:11px}.enter{align-self:end;color:var(--accent);font-size:13px;font-weight:700}.footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--fg-dim);font-size:12px;text-align:center}
+@media(max-width:980px){.hero{grid-template-columns:1fr}.lessons{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">CP</div>
+      <div>
+        <div class="title">编译原理 · 交互式开源课堂</div>
+        <div class="subtitle">词法、语法、AST、语义、中间代码、优化与综合实验</div>
+      </div>
+    </div>
+    <span class="badge">12 independent HTML lessons</span>
+  </div>
+
+  <section class="hero">
+    <div>
+      <h1>把编译流水线拆成 12 个可操作的课堂实验。</h1>
+      <p>这套课件面向编译原理实验课，从正则到 DFA、LL/LR 语法分析、AST 构建、作用域与类型检查，再到三地址码、控制流、局部优化和表达式编译器综合验收。每一节都是独立 HTML 页面，可直接投屏讲授，也可作为学生实验前的可视化预习材料。</p>
+      <div class="chips">
+        <span class="chip">编译流水线</span>
+        <span class="chip">单文件离线运行</span>
+        <span class="chip">课堂分步演示</span>
+        <span class="chip">实验验收证据</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>4</b><span>课程章节</span></div>
+      <div class="stat"><b>12</b><span>独立课节页面</span></div>
+      <div class="stat"><b>0</b><span>运行时网络依赖</span></div>
+      <div class="stat"><b>AST</b><span>核心可视化对象</span></div>
+    </div>
+  </section>
+
+  <section class="pipeline">
+    <div class="pipe">
+      <a href="pages/01-lexical.html">词法分析<small>source to token</small></a>
+      <a href="pages/02-parsing.html">语法分析<small>token to parse</small></a>
+      <a href="pages/06-ast.html">AST 构建<small>parse to tree</small></a>
+      <a href="pages/03-semantic.html">语义分析<small>symbol and type</small></a>
+      <a href="pages/04-ir.html">中间代码<small>AST to TAC</small></a>
+      <a href="pages/05-optimize.html">代码优化<small>IR rewrite</small></a>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-head"><div><h2>第一章 · 词法与语法基础</h2><p>从源码文本构建可分析的 token 流和语法结构。</p></div><span class="badge">Lexical / Parsing / AST</span></div>
+    <div class="lessons">
+      <a class="lesson" href="pages/01-lexical.html"><span class="num">01 · 40 min</span><h3>token 规则设计</h3><p>正则、NFA、DFA 和扫描过程分步联动，理解关键字、标识符、字面量和运算符的识别规则。</p><div class="tags"><span class="tag">regex</span><span class="tag">NFA</span><span class="tag">DFA</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/02-parsing.html"><span class="num">02 · 45 min</span><h3>文法与优先级</h3><p>First/Follow、预测分析表、LR(0) 项集族和移进归约过程同步展示。</p><div class="tags"><span class="tag">LL(1)</span><span class="tag">LR(0)</span><span class="tag">grammar</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/06-ast.html"><span class="num">03 · 50 min</span><h3>AST 构建</h3><p>把解析树裁剪为只保留语义节点的 AST，展示运算符树折叠和 JSON 输出。</p><div class="tags"><span class="tag">parse tree</span><span class="tag">AST</span><span class="tag">JSON</span></div><span class="enter">进入课件 →</span></a>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-head"><div><h2>第二章 · 语义分析</h2><p>维护作用域、类型和符号信息，把语法结构转化为可检查的程序语义。</p></div><span class="badge">Scope / Symbol / Type</span></div>
+    <div class="lessons">
+      <a class="lesson" href="pages/07-scope.html"><span class="num">04 · 45 min</span><h3>作用域规则</h3><p>变量引用沿作用域链查找定义，展示声明绑定、名称遮蔽和嵌套块退出。</p><div class="tags"><span class="tag">scope stack</span><span class="tag">binding</span><span class="tag">shadow</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/03-semantic.html"><span class="num">05 · 45 min</span><h3>符号表管理</h3><p>嵌套作用域、符号插入、查询、重定义和未定义错误定位同步展示。</p><div class="tags"><span class="tag">symbol table</span><span class="tag">lookup</span><span class="tag">diagnostic</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/08-type-check.html"><span class="num">06 · 45 min</span><h3>类型检查</h3><p>AST 节点自底向上传递类型信息，定位类型不匹配并阻断后续生成。</p><div class="tags"><span class="tag">type rule</span><span class="tag">propagation</span><span class="tag">error</span></div><span class="enter">进入课件 →</span></a>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-head"><div><h2>第三章 · 中间代码与优化</h2><p>把 AST 转换为可分析、可优化的中间表示。</p></div><span class="badge">TAC / CFG / Optimize</span></div>
+    <div class="lessons">
+      <a class="lesson" href="pages/04-ir.html"><span class="num">07 · 50 min</span><h3>三地址码</h3><p>AST 展开为三地址码，展示临时变量、控制流回填和源代码对应关系。</p><div class="tags"><span class="tag">TAC</span><span class="tag">temp</span><span class="tag">backpatch</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/09-control-flow.html"><span class="num">08 · 50 min</span><h3>控制流生成</h3><p>if/else 和 while 结构转化为标签、条件跳转、基本块和 CFG 回边。</p><div class="tags"><span class="tag">label</span><span class="tag">jump</span><span class="tag">CFG</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/05-optimize.html"><span class="num">09 · 45 min</span><h3>局部优化</h3><p>对比常量折叠、公共子表达式、死代码删除、循环外提和 DAG 优化。</p><div class="tags"><span class="tag">constant fold</span><span class="tag">CSE</span><span class="tag">DCE</span></div><span class="enter">进入课件 →</span></a>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <div class="chapter-head"><div><h2>第四章 · 编译器综合实验</h2><p>完成一个可测试的小型编译器实验，并形成可复现的验收证据。</p></div><span class="badge">Compiler Lab</span></div>
+    <div class="lessons">
+      <a class="lesson" href="pages/10-expression-compiler.html"><span class="num">10 · 60 min</span><h3>表达式编译器</h3><p>源码从输入框进入完整编译流水线，串起 token、AST、类型检查和三地址码。</p><div class="tags"><span class="tag">source</span><span class="tag">pipeline</span><span class="tag">IR</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/11-error-recovery.html"><span class="num">11 · 45 min</span><h3>错误恢复</h3><p>错误 token 被定位并映射到源码位置，展示同步集合和继续分析过程。</p><div class="tags"><span class="tag">diagnostic</span><span class="tag">sync set</span><span class="tag">recover</span></div><span class="enter">进入课件 →</span></a>
+      <a class="lesson" href="pages/12-compiler-regression.html"><span class="num">12 · 45 min</span><h3>编译器测试与回归验证</h3><p>围绕 token、AST、诊断和 IR 金标准输出验证学生编译器的完整性。</p><div class="tags"><span class="tag">golden output</span><span class="tag">regression</span><span class="tag">acceptance</span></div><span class="enter">进入课件 →</span></a>
+    </div>
+  </section>
+
+  <div class="footer">© 2026 · 编译原理交互式开源课堂</div>
+</div>
+</body>
+</html>

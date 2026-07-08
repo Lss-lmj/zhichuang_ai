@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中间代码生成 · AST 与三地址码</title>
+<style>
+:root{
+  --bg:#0f1226; --bg-soft:#171a35; --bg-code:#0a0c1c;
+  --fg:#e7ebff; --fg-dim:#a0a8d0; --line:#2a2f55;
+  --accent:#6ee7ff; --accent-2:#ffb86b;
+  --success:#7ee787; --danger:#ff6b8a; --purple:#b78cff;
+  --shadow:0 10px 30px rgba(0,0,0,0.35);
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--fg);
+  overflow:hidden;
+}
+code,pre,.mono{font-family:"JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+
+.demo-shell{display:flex;flex-direction:column;height:100vh}
+
+/* Header */
+.demo-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 24px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(110,231,255,0.05),transparent);
+}
+.demo-header h1{font-size:20px;font-weight:600;letter-spacing:0.5px}
+.demo-header h1 .sub{color:var(--accent);margin-left:8px;font-size:14px;font-weight:400}
+.back-btn{
+  color:var(--fg-dim);text-decoration:none;font-size:14px;
+  padding:6px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  transition:all .2s;
+}
+.back-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+/* Tabs */
+.tab-bar{
+  display:flex;gap:8px;padding:12px 24px 0;border-bottom:1px solid var(--line);
+  background:var(--bg-soft);
+}
+.tab-btn{
+  background:transparent;border:none;color:var(--fg-dim);
+  padding:10px 18px;font-size:14px;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .2s;
+  font-family:inherit;
+}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-btn:hover{color:var(--fg)}
+
+/* Main */
+.demo-main{flex:1;display:grid;grid-template-columns:30% 70%;overflow:hidden}
+
+/* Left panel */
+.panel-explain{
+  padding:20px;border-right:1px solid var(--line);
+  overflow-y:auto;background:var(--bg-soft);
+}
+.step-title{font-size:16px;font-weight:600;margin-bottom:12px;color:var(--accent)}
+.step-desc{font-size:14px;line-height:1.7;color:var(--fg);margin-bottom:14px}
+.step-desc code{
+  background:var(--bg-code);padding:2px 6px;border-radius:4px;
+  color:var(--accent-2);font-size:13px;
+}
+
+.badge{
+  display:inline-block;padding:3px 9px;font-size:11px;border-radius:20px;
+  margin-right:6px;margin-bottom:8px;font-weight:600;letter-spacing:0.5px;
+}
+.badge--tip{background:rgba(110,231,255,0.15);color:var(--accent)}
+.badge--warn{background:rgba(255,184,107,0.15);color:var(--accent-2)}
+.badge--def{background:rgba(183,140,255,0.15);color:var(--purple)}
+
+.source-box{
+  margin-top:16px;background:var(--bg-code);padding:12px;
+  border-radius:var(--radius-sm);border:1px solid var(--line);
+  font-size:13px;line-height:1.6;white-space:pre;overflow-x:auto;
+}
+.source-box .comment{color:var(--fg-dim)}
+
+/* Right stage */
+.panel-stage{
+  display:grid;grid-template-columns:1fr 340px;
+  gap:14px;padding:16px;overflow:hidden;
+}
+.stage-left{
+  background:var(--bg-soft);border-radius:var(--radius);
+  border:1px solid var(--line);padding:14px;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.stage-right{
+  background:var(--bg-soft);border-radius:var(--radius);
+  border:1px solid var(--line);padding:14px;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.stage-label{
+  font-size:12px;color:var(--fg-dim);text-transform:uppercase;
+  letter-spacing:1.5px;margin-bottom:10px;font-weight:600;
+}
+
+/* SVG stage */
+.ast-svg{flex:1;width:100%;min-height:0}
+
+/* Token list */
+.token-strip{
+  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;
+  padding:8px;background:var(--bg-code);border-radius:var(--radius-sm);
+  min-height:38px;
+}
+.token{
+  padding:3px 8px;font-size:12px;border-radius:4px;
+  background:var(--line);color:var(--fg-dim);
+  font-family:"JetBrains Mono",Menlo,Consolas,monospace;
+  transition:all .3s;
+}
+.token.current{background:var(--accent);color:var(--bg);transform:scale(1.08)}
+.token.consumed{background:rgba(126,231,135,0.15);color:var(--success)}
+
+/* Three-address code */
+.tac-list{
+  flex:1;overflow-y:auto;background:var(--bg-code);
+  border-radius:var(--radius-sm);padding:10px;
+  font-family:"JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:13px;line-height:1.85;
+}
+.tac-line{
+  display:flex;align-items:center;gap:10px;
+  padding:2px 6px;border-radius:4px;transition:all .25s;
+}
+.tac-line.new{background:rgba(110,231,255,0.12);color:var(--accent)}
+.tac-line.current{background:rgba(110,231,255,0.22);color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.tac-line.backpatch{background:rgba(255,184,107,0.12);color:var(--accent-2)}
+.tac-num{color:var(--fg-dim);min-width:28px;text-align:right;font-size:11px}
+.tac-code{flex:1;white-space:pre}
+.tac-label{color:var(--purple)}
+.tac-hole{color:var(--danger);font-style:italic}
+
+/* CFG for control flow */
+.cfg-panel{
+  margin-top:10px;padding:10px;background:var(--bg-code);
+  border-radius:var(--radius-sm);height:180px;
+  display:flex;flex-direction:column;
+}
+.cfg-svg{flex:1;width:100%}
+
+/* AST node styles */
+.node rect{
+  fill:var(--bg-code);stroke:var(--line);stroke-width:1.5;
+  transition:all .35s;
+}
+.node text{
+  fill:var(--fg);font-family:"JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:13px;text-anchor:middle;dominant-baseline:middle;
+  transition:all .35s;
+}
+.node .type-tag{
+  fill:var(--fg-dim);font-size:10px;
+}
+.node{opacity:0;transition:opacity .4s}
+.node.visible{opacity:1}
+.node.active rect{stroke:var(--accent);stroke-width:2.5;fill:rgba(110,231,255,0.08)}
+.node.active text{fill:var(--accent)}
+.node.done rect{stroke:var(--success);stroke-width:1.5}
+.node.done .type-tag{fill:var(--success)}
+
+.edge{
+  stroke:var(--line);stroke-width:1.5;fill:none;
+  opacity:0;transition:opacity .4s,stroke .35s;
+}
+.edge.visible{opacity:1}
+.edge.active{stroke:var(--accent);stroke-width:2}
+
+/* CFG blocks */
+.bb rect{
+  fill:var(--bg-soft);stroke:var(--purple);stroke-width:1.5;
+  rx:6;transition:all .3s;
+}
+.bb text{
+  fill:var(--fg);font-family:"JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:10px;text-anchor:middle;
+}
+.bb{opacity:0;transition:opacity .4s}
+.bb.visible{opacity:1}
+.bb.active rect{stroke:var(--accent);fill:rgba(110,231,255,0.08)}
+.bb-arrow{stroke:var(--fg-dim);stroke-width:1.2;fill:none;opacity:0;transition:opacity .4s}
+.bb-arrow.visible{opacity:1}
+.bb-arrow.active{stroke:var(--accent);stroke-width:1.8}
+
+/* Controls */
+.demo-controls{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  padding:14px 24px;border-top:1px solid var(--line);background:var(--bg-soft);
+}
+.ctrl-btn{
+  background:var(--bg-code);color:var(--fg);border:1px solid var(--line);
+  padding:8px 16px;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:13px;font-family:inherit;transition:all .2s;
+}
+.ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+.ctrl-btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.ctrl-btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2);color:var(--bg)}
+.ctrl-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+.step-indicator{display:flex;gap:5px;align-items:center;padding:0 10px}
+.step-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--line);
+  transition:all .3s;
+}
+.step-dot.active{background:var(--accent);transform:scale(1.4)}
+.step-dot.done{background:var(--fg-dim)}
+
+.step-counter{font-size:12px;color:var(--fg-dim);min-width:56px;text-align:center}
+
+.speed-btn{
+  position:fixed;bottom:70px;right:20px;
+  background:var(--bg-code);color:var(--fg-dim);border:1px solid var(--line);
+  padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:11px;font-family:inherit;
+}
+.speed-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+/* Tab pane */
+.tab-pane{display:none;height:100%;flex-direction:column;overflow:hidden}
+.tab-pane.active{display:flex;flex:1}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--fg-dim)}
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <!-- Header -->
+  <header class="demo-header">
+    <a href="../index.html" class="back-btn">← 返回目录</a>
+    <h1>中间代码生成<span class="sub">· AST 与三地址码</span></h1>
+    <div style="width:80px"></div>
+  </header>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="A">Tab A · 表达式翻译</button>
+    <button class="tab-btn" data-tab="B">Tab B · 控制流回填</button>
+  </div>
+
+  <!-- Tab A: Expression -->
+  <div class="tab-pane active" id="pane-A">
+    <div class="demo-main">
+      <aside class="panel-explain">
+        <div id="explA">
+          <span class="badge badge--tip">当前步骤</span>
+          <div class="step-title">准备开始</div>
+          <div class="step-desc">点击"下一步"开始演示。</div>
+        </div>
+        <div class="source-box"><span class="comment">// 源代码</span>
+a = b * (c + d) - e;</div>
+      </aside>
+
+      <section class="panel-stage">
+        <div class="stage-left">
+          <div class="stage-label">词法记号 · AST 构造</div>
+          <div class="token-strip" id="tokensA"></div>
+          <svg class="ast-svg" id="astA" viewBox="0 0 560 380" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div class="stage-right">
+          <div class="stage-label">三地址码 (TAC)</div>
+          <div class="tac-list" id="tacA"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Tab B: Control flow -->
+  <div class="tab-pane" id="pane-B">
+    <div class="demo-main">
+      <aside class="panel-explain">
+        <div id="explB">
+          <span class="badge badge--tip">当前步骤</span>
+          <div class="step-title">准备开始</div>
+          <div class="step-desc">点击"下一步"开始演示。</div>
+        </div>
+        <div class="source-box"><span class="comment">// 源代码</span>
+if (a &lt; b) {
+  x = 1;
+} else {
+  x = 2;
+}
+while (i &lt; n) {
+  i = i + 1;
+}</div>
+      </aside>
+
+      <section class="panel-stage">
+        <div class="stage-left">
+          <div class="stage-label">控制流图 (CFG) 与回填</div>
+          <div style="flex:1;overflow:auto">
+            <svg class="cfg-svg" id="cfgB" viewBox="0 0 520 480" preserveAspectRatio="xMidYMid meet" style="min-height:460px"></svg>
+          </div>
+        </div>
+        <div class="stage-right">
+          <div class="stage-label">三地址码（含回填 hole）</div>
+          <div class="tac-list" id="tacB"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <footer class="demo-controls">
+    <button class="ctrl-btn" id="btnPrev">← 上一步</button>
+    <button class="ctrl-btn primary" id="btnNext">下一步 →</button>
+    <button class="ctrl-btn" id="btnPlay">▶ 自动播放</button>
+    <div class="step-indicator" id="stepDots"></div>
+    <span class="step-counter" id="stepCnt">0 / 0</span>
+    <button class="ctrl-btn" id="btnReset">↺ 重置</button>
+  </footer>
+  <button class="speed-btn" id="btnSpeed">速度 1×</button>
+</div>
+
+<script>
+/* ================================================================
+ * 中间代码生成演示 · 主脚本
+ * 两个 tab：表达式翻译 / 控制流回填
+ * 每个 tab 拥有独立的步骤数组、当前索引、渲染函数
+ * ================================================================ */
+
+/* ---------------- Tab A：表达式 a = b * (c + d) - e ----------------
+ * AST（自底向上构造）：
+ *          =(assign)
+ *         /       \
+ *        a       -(sub)
+ *               /     \
+ *            *(mul)    e
+ *            /   \
+ *           b   +(add)
+ *              /    \
+ *             c      d
+ * 布局坐标（viewBox 560x380）
+ */
+const astA_nodes = [
+  // id, label, type, x, y
+  {id:'assign', label:'=',  type:'stmt',  x:280, y:40},
+  {id:'a',      label:'a',  type:'id',    x:180, y:110},
+  {id:'sub',    label:'-',  type:'int',   x:380, y:110},
+  {id:'mul',    label:'*',  type:'int',   x:300, y:180},
+  {id:'e',      label:'e',  type:'id',    x:460, y:180},
+  {id:'b',      label:'b',  type:'id',    x:220, y:250},
+  {id:'add',    label:'+',  type:'int',   x:380, y:250},
+  {id:'c',      label:'c',  type:'id',    x:330, y:320},
+  {id:'d',      label:'d',  type:'id',    x:430, y:320},
+];
+const astA_edges = [
+  ['assign','a'], ['assign','sub'],
+  ['sub','mul'], ['sub','e'],
+  ['mul','b'], ['mul','add'],
+  ['add','c'], ['add','d'],
+];
+
+const tokensA = ['a','=','b','*','(','c','+','d',')','-','e',';'];
+
+// 每一步：说明 + 可见节点集合 + 高亮节点 + 完成节点 + 可见 token 数 + 高亮 token 索引 + tac 累积
+const stepsA = [
+  {
+    title:'源代码与词法记号',
+    badge:'tip', badgeText:'输入',
+    desc:'待翻译语句：<code>a = b * (c + d) - e;</code><br>词法分析产生记号流，作为语法分析与 IR 生成的输入。',
+    visible:[], active:null, done:[], tokVis:tokensA.length, tokCur:-1, tac:[], tacCur:-1
+  },
+  {
+    title:'识别叶子：标识符 b',
+    badge:'def', badgeText:'叶子节点',
+    desc:'自底向上构造 AST。首先为最内层子表达式 <code>c + d</code> 做准备，先亮出所有叶子标识符。当前处理：<code>b</code>。',
+    visible:['b'], active:'b', done:[], tokVis:tokensA.length, tokCur:2, tac:[], tacCur:-1
+  },
+  {
+    title:'识别叶子：c、d',
+    badge:'def', badgeText:'叶子节点',
+    desc:'继续显示叶子 <code>c</code> 和 <code>d</code>。它们类型标注为 <code>id</code>，稍后合成为加法子树。',
+    visible:['b','c','d'], active:null, done:['b'], tokVis:tokensA.length, tokCur:7, tac:[], tacCur:-1
+  },
+  {
+    title:'合成子树：c + d',
+    badge:'def', badgeText:'合成节点',
+    desc:'将叶子 <code>c</code>、<code>d</code> 合成加法节点，标注类型 <code>int</code>。这是最先可以求值的子表达式。',
+    visible:['b','c','d','add'], active:'add', done:['b','c','d'], tokVis:tokensA.length, tokCur:-1, tac:[], tacCur:-1
+  },
+  {
+    title:'生成 TAC：t1 = c + d',
+    badge:'tip', badgeText:'翻译',
+    desc:'为加法节点生成临时变量 <code>t1</code>。<br>规则：<code>E → E₁ + E₂</code> 生成 <code>t = E₁.addr + E₂.addr</code>。',
+    visible:['b','c','d','add'], active:'add', done:['b','c','d'],
+    tokVis:tokensA.length, tokCur:-1,
+    tac:['t1 = c + d'], tacCur:0
+  },
+  {
+    title:'识别叶子：e',
+    badge:'def', badgeText:'叶子节点',
+    desc:'显示叶子 <code>e</code>，为后续减法节点做准备。',
+    visible:['b','c','d','add','e'], active:'e', done:['b','c','d','add'],
+    tokVis:tokensA.length, tokCur:10,
+    tac:['t1 = c + d'], tacCur:-1
+  },
+  {
+    title:'合成子树：b * (c + d)',
+    badge:'def', badgeText:'合成节点',
+    desc:'将 <code>b</code> 与加法子树合成乘法节点 <code>*</code>。乘法的右操作数即上一步得到的 <code>t1</code>。',
+    visible:['b','c','d','add','e','mul'], active:'mul', done:['b','c','d','add','e'],
+    tokVis:tokensA.length, tokCur:-1,
+    tac:['t1 = c + d'], tacCur:-1
+  },
+  {
+    title:'生成 TAC：t2 = b * t1',
+    badge:'tip', badgeText:'翻译',
+    desc:'为乘法节点生成 <code>t2</code>。子表达式的结果 <code>t1</code> 直接作为操作数参与。',
+    visible:['b','c','d','add','e','mul'], active:'mul', done:['b','c','d','add','e'],
+    tokVis:tokensA.length, tokCur:-1,
+    tac:['t1 = c + d','t2 = b * t1'], tacCur:1
+  },
+  {
+    title:'合成子树：b*(c+d) - e',
+    badge:'def', badgeText:'合成节点',
+    desc:'继续向上合成减法节点，其左子为乘法子树，右子为叶子 <code>e</code>。',
+    visible:['b','c','d','add','e','mul','sub'], active:'sub', done:['b','c','d','add','e','mul'],
+    tokVis:tokensA.length, tokCur:-1,
+    tac:['t1 = c + d','t2 = b * t1'], tacCur:-1
+  },
+  {
+    title:'生成 TAC：t3 = t2 - e',
+    badge:'tip', badgeText:'翻译',
+    desc:'为减法节点生成 <code>t3</code>。至此，右侧表达式的值保存在 <code>t3</code> 中。',
+    visible:['b','c','d','add','e','mul','sub'], active:'sub', done:['b','c','d','add','e','mul'],
+    tokVis:tokensA.length, tokCur:-1,
+    tac:['t1 = c + d','t2 = b * t1','t3 = t2 - e'], tacCur:2
+  },
+  {
+    title:'构造根节点：赋值',
+    badge:'def', badgeText:'根节点',
+    desc:'最外层是赋值语句 <code>a = ...</code>。左子是目标 <code>a</code>，右子是刚才的表达式子树。',
+    visible:['assign','a','sub','mul','e','add','b','c','d'], active:'assign',
+    done:['b','c','d','add','e','mul','sub'],
+    tokVis:tokensA.length, tokCur:0,
+    tac:['t1 = c + d','t2 = b * t1','t3 = t2 - e'], tacCur:-1
+  },
+  {
+    title:'生成 TAC：a = t3',
+    badge:'tip', badgeText:'翻译',
+    desc:'为赋值节点生成最终指令 <code>a = t3</code>。翻译完成！<br>整个表达式共产生 <b>3</b> 个临时变量、<b>4</b> 条三地址码。',
+    visible:['assign','a','sub','mul','e','add','b','c','d'], active:'assign',
+    done:['b','c','d','add','e','mul','sub','assign'],
+    tokVis:tokensA.length, tokCur:-1,
+    tac:['t1 = c + d','t2 = b * t1','t3 = t2 - e','a = t3'], tacCur:3
+  },
+  {
+    title:'✓ 表达式翻译完成',
+    badge:'tip', badgeText:'总结',
+    desc:'自底向上翻译策略：每个内部节点生成一个临时变量 <code>tₖ</code>，代表其子表达式的求值结果，父节点直接引用它。<br>切换到 <b>Tab B</b> 查看 if/while 的回填技术。',
+    visible:['assign','a','sub','mul','e','add','b','c','d'], active:null,
+    done:['b','c','d','add','e','mul','sub','assign'],
+    tokVis:tokensA.length, tokCur:-1,
+    tac:['t1 = c + d','t2 = b * t1','t3 = t2 - e','a = t3'], tacCur:-1
+  }
+];
+
+/* ---------------- Tab B：控制流回填 ----------------
+ * 源代码：
+ *   if (a < b) { x = 1; } else { x = 2; }
+ *   while (i < n) { i = i + 1; }
+ *
+ * 三地址码目标：
+ *   1: if a < b goto L1
+ *   2: goto L2
+ *   3: L1: x = 1
+ *   4: goto L3
+ *   5: L2: x = 2
+ *   6: L3: (while begin)
+ *   7: if i < n goto L4
+ *   8: goto L5
+ *   9: L4: t1 = i + 1
+ *  10:     i = t1
+ *  11:     goto L3
+ *  12: L5: (end)
+ *
+ * CFG：
+ *   B1(cond a<b) → B2(x=1) 或 B3(x=2)
+ *   B2/B3 → B4(while cond i<n)
+ *   B4 → B5(body) 或 B6(end)
+ *   B5 → B4  (回边)
+ *
+ * CFG viewBox 520x480
+ */
+const bbList = [
+  {id:'B1', x:200, y:20,  w:140, h:50, lines:['B1: if a<b','goto L1 / L2']},
+  {id:'B2', x:80,  y:120, w:120, h:50, lines:['B2: L1','x = 1','goto L3']},
+  {id:'B3', x:340, y:120, w:120, h:50, lines:['B3: L2','x = 2']},
+  {id:'B4', x:200, y:220, w:140, h:50, lines:['B4: L3','if i<n goto L4']},
+  {id:'B5', x:60,  y:330, w:150, h:60, lines:['B5: L4','t1 = i+1; i = t1','goto L3 (回边)']},
+  {id:'B6', x:320, y:330, w:140, h:50, lines:['B6: L5','(end)']}
+];
+const bbArrows = [
+  // id, from, to, label, path (SVG path string) — 用简单直线
+  {id:'a1', from:'B1', to:'B2', label:'true'},
+  {id:'a2', from:'B1', to:'B3', label:'false'},
+  {id:'a3', from:'B2', to:'B4', label:''},
+  {id:'a4', from:'B3', to:'B4', label:''},
+  {id:'a5', from:'B4', to:'B5', label:'true'},
+  {id:'a6', from:'B4', to:'B6', label:'false'},
+  {id:'a7', from:'B5', to:'B4', label:'回边', back:true},
+];
+
+// TAC 行（B tab），初始为 null 表示尚未生成；每步的 tac 数组用完整快照
+// 使用 hole 表示待回填目标
+const stepsB = [
+  {
+    title:'源代码结构',
+    badge:'tip', badgeText:'输入',
+    desc:'待翻译的语句包含一个 <code>if-else</code> 和一个 <code>while</code>。<br>控制流翻译的核心难题：<b>跳转目标在语句翻译完成前是未知的</b>，需要 <b>回填 (backpatching)</b>。',
+    tac:[], tacCur:-1, tacFlags:{},
+    bb:[], arr:[], bbActive:null
+  },
+  {
+    title:'翻译 if 条件：a < b',
+    badge:'def', badgeText:'关系表达式',
+    desc:'条件表达式 <code>a &lt; b</code> 生成两条跳转：<br>• 真出口：<code>if a &lt; b goto __</code>（目标待定）<br>• 假出口：<code>goto __</code>（目标待定）',
+    tac:['if a < b goto ___','goto ___'],
+    tacCur:1, tacFlags:{0:'backpatch',1:'backpatch'},
+    bb:['B1'], arr:[], bbActive:'B1'
+  },
+  {
+    title:'truelist / falselist',
+    badge:'def', badgeText:'回填链表',
+    desc:'把上面两条指令的目标位置记录进两条链表：<br>• <code>B.truelist = {1}</code>（第 1 行的目标待填）<br>• <code>B.falselist = {2}</code>（第 2 行的目标待填）<br>它们代表"条件为真/假时要跳到哪儿"这个待定的信息。',
+    tac:['if a < b goto ___','goto ___'],
+    tacCur:-1, tacFlags:{0:'backpatch',1:'backpatch'},
+    bb:['B1'], arr:[], bbActive:'B1'
+  },
+  {
+    title:'翻译 then 分支：x = 1',
+    badge:'tip', badgeText:'语句翻译',
+    desc:'生成 <code>x = 1</code>。此时第 3 行是 then 分支的入口，我们知道 <code>truelist</code> 应回填为 <code>3</code>（对应标签 <code>L1</code>）。',
+    tac:['if a < b goto L1','goto ___','L1: x = 1'],
+    tacCur:2, tacFlags:{1:'backpatch'},
+    bb:['B1','B2'], arr:['a1'], bbActive:'B2'
+  },
+  {
+    title:'回填 truelist',
+    badge:'warn', badgeText:'回填',
+    desc:'把 <code>truelist</code> 中记录的位置（第 1 行）的目标填成 <code>L1</code>。<br><code>backpatch(B.truelist, L1)</code> 完成。',
+    tac:['if a < b goto L1','goto ___','L1: x = 1'],
+    tacCur:0, tacFlags:{1:'backpatch'},
+    bb:['B1','B2'], arr:['a1'], bbActive:'B1'
+  },
+  {
+    title:'then 结束：无条件跳出',
+    badge:'tip', badgeText:'语句翻译',
+    desc:'then 分支结束后需要跳过 else 分支，生成 <code>goto ___</code>。目标同样是"if 语句之后"，暂时未知。加入 <code>nextlist</code>。',
+    tac:['if a < b goto L1','goto ___','L1: x = 1','goto ___'],
+    tacCur:3, tacFlags:{1:'backpatch',3:'backpatch'},
+    bb:['B1','B2'], arr:['a1'], bbActive:'B2'
+  },
+  {
+    title:'翻译 else 分支：x = 2',
+    badge:'tip', badgeText:'语句翻译',
+    desc:'生成 <code>x = 2</code>。此时第 5 行是 else 分支的入口，可以把 <code>falselist</code> 回填为 <code>L2</code>。',
+    tac:['if a < b goto L1','goto L2','L1: x = 1','goto ___','L2: x = 2'],
+    tacCur:4, tacFlags:{3:'backpatch'},
+    bb:['B1','B2','B3'], arr:['a1','a2'], bbActive:'B3'
+  },
+  {
+    title:'while 入口标签 L3',
+    badge:'def', badgeText:'循环',
+    desc:'if 语句结束、进入 while。先在此处放下 while 的入口标签 <code>L3</code>，同时可以把 then 分支跳出的 <code>goto ___</code> 回填为 <code>L3</code>。',
+    tac:['if a < b goto L1','goto L2','L1: x = 1','goto L3','L2: x = 2','L3:'],
+    tacCur:5, tacFlags:{},
+    bb:['B1','B2','B3','B4'], arr:['a1','a2','a3','a4'], bbActive:'B4'
+  },
+  {
+    title:'while 条件：i < n',
+    badge:'def', badgeText:'关系表达式',
+    desc:'类似 if：条件 <code>i &lt; n</code> 生成真、假跳转，目标待回填。<br>• <code>truelist = {7}</code>；<code>falselist = {8}</code>',
+    tac:['if a < b goto L1','goto L2','L1: x = 1','goto L3','L2: x = 2','L3:',
+         'if i < n goto ___','goto ___'],
+    tacCur:7, tacFlags:{6:'backpatch',7:'backpatch'},
+    bb:['B1','B2','B3','B4'], arr:['a1','a2','a3','a4'], bbActive:'B4'
+  },
+  {
+    title:'循环体：i = i + 1',
+    badge:'tip', badgeText:'语句翻译',
+    desc:'循环体入口是第 9 行，回填 while 的 <code>truelist</code> 为 <code>L4</code>。生成两条 TAC：临时变量 <code>t1 = i + 1</code>，然后 <code>i = t1</code>。',
+    tac:['if a < b goto L1','goto L2','L1: x = 1','goto L3','L2: x = 2','L3:',
+         'if i < n goto L4','goto ___','L4: t1 = i + 1','i = t1'],
+    tacCur:9, tacFlags:{7:'backpatch'},
+    bb:['B1','B2','B3','B4','B5'], arr:['a1','a2','a3','a4','a5'], bbActive:'B5'
+  },
+  {
+    title:'循环回边：goto L3',
+    badge:'warn', badgeText:'回边',
+    desc:'循环体末尾生成 <code>goto L3</code> 无条件跳回 while 入口。这条边即 <b>控制流图中的回边（loop back-edge）</b>。',
+    tac:['if a < b goto L1','goto L2','L1: x = 1','goto L3','L2: x = 2','L3:',
+         'if i < n goto L4','goto ___','L4: t1 = i + 1','i = t1','goto L3'],
+    tacCur:10, tacFlags:{7:'backpatch'},
+    bb:['B1','B2','B3','B4','B5'], arr:['a1','a2','a3','a4','a5','a7'], bbActive:'B5'
+  },
+  {
+    title:'回填 while 的 falselist',
+    badge:'warn', badgeText:'回填',
+    desc:'while 之后需要一个出口标签 <code>L5</code>。把之前记录的 <code>falselist = {8}</code> 回填为 <code>L5</code>。',
+    tac:['if a < b goto L1','goto L2','L1: x = 1','goto L3','L2: x = 2','L3:',
+         'if i < n goto L4','goto L5','L4: t1 = i + 1','i = t1','goto L3','L5:'],
+    tacCur:7, tacFlags:{},
+    bb:['B1','B2','B3','B4','B5','B6'], arr:['a1','a2','a3','a4','a5','a6','a7'], bbActive:'B6'
+  },
+  {
+    title:'✓ 控制流翻译完成',
+    badge:'tip', badgeText:'总结',
+    desc:'回填技术要点：<br>• 条件的真/假跳转在生成时目标未知，先留 hole 并记入 <code>truelist / falselist</code><br>• 后继语句翻译到位后调用 <code>backpatch(list, target)</code> 统一填写<br>• 循环的回边构成 CFG 中的强连通片段',
+    tac:['if a < b goto L1','goto L2','L1: x = 1','goto L3','L2: x = 2','L3:',
+         'if i < n goto L4','goto L5','L4: t1 = i + 1','i = t1','goto L3','L5:'],
+    tacCur:-1, tacFlags:{},
+    bb:['B1','B2','B3','B4','B5','B6'], arr:['a1','a2','a3','a4','a5','a6','a7'], bbActive:null
+  }
+];
+
+/* ---------------- 通用状态与渲染 ---------------- */
+const state = {
+  curTab: 'A',
+  idxA: 0,  // Tab A 当前步骤索引
+  idxB: 0,  // Tab B 当前步骤索引
+  playing: false,
+  timer: null,
+  speed: 1  // 速度倍率
+};
+
+// 各 tab 的步骤数组访问器
+function curSteps(){ return state.curTab === 'A' ? stepsA : stepsB; }
+function curIdx(){ return state.curTab === 'A' ? state.idxA : state.idxB; }
+function setCurIdx(i){ if(state.curTab === 'A') state.idxA = i; else state.idxB = i; }
+
+/* ---------- Tab A 渲染 ---------- */
+
+// 初始化 Tab A 的 SVG（一次性绘出所有节点/边，用 class visible 控制显隐）
+function initAstA(){
+  const svg = document.getElementById('astA');
+  svg.innerHTML = '';
+  // 先绘边（在下层）
+  for(const [p,c] of astA_edges){
+    const pn = astA_nodes.find(n=>n.id===p);
+    const cn = astA_nodes.find(n=>n.id===c);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', pn.x); line.setAttribute('y1', pn.y+18);
+    line.setAttribute('x2', cn.x); line.setAttribute('y2', cn.y-18);
+    line.setAttribute('class','edge');
+    line.dataset.parent = p; line.dataset.child = c;
+    svg.appendChild(line);
+  }
+  // 再绘节点
+  for(const n of astA_nodes){
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','node');
+    g.setAttribute('transform',`translate(${n.x},${n.y})`);
+    g.dataset.id = n.id;
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',-30); rect.setAttribute('y',-18);
+    rect.setAttribute('width',60); rect.setAttribute('height',36);
+    rect.setAttribute('rx',8);
+    g.appendChild(rect);
+
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('y',-2); label.textContent = n.label;
+    g.appendChild(label);
+
+    const tag = document.createElementNS('http://www.w3.org/2000/svg','text');
+    tag.setAttribute('y',12); tag.setAttribute('class','type-tag');
+    tag.textContent = n.type;
+    g.appendChild(tag);
+
+    svg.appendChild(g);
+  }
+
+  // 初始化 tokens
+  const tokDiv = document.getElementById('tokensA');
+  tokDiv.innerHTML = '';
+  tokensA.forEach((t,i)=>{
+    const span = document.createElement('span');
+    span.className = 'token';
+    span.textContent = t;
+    span.dataset.i = i;
+    tokDiv.appendChild(span);
+  });
+}
+
+// 根据当前 Tab A 步骤更新视图
+function renderA(){
+  const step = stepsA[state.idxA];
+
+  // 讲解面板
+  const badgeClass = 'badge--' + step.badge;
+  document.getElementById('explA').innerHTML =
+    `<span class="badge ${badgeClass}">${step.badgeText}</span>` +
+    `<div class="step-title">${step.title}</div>` +
+    `<div class="step-desc">${step.desc}</div>`;
+
+  // 节点显示与状态
+  const svg = document.getElementById('astA');
+  svg.querySelectorAll('.node').forEach(g=>{
+    const id = g.dataset.id;
+    g.classList.toggle('visible', step.visible.includes(id));
+    g.classList.toggle('active', step.active === id);
+    g.classList.toggle('done', step.done.includes(id) && step.active !== id);
+  });
+  // 边显示：当父子节点都可见时显示
+  svg.querySelectorAll('.edge').forEach(e=>{
+    const p = e.dataset.parent, c = e.dataset.child;
+    const vis = step.visible.includes(p) && step.visible.includes(c);
+    e.classList.toggle('visible', vis);
+    // 边高亮：连接活跃节点的边
+    e.classList.toggle('active', vis && (p === step.active || c === step.active));
+  });
+
+  // tokens
+  document.querySelectorAll('#tokensA .token').forEach((el,i)=>{
+    el.classList.remove('current','consumed');
+    if(i < step.tokVis){
+      if(i === step.tokCur) el.classList.add('current');
+      else if(i < step.tokVis) el.classList.add('consumed');
+    }
+  });
+
+  // TAC
+  const tacDiv = document.getElementById('tacA');
+  tacDiv.innerHTML = '';
+  step.tac.forEach((line,i)=>{
+    const row = document.createElement('div');
+    row.className = 'tac-line';
+    if(i === step.tacCur) row.classList.add('current','new');
+    row.innerHTML = `<span class="tac-num">${i+1}</span><span class="tac-code">${escapeHtml(line)}</span>`;
+    tacDiv.appendChild(row);
+  });
+}
+
+/* ---------- Tab B 渲染 ---------- */
+
+function initCfgB(){
+  const svg = document.getElementById('cfgB');
+  svg.innerHTML = '';
+  // 定义箭头 marker
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML = `
+    <marker id="arrH" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a0a8d0"/>
+    </marker>
+    <marker id="arrHact" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6ee7ff"/>
+    </marker>`;
+  svg.appendChild(defs);
+
+  // 箭头（先绘制在下层）
+  for(const a of bbArrows){
+    const fb = bbList.find(b=>b.id===a.from);
+    const tb = bbList.find(b=>b.id===a.to);
+    const fx = fb.x + fb.w/2, fy = fb.y + fb.h;
+    const tx = tb.x + tb.w/2, ty = tb.y;
+    let d;
+    if(a.back){
+      // 回边：走一条右侧弧线
+      d = `M ${fb.x + fb.w} ${fb.y + fb.h/2} C ${fb.x + fb.w + 60} ${fb.y + fb.h/2}, ${tb.x + tb.w + 60} ${tb.y + tb.h/2}, ${tb.x + tb.w} ${tb.y + tb.h/2}`;
+    } else if(fy < ty){
+      d = `M ${fx} ${fy} L ${tx} ${ty - 4}`;
+    } else {
+      d = `M ${fx} ${fy} L ${tx} ${ty - 4}`;
+    }
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('class', 'bb-arrow');
+    path.setAttribute('marker-end','url(#arrH)');
+    path.dataset.id = a.id;
+    svg.appendChild(path);
+
+    if(a.label){
+      const midx = (fx+tx)/2 + (a.back? 70 : 8);
+      const midy = (fy+ty)/2;
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+      lbl.setAttribute('x', midx); lbl.setAttribute('y', midy);
+      lbl.setAttribute('class','bb-arrow');
+      lbl.setAttribute('font-size','10');
+      lbl.setAttribute('fill','#a0a8d0');
+      lbl.textContent = a.label;
+      lbl.dataset.id = a.id;
+      svg.appendChild(lbl);
+    }
+  }
+
+  // BB 方框
+  for(const b of bbList){
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','bb');
+    g.dataset.id = b.id;
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', b.x); rect.setAttribute('y', b.y);
+    rect.setAttribute('width', b.w); rect.setAttribute('height', b.h);
+    g.appendChild(rect);
+
+    b.lines.forEach((line, i)=>{
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x', b.x + b.w/2);
+      t.setAttribute('y', b.y + 15 + i*13);
+      t.textContent = line;
+      g.appendChild(t);
+    });
+    svg.appendChild(g);
+  }
+}
+
+function renderB(){
+  const step = stepsB[state.idxB];
+
+  const badgeClass = 'badge--' + step.badge;
+  document.getElementById('explB').innerHTML =
+    `<span class="badge ${badgeClass}">${step.badgeText}</span>` +
+    `<div class="step-title">${step.title}</div>` +
+    `<div class="step-desc">${step.desc}</div>`;
+
+  // TAC
+  const tacDiv = document.getElementById('tacB');
+  tacDiv.innerHTML = '';
+  step.tac.forEach((line,i)=>{
+    const row = document.createElement('div');
+    row.className = 'tac-line';
+    if(step.tacFlags && step.tacFlags[i] === 'backpatch') row.classList.add('backpatch');
+    if(i === step.tacCur) row.classList.add('current');
+    // 高亮 label 前缀（如 "L1:"）
+    let html = escapeHtml(line);
+    html = html.replace(/^(L\d+:)/, '<span class="tac-label">$1</span>');
+    html = html.replace(/goto (L\d+)/g, 'goto <span class="tac-label">$1</span>');
+    html = html.replace(/goto ___/g, 'goto <span class="tac-hole">___</span>');
+    html = html.replace(/if (.+?) goto ___/g, 'if $1 goto <span class="tac-hole">___</span>');
+    row.innerHTML = `<span class="tac-num">${i+1}</span><span class="tac-code">${html}</span>`;
+    tacDiv.appendChild(row);
+  });
+
+  // CFG
+  document.querySelectorAll('#cfgB .bb').forEach(g=>{
+    const id = g.dataset.id;
+    g.classList.toggle('visible', step.bb.includes(id));
+    g.classList.toggle('active', step.bbActive === id);
+  });
+  document.querySelectorAll('#cfgB .bb-arrow').forEach(a=>{
+    const id = a.dataset.id;
+    const vis = step.arr.includes(id);
+    a.classList.toggle('visible', vis);
+    // 高亮：如果箭头两端一个是活跃 block
+    const arr = bbArrows.find(x=>x.id===id);
+    const active = arr && (arr.from === step.bbActive || arr.to === step.bbActive);
+    a.classList.toggle('active', vis && active);
+    if(a.tagName === 'path'){
+      a.setAttribute('marker-end', (vis && active) ? 'url(#arrHact)' : 'url(#arrH)');
+    }
+  });
+}
+
+/* ---------- 通用工具 ---------- */
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 更新步骤指示器与步数
+function updateControls(){
+  const steps = curSteps();
+  const idx = curIdx();
+  const dots = document.getElementById('stepDots');
+  dots.innerHTML = '';
+  steps.forEach((_,i)=>{
+    const d = document.createElement('span');
+    d.className = 'step-dot';
+    if(i === idx) d.classList.add('active');
+    else if(i < idx) d.classList.add('done');
+    dots.appendChild(d);
+  });
+  document.getElementById('stepCnt').textContent = `${idx+1} / ${steps.length}`;
+  document.getElementById('btnPrev').disabled = idx === 0;
+  document.getElementById('btnNext').disabled = idx === steps.length - 1;
+}
+
+function render(){
+  if(state.curTab === 'A') renderA();
+  else renderB();
+  updateControls();
+}
+
+/* ---------- 交互 ---------- */
+function goPrev(){
+  const i = curIdx();
+  if(i > 0){ setCurIdx(i-1); render(); }
+}
+function goNext(){
+  const i = curIdx();
+  if(i < curSteps().length - 1){ setCurIdx(i+1); render(); }
+  else stopPlay();
+}
+function reset(){
+  stopPlay();
+  setCurIdx(0);
+  render();
+}
+function togglePlay(){
+  if(state.playing) stopPlay();
+  else startPlay();
+}
+function startPlay(){
+  state.playing = true;
+  document.getElementById('btnPlay').textContent = '⏸ 暂停';
+  const tick = ()=>{
+    if(!state.playing) return;
+    if(curIdx() >= curSteps().length - 1){ stopPlay(); return; }
+    goNext();
+    state.timer = setTimeout(tick, 1600 / state.speed);
+  };
+  state.timer = setTimeout(tick, 1600 / state.speed);
+}
+function stopPlay(){
+  state.playing = false;
+  document.getElementById('btnPlay').textContent = '▶ 自动播放';
+  if(state.timer){ clearTimeout(state.timer); state.timer = null; }
+}
+function switchTab(tab){
+  stopPlay();
+  state.curTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p=>{
+    p.classList.toggle('active', p.id === 'pane-' + tab);
+  });
+  render();
+}
+function toggleSpeed(){
+  // 0.5 / 1 / 2 循环
+  const speeds = [0.5, 1, 2];
+  const i = speeds.indexOf(state.speed);
+  state.speed = speeds[(i+1) % speeds.length];
+  document.getElementById('btnSpeed').textContent = `速度 ${state.speed}×`;
+  if(state.playing){ stopPlay(); startPlay(); }
+}
+
+// 键盘事件
+document.addEventListener('keydown', e=>{
+  if(e.key === 'ArrowLeft'){ e.preventDefault(); goPrev(); }
+  else if(e.key === 'ArrowRight'){ e.preventDefault(); goNext(); }
+  else if(e.key === ' '){ e.preventDefault(); togglePlay(); }
+  else if(e.key === 'r' || e.key === 'R'){ e.preventDefault(); reset(); }
+});
+
+// 按钮绑定
+document.getElementById('btnPrev').onclick = goPrev;
+document.getElementById('btnNext').onclick = goNext;
+document.getElementById('btnPlay').onclick = togglePlay;
+document.getElementById('btnReset').onclick = reset;
+document.getElementById('btnSpeed').onclick = toggleSpeed;
+document.querySelectorAll('.tab-btn').forEach(b=>{
+  b.onclick = ()=>switchTab(b.dataset.tab);
+});
+
+// 启动
+initAstA();
+initCfgB();
+render();
+</script>
+</body>
+</html>

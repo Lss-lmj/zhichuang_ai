@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>语义分析 · 符号表与类型检查</title>
+<style>
+  :root{
+    --bg:#0f1226; --bg-soft:#171a35; --bg-code:#0a0c1c;
+    --fg:#e7ebff; --fg-dim:#a0a8d0; --line:#2a2f55;
+    --accent:#6ee7ff; --accent-2:#ffb86b;
+    --success:#7ee787; --danger:#ff6b8a; --purple:#b78cff;
+    --shadow:0 10px 30px rgba(0,0,0,0.35);
+    --radius:14px; --radius-sm:8px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    height:100%;overflow:hidden;
+  }
+  code, .mono{font-family:"JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+
+  .demo-shell{display:flex;flex-direction:column;height:100vh}
+
+  /* Header */
+  .demo-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 24px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(110,231,255,0.06),transparent);
+  }
+  .demo-header h1{
+    margin:0;font-size:18px;font-weight:600;letter-spacing:0.5px;
+  }
+  .demo-header h1 .sub{color:var(--fg-dim);font-weight:400;margin-left:8px;font-size:14px}
+  .back-btn{
+    color:var(--accent);text-decoration:none;padding:6px 12px;
+    border:1px solid var(--line);border-radius:var(--radius-sm);
+    font-size:13px;transition:all .2s;
+  }
+  .back-btn:hover{border-color:var(--accent);background:rgba(110,231,255,0.08)}
+
+  /* Tabs */
+  .stage-tabs{display:flex;gap:8px}
+  .stage-tab{
+    padding:6px 14px;border-radius:var(--radius-sm);
+    background:var(--bg-soft);border:1px solid var(--line);
+    color:var(--fg-dim);cursor:pointer;font-size:13px;transition:all .2s;
+  }
+  .stage-tab.active{
+    background:linear-gradient(135deg,rgba(110,231,255,0.15),rgba(183,140,255,0.1));
+    color:var(--accent);border-color:var(--accent);
+  }
+
+  /* Main */
+  .demo-main{flex:1;display:grid;grid-template-columns:30% 70%;min-height:0}
+  .panel-explain{
+    padding:20px;overflow-y:auto;border-right:1px solid var(--line);
+    background:var(--bg-soft);
+  }
+  .panel-stage{padding:16px 20px;overflow:auto;position:relative}
+
+  /* 讲解卡片 */
+  .step-title{
+    font-size:15px;color:var(--accent);margin:0 0 6px;
+    letter-spacing:0.3px;
+  }
+  .step-index{color:var(--fg-dim);font-size:12px;margin-bottom:12px}
+  .step-body{
+    font-size:14px;line-height:1.75;color:var(--fg);
+  }
+  .step-body p{margin:6px 0}
+  .step-body code{
+    background:var(--bg-code);padding:2px 6px;border-radius:4px;
+    color:var(--accent);font-size:13px;
+  }
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .badge{
+    font-size:11px;padding:3px 10px;border-radius:12px;
+    border:1px solid transparent;font-weight:500;
+  }
+  .badge--def{background:rgba(110,231,255,0.12);color:var(--accent);border-color:rgba(110,231,255,0.3)}
+  .badge--tip{background:rgba(126,231,135,0.12);color:var(--success);border-color:rgba(126,231,135,0.3)}
+  .badge--warn{background:rgba(255,107,138,0.12);color:var(--danger);border-color:rgba(255,107,138,0.3)}
+
+  .divider{height:1px;background:var(--line);margin:16px 0}
+  .mini-title{font-size:12px;color:var(--fg-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+
+  /* 代码区 */
+  .code-block{
+    background:var(--bg-code);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:14px;font-size:13px;
+    line-height:1.85;overflow:auto;
+  }
+  .code-line{
+    display:flex;transition:background .3s;padding:0 6px;border-radius:4px;
+  }
+  .code-line.active{background:rgba(110,231,255,0.12);box-shadow:inset 3px 0 0 var(--accent)}
+  .code-line.error{background:rgba(255,107,138,0.15);box-shadow:inset 3px 0 0 var(--danger)}
+  .ln{color:var(--fg-dim);width:24px;text-align:right;padding-right:12px;user-select:none}
+  .kw{color:var(--purple)}
+  .ty{color:var(--accent-2)}
+  .id{color:var(--fg)}
+  .num{color:var(--success)}
+  .op{color:var(--fg-dim)}
+  .cm{color:#5c6497;font-style:italic}
+
+  /* Stage 主区 */
+  .stage-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;height:100%}
+  .stage-col{display:flex;flex-direction:column;min-height:0}
+  .stage-col h3{
+    margin:0 0 10px;font-size:13px;font-weight:500;
+    color:var(--fg-dim);text-transform:uppercase;letter-spacing:1.5px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .stage-col h3::before{
+    content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;
+  }
+  .stage-viz{
+    flex:1;background:var(--bg-soft);border:1px solid var(--line);
+    border-radius:var(--radius);padding:14px;overflow:auto;
+    box-shadow:var(--shadow);
+  }
+
+  /* 作用域盒 */
+  .scope-box{
+    border:1.5px solid var(--line);border-radius:var(--radius-sm);
+    padding:10px;margin:8px 0;background:rgba(255,255,255,0.02);
+    position:relative;transition:all .35s ease;
+    animation:scopeIn .35s ease;
+  }
+  @keyframes scopeIn{from{opacity:0;transform:translateY(-6px) scale(.96)}to{opacity:1;transform:none}}
+  .scope-box.active{
+    border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(110,231,255,0.15), 0 0 20px rgba(110,231,255,0.08);
+  }
+  .scope-box.popping{
+    animation:scopeOut .35s ease forwards;
+  }
+  @keyframes scopeOut{to{opacity:0;transform:translateY(-4px) scale(.96)}}
+  .scope-label{
+    font-size:11px;color:var(--fg-dim);text-transform:uppercase;
+    letter-spacing:1px;margin-bottom:8px;display:flex;justify-content:space-between;
+  }
+  .scope-label .lvl{color:var(--accent-2)}
+  .scope-box.active .scope-label{color:var(--accent)}
+  .var-cards{display:flex;flex-wrap:wrap;gap:6px;min-height:16px}
+  .var-card{
+    background:var(--bg-code);border:1px solid var(--line);
+    border-radius:6px;padding:4px 10px;font-family:"JetBrains Mono",monospace;
+    font-size:12px;display:inline-flex;gap:6px;align-items:center;
+    animation:cardIn .3s ease;
+  }
+  @keyframes cardIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+  .var-card .vname{color:var(--fg)}
+  .var-card .vty{color:var(--accent-2);font-size:11px}
+  .var-card .veq{color:var(--fg-dim)}
+  .var-card .vval{color:var(--success);font-size:11px}
+  .var-card.inserted{
+    box-shadow:0 0 0 2px rgba(126,231,135,0.4);
+    animation:insertFlash .8s ease;
+  }
+  @keyframes insertFlash{
+    0%{box-shadow:0 0 0 4px rgba(126,231,135,0.6)}
+    100%{box-shadow:0 0 0 0 rgba(126,231,135,0)}
+  }
+  .var-card.looked{
+    box-shadow:0 0 0 2px rgba(110,231,255,0.5);
+    background:rgba(110,231,255,0.08);
+  }
+  .var-card.shadowed{opacity:0.35;text-decoration:line-through}
+
+  /* 符号表 */
+  .symtab{
+    border:1px solid var(--line);border-radius:var(--radius-sm);
+    margin:8px 0;background:rgba(255,255,255,0.02);overflow:hidden;
+    transition:all .3s;
+  }
+  .symtab.scanning{
+    border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(110,231,255,0.2);
+  }
+  .symtab.hit{
+    border-color:var(--success);
+    box-shadow:0 0 0 2px rgba(126,231,135,0.3);
+  }
+  .symtab-head{
+    padding:6px 10px;font-size:11px;color:var(--fg-dim);
+    background:rgba(0,0,0,0.2);text-transform:uppercase;letter-spacing:1px;
+    display:flex;justify-content:space-between;
+  }
+  .symtab-head .op-tag{color:var(--accent-2);font-weight:600}
+  .symtab table{width:100%;border-collapse:collapse;font-family:"JetBrains Mono",monospace;font-size:12px}
+  .symtab th, .symtab td{
+    padding:5px 10px;text-align:left;border-top:1px solid var(--line);
+  }
+  .symtab th{color:var(--fg-dim);font-weight:500;font-size:10px;background:rgba(0,0,0,0.15)}
+  .symtab td.name{color:var(--fg)}
+  .symtab td.type{color:var(--accent-2)}
+  .symtab td.val{color:var(--success)}
+  .symtab tr.new{animation:rowFlash 1s ease}
+  @keyframes rowFlash{
+    0%{background:rgba(126,231,135,0.3)}
+    100%{background:transparent}
+  }
+  .symtab tr.hit td{color:var(--accent) !important;background:rgba(110,231,255,0.1)}
+  .symtab-empty{padding:10px;color:var(--fg-dim);font-size:12px;font-style:italic;text-align:center}
+
+  /* 类型检查节点 */
+  .ast-viz{padding:8px}
+  .ast-expr{
+    background:var(--bg-code);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:12px;margin:10px 0;
+    font-family:"JetBrains Mono",monospace;font-size:13px;
+  }
+  .ast-expr.error{border-color:var(--danger);box-shadow:0 0 0 2px rgba(255,107,138,0.25)}
+  .ast-expr.pass{border-color:var(--success)}
+  .ast-line{margin:4px 0;display:flex;align-items:center;gap:8px}
+  .ty-tag{
+    display:inline-block;padding:2px 8px;border-radius:10px;
+    background:rgba(255,184,107,0.15);color:var(--accent-2);
+    font-size:11px;border:1px solid rgba(255,184,107,0.3);
+  }
+  .ty-tag.err{background:rgba(255,107,138,0.15);color:var(--danger);border-color:rgba(255,107,138,0.35)}
+  .ty-tag.ok{background:rgba(126,231,135,0.15);color:var(--success);border-color:rgba(126,231,135,0.35)}
+  .arrow{color:var(--fg-dim);margin:0 4px}
+
+  .err-card{
+    background:linear-gradient(135deg, rgba(255,107,138,0.15), rgba(255,107,138,0.05));
+    border:1.5px solid var(--danger);border-radius:var(--radius-sm);
+    padding:14px;margin-top:14px;animation:errIn .4s ease;
+  }
+  @keyframes errIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .err-card .title{color:var(--danger);font-weight:600;margin-bottom:6px;font-size:13px}
+  .err-card .body{color:var(--fg);font-size:13px;line-height:1.7}
+  .err-card code{background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px;color:var(--accent-2)}
+
+  /* 控制条 */
+  .demo-controls{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 24px;border-top:1px solid var(--line);
+    background:var(--bg-soft);
+  }
+  .ctrl-btn{
+    background:transparent;border:1px solid var(--line);color:var(--fg);
+    padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;
+    font-size:13px;transition:all .2s;font-family:inherit;
+  }
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .ctrl-btn:disabled{opacity:0.4;cursor:not-allowed}
+  .ctrl-btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+  .ctrl-btn.primary:hover{background:#8ceeff;color:var(--bg)}
+  .ctrl-mid{display:flex;align-items:center;gap:10px}
+  .step-dots{display:flex;gap:4px;flex-wrap:wrap;max-width:520px}
+  .step-dot{
+    width:8px;height:8px;border-radius:50%;background:var(--line);
+    cursor:pointer;transition:all .2s;
+  }
+  .step-dot.active{background:var(--accent);transform:scale(1.3);box-shadow:0 0 8px var(--accent)}
+  .step-dot.done{background:var(--fg-dim)}
+  .step-info{font-size:12px;color:var(--fg-dim);min-width:60px;text-align:center}
+  .speed-btn{
+    background:var(--bg-code);border:1px solid var(--line);color:var(--accent-2);
+    padding:4px 10px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;
+    font-family:inherit;
+  }
+  .kbd-hint{font-size:11px;color:var(--fg-dim)}
+  .kbd{
+    background:var(--bg-code);border:1px solid var(--line);padding:1px 6px;
+    border-radius:4px;font-family:"JetBrains Mono",monospace;font-size:11px;
+    color:var(--accent);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:0.01ms !important;transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <!-- Header -->
+  <header class="demo-header">
+    <a href="../index.html" class="back-btn">← 返回目录</a>
+    <h1>语义分析 · 符号表与类型检查 <span class="sub">Semantic Analysis</span></h1>
+    <div class="stage-tabs">
+      <div class="stage-tab active" data-stage="A">A · 作用域链</div>
+      <div class="stage-tab" data-stage="B">B · 符号表</div>
+      <div class="stage-tab" data-stage="C">C · 类型检查</div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="demo-main">
+    <!-- 左：讲解 -->
+    <aside class="panel-explain">
+      <div class="mini-title">当前步骤</div>
+      <h2 class="step-title" id="stepTitle">准备开始</h2>
+      <div class="step-index" id="stepIndex">Step 0 / 0</div>
+      <div class="step-body" id="stepBody">
+        <p>本演示分为三个阶段：作用域链构建、符号表插入与查找、类型检查与错误报告。点击"下一步"或按 <span class="kbd">→</span> 开始。</p>
+      </div>
+      <div class="badges" id="stepBadges"></div>
+
+      <div class="divider"></div>
+      <div class="mini-title">示例源代码 (C 风格)</div>
+      <div class="code-block" id="codeBlock"></div>
+    </aside>
+
+    <!-- 右：舞台 -->
+    <section class="panel-stage">
+      <div class="stage-grid">
+        <div class="stage-col">
+          <h3 id="leftColTitle">作用域堆栈</h3>
+          <div class="stage-viz" id="scopeViz"></div>
+        </div>
+        <div class="stage-col">
+          <h3 id="rightColTitle">符号表 / 类型推导</h3>
+          <div class="stage-viz" id="tableViz"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Controls -->
+  <footer class="demo-controls">
+    <div>
+      <button class="ctrl-btn" id="prevBtn">← 上一步</button>
+      <button class="ctrl-btn primary" id="nextBtn">下一步 →</button>
+      <button class="ctrl-btn" id="playBtn">▶ 播放</button>
+      <button class="ctrl-btn" id="resetBtn">⟲ 重置</button>
+    </div>
+    <div class="ctrl-mid">
+      <div class="step-dots" id="stepDots"></div>
+      <div class="step-info" id="stepInfo">0 / 0</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="speed-btn" id="speedBtn">1×</button>
+      <span class="kbd-hint">
+        <span class="kbd">←</span> <span class="kbd">→</span>
+        <span class="kbd">Space</span> <span class="kbd">R</span>
+      </span>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+ * 语义分析教学演示 · 单文件版
+ * 三阶段：A 作用域链 / B 符号表 / C 类型检查
+ * ============================================================ */
+
+// ------- 源代码（按行存储，用于渲染 & 步骤引用） -------
+const SOURCE = [
+  { n: 1,  t: '<span class="ty">int</span> <span class="id">x</span> <span class="op">=</span> <span class="num">3</span><span class="op">;</span>' },
+  { n: 2,  t: '<span class="ty">float</span> <span class="id">y</span> <span class="op">=</span> <span class="num">2.5</span><span class="op">;</span>' },
+  { n: 3,  t: '<span class="op">{</span>  <span class="cm">// 进入块作用域 B1</span>' },
+  { n: 4,  t: '  <span class="ty">int</span> <span class="id">x</span> <span class="op">=</span> <span class="num">10</span><span class="op">;</span>       <span class="cm">// 遮蔽外层 x</span>' },
+  { n: 5,  t: '  <span class="id">y</span> <span class="op">=</span> <span class="id">x</span> <span class="op">+</span> <span class="id">y</span><span class="op">;</span>          <span class="cm">// int + float → float</span>' },
+  { n: 6,  t: '  <span class="op">{</span>  <span class="cm">// 进入块作用域 B2</span>' },
+  { n: 7,  t: '    <span class="ty">bool</span> <span class="id">flag</span> <span class="op">=</span> <span class="kw">true</span><span class="op">;</span>' },
+  { n: 8,  t: '    <span class="id">x</span> <span class="op">=</span> <span class="id">flag</span> <span class="op">+</span> <span class="num">1</span><span class="op">;</span>     <span class="cm">// ✗ 类型错误</span>' },
+  { n: 9,  t: '  <span class="op">}</span>' },
+  { n:10,  t: '<span class="op">}</span>' },
+];
+
+// 渲染代码块
+function renderCode(){
+  const cb = document.getElementById('codeBlock');
+  cb.innerHTML = SOURCE.map(l =>
+    `<div class="code-line" data-line="${l.n}"><span class="ln mono">${l.n}</span><span class="mono">${l.t}</span></div>`
+  ).join('');
+}
+
+// ------- 步骤数据结构 -------
+// 每一步描述：所属阶段、代码行、标题、说明、徽章、动作序列
+// 动作: {op:'enterScope'|'exitScope'|'insert'|'lookup'|'shadow'|'type'|'error', ...}
+const STEPS = [
+  // ---------- 阶段 A：作用域链可视化（8 步） ----------
+  { stage:'A', line:null, title:'阶段 A：构建作用域链',
+    body:`<p>源程序在编译时依据 <code>{ }</code> 嵌套关系构造<b>作用域链 (Scope Chain)</b>。
+          最外层是<b>全局作用域 Global</b>，每进入一对花括号就压入一层新作用域。</p>
+          <p>右侧将随代码逐行推进，动态生成嵌套作用域盒。</p>`,
+    badges:[['def','定义 · 作用域链'],['tip','要点 · 栈式结构']],
+    acts:[{op:'reset'},{op:'enterScope', name:'Global', level:0}] },
+
+  { stage:'A', line:1, title:'声明 int x = 3',
+    body:`<p>在全局作用域声明整型变量 <code>x</code>，初值 <code>3</code>。</p>
+          <p>变量卡片落入 Global 盒子。</p>`,
+    badges:[['tip','要点 · 声明入盒']],
+    acts:[{op:'insertVar', scope:0, name:'x', ty:'int', val:'3'}] },
+
+  { stage:'A', line:2, title:'声明 float y = 2.5',
+    body:`<p>在全局作用域再声明浮点变量 <code>y</code>。</p>
+          <p>Global 盒子现在拥有两个变量卡片。</p>`,
+    badges:[['tip','要点 · 同层多变量']],
+    acts:[{op:'insertVar', scope:0, name:'y', ty:'float', val:'2.5'}] },
+
+  { stage:'A', line:3, title:'进入块作用域 B1',
+    body:`<p>遇到 <code>{</code>，压入新作用域 <b>B1</b>（层级 1）。</p>
+          <p>B1 是 Global 的子作用域，可访问外层的 <code>x</code> 和 <code>y</code>。</p>`,
+    badges:[['def','定义 · 嵌套作用域'],['tip','要点 · 压栈']],
+    acts:[{op:'enterScope', name:'B1', level:1}] },
+
+  { stage:'A', line:4, title:'声明 int x = 10（变量遮蔽）',
+    body:`<p>在 B1 中重新声明 <code>x</code>。这是<b>变量遮蔽 (Shadowing)</b>：
+          B1 内部的 <code>x</code> 会"盖住"外层的同名变量。</p>
+          <p>外层 x 被标记为"被遮蔽"（半透明删除线）。</p>`,
+    badges:[['def','定义 · 变量遮蔽'],['warn','注意 · 内层优先']],
+    acts:[{op:'shadow', name:'x', outerScope:0},
+          {op:'insertVar', scope:1, name:'x', ty:'int', val:'10'}] },
+
+  { stage:'A', line:5, title:'表达式 y = x + y',
+    body:`<p>此行只使用变量，不改变作用域结构。</p>
+          <p>但符号解析时会沿链上溯查找 <code>y</code>（B1 中无 y，走到 Global）。</p>`,
+    badges:[['tip','要点 · 作用域链查找']],
+    acts:[] },
+
+  { stage:'A', line:6, title:'进入块作用域 B2',
+    body:`<p>再次遇到 <code>{</code>，压入更深一层作用域 <b>B2</b>（层级 2）。</p>
+          <p>作用域链变为：<code>B2 → B1 → Global</code>。</p>`,
+    badges:[['tip','要点 · 三层嵌套']],
+    acts:[{op:'enterScope', name:'B2', level:2}] },
+
+  { stage:'A', line:7, title:'声明 bool flag = true',
+    body:`<p>在 B2 声明布尔变量 <code>flag</code>。</p>
+          <p>作用域链完整形成：外层可见变量集依然可访问。</p>`,
+    badges:[['tip','要点 · 变量卡片落入最内层']],
+    acts:[{op:'insertVar', scope:2, name:'flag', ty:'bool', val:'true'}] },
+
+  // ---------- 阶段 B：符号表操作（10 步） ----------
+  { stage:'B', line:null, title:'阶段 B：分层符号表',
+    body:`<p>编译器为每层作用域维护一张<b>符号表 (Symbol Table)</b>。
+          常见操作：<code>insert(name, type)</code> 和 <code>lookup(name)</code>。</p>
+          <p>右侧展示每层的表格；下方演示插入与逐层查找过程。</p>`,
+    badges:[['def','定义 · 符号表'],['def','定义 · insert / lookup']],
+    acts:[{op:'reset'},{op:'enterScope', name:'Global', level:0}] },
+
+  { stage:'B', line:1, title:'insert(x : int) → Global',
+    body:`<p>解析声明 <code>int x = 3</code>，在 Global 符号表新增一行。</p>
+          <p>右上表格中出现新条目（绿色闪烁）。</p>`,
+    badges:[['tip','要点 · 插入新符号']],
+    acts:[{op:'insertVar', scope:0, name:'x', ty:'int', val:'3'},
+          {op:'tabOp', scope:0, kind:'insert', target:'x'}] },
+
+  { stage:'B', line:2, title:'insert(y : float) → Global',
+    body:`<p>继续插入 <code>y</code>。同一符号表内的名字必须唯一，否则报"重复声明"错误。</p>`,
+    badges:[['tip','要点 · 同层唯一性']],
+    acts:[{op:'insertVar', scope:0, name:'y', ty:'float', val:'2.5'},
+          {op:'tabOp', scope:0, kind:'insert', target:'y'}] },
+
+  { stage:'B', line:3, title:'push 新符号表（B1）',
+    body:`<p>进入 <code>{</code>，为 B1 创建一张<b>新的、独立的符号表</b>并压栈。</p>
+          <p>Global 表保持不变。</p>`,
+    badges:[['tip','要点 · 每层独立表']],
+    acts:[{op:'enterScope', name:'B1', level:1}] },
+
+  { stage:'B', line:4, title:'insert(x : int) → B1',
+    body:`<p>在 B1 表中插入新的 <code>x</code>。因为在<b>不同层</b>，不算重复声明。</p>
+          <p>查找 <code>x</code> 时会命中 B1 的这一条，实现遮蔽。</p>`,
+    badges:[['def','定义 · 遮蔽机制']],
+    acts:[{op:'shadow', name:'x', outerScope:0},
+          {op:'insertVar', scope:1, name:'x', ty:'int', val:'10'},
+          {op:'tabOp', scope:1, kind:'insert', target:'x'}] },
+
+  { stage:'B', line:5, title:'lookup(x)：命中 B1',
+    body:`<p>表达式 <code>x + y</code> 中先查找 <code>x</code>。</p>
+          <p>从<b>最内层 B1 开始扫描</b>，在 B1 表中命中 <code>x : int</code>。</p>`,
+    badges:[['def','定义 · 由内向外查找'],['tip','要点 · 命中即返回']],
+    acts:[{op:'tabOp', scope:1, kind:'lookup', target:'x', hit:true}] },
+
+  { stage:'B', line:5, title:'lookup(y)：B1 未命中 → Global 命中',
+    body:`<p>再查找 <code>y</code>。B1 表中<b>没有 y</b>，扫描继续沿作用域链向外。</p>
+          <p>到 Global 表命中 <code>y : float</code>。这体现了<b>非局部访问</b>。</p>`,
+    badges:[['tip','要点 · 逐层扫描'],['warn','注意 · 未命中不是错误，是继续']],
+    acts:[{op:'tabOp', scope:1, kind:'lookup', target:'y', hit:false},
+          {op:'tabOp', scope:0, kind:'lookup', target:'y', hit:true}] },
+
+  { stage:'B', line:6, title:'push 新符号表（B2）',
+    body:`<p>进入更深一层。B2 的符号表暂时为空。</p>`,
+    badges:[['tip','要点 · 空表也占一层']],
+    acts:[{op:'enterScope', name:'B2', level:2}] },
+
+  { stage:'B', line:7, title:'insert(flag : bool) → B2',
+    body:`<p>在 B2 中插入 <code>flag</code>。</p>`,
+    badges:[['tip','要点 · 最内层插入']],
+    acts:[{op:'insertVar', scope:2, name:'flag', ty:'bool', val:'true'},
+          {op:'tabOp', scope:2, kind:'insert', target:'flag'}] },
+
+  { stage:'B', line:8, title:'lookup(flag) & lookup(x)',
+    body:`<p>解析 <code>x = flag + 1</code>：</p>
+          <p>· <code>flag</code>：在 B2 直接命中。</p>
+          <p>· <code>x</code>：B2 无 → B1 命中。</p>`,
+    badges:[['tip','要点 · 混合层级引用']],
+    acts:[{op:'tabOp', scope:2, kind:'lookup', target:'flag', hit:true},
+          {op:'tabOp', scope:2, kind:'lookup', target:'x', hit:false},
+          {op:'tabOp', scope:1, kind:'lookup', target:'x', hit:true}] },
+
+  { stage:'B', line:9, title:'pop B2 → pop B1',
+    body:`<p>遇到 <code>}</code>，符号表<b>依次弹栈</b>销毁。</p>
+          <p>B2、B1 表退出舞台，只剩 Global。这就是<b>栈式作用域管理</b>。</p>`,
+    badges:[['def','定义 · 弹栈'],['tip','要点 · 生命周期结束']],
+    acts:[{op:'exitScope'}, {op:'exitScope'}] },
+
+  // ---------- 阶段 C：类型检查（8 步） ----------
+  { stage:'C', line:null, title:'阶段 C：类型检查',
+    body:`<p>类型检查在<b>抽象语法树 (AST)</b> 上自底向上进行：
+          先推导子表达式的类型，再按运算规则合成父节点的类型。</p>
+          <p>若类型不匹配，则报<b>类型错误 (Type Error)</b>。</p>`,
+    badges:[['def','定义 · 类型综合'],['def','定义 · 类型检查']],
+    acts:[{op:'reset'},{op:'enterScope', name:'Global', level:0},
+          {op:'insertVar', scope:0, name:'x', ty:'int', val:'3'},
+          {op:'insertVar', scope:0, name:'y', ty:'float', val:'2.5'},
+          {op:'enterScope', name:'B1', level:1},
+          {op:'shadow', name:'x', outerScope:0},
+          {op:'insertVar', scope:1, name:'x', ty:'int', val:'10'}] },
+
+  { stage:'C', line:5, title:'表达式：x + y',
+    body:`<p>推导 <code>x + y</code> 的类型：</p>
+          <p>· <code>x</code> → <code>int</code>（来自 B1）</p>
+          <p>· <code>y</code> → <code>float</code>（来自 Global）</p>`,
+    badges:[['tip','要点 · 子节点先推导']],
+    acts:[{op:'astExpr', id:'e1', label:'x + y', lines:[
+            {t:'x', ty:'int'},
+            {t:'y', ty:'float'},
+          ]}] },
+
+  { stage:'C', line:5, title:'隐式类型提升：int → float',
+    body:`<p><code>int + float</code>：编译器自动将 <code>int</code> <b>提升</b>为 <code>float</code>，
+          结果类型为 <code>float</code>。这是<b>隐式类型转换 (Implicit Conversion)</b>。</p>`,
+    badges:[['def','定义 · 类型提升'],['tip','要点 · 常见于数值混合运算']],
+    acts:[{op:'astExprAdd', id:'e1', line:{t:'x + y', ty:'float', tag:'ok', note:'int → float 提升'}}] },
+
+  { stage:'C', line:5, title:'赋值：y = (float)',
+    body:`<p>左值 <code>y</code> 的类型是 <code>float</code>，右值也是 <code>float</code>。</p>
+          <p>类型<b>兼容</b>，赋值合法。</p>`,
+    badges:[['tip','要点 · 赋值需类型兼容']],
+    acts:[{op:'astExprAdd', id:'e1', line:{t:'y = (x+y)', ty:'float', tag:'ok', note:'✓ 类型兼容'}},
+          {op:'markPass', id:'e1'}] },
+
+  { stage:'C', line:7, title:'表达式：flag = true',
+    body:`<p>推导 <code>true</code> 的类型为 <code>bool</code>，赋值给 <code>flag</code>（<code>bool</code>）。</p>
+          <p>类型一致，合法。</p>`,
+    badges:[['tip','要点 · 字面量类型']],
+    acts:[{op:'enterScope', name:'B2', level:2},
+          {op:'insertVar', scope:2, name:'flag', ty:'bool', val:'true'},
+          {op:'astExpr', id:'e2', label:'flag = true', lines:[
+            {t:'true', ty:'bool'},
+            {t:'flag = true', ty:'bool', tag:'ok'},
+          ]},
+          {op:'markPass', id:'e2'}] },
+
+  { stage:'C', line:8, title:'表达式：flag + 1（推导子节点）',
+    body:`<p>推导 <code>x = flag + 1</code> 中的子表达式 <code>flag + 1</code>：</p>
+          <p>· <code>flag</code> → <code>bool</code></p>
+          <p>· <code>1</code> → <code>int</code></p>`,
+    badges:[['tip','要点 · 从叶子推起']],
+    acts:[{op:'astExpr', id:'e3', label:'flag + 1', lines:[
+            {t:'flag', ty:'bool'},
+            {t:'1', ty:'int'},
+          ]}] },
+
+  { stage:'C', line:8, title:'✗ 类型错误：bool + int',
+    body:`<p>合成父节点 <code>+</code> 的类型时，
+          C 语义中 <code>bool</code> 与 <code>int</code> <b>不兼容</b>，
+          且不存在从 <code>bool</code> 到 <code>int</code> 的合法算术提升规则。</p>
+          <p>编译器抛出<b>类型错误</b>，源代码行以红色高亮。</p>`,
+    badges:[['warn','注意 · 类型不兼容'],['warn','注意 · 编译失败']],
+    acts:[{op:'astExprAdd', id:'e3', line:{t:'flag + 1', ty:'ERR', tag:'err', note:'✗ bool 与 int 不兼容'}},
+          {op:'markError', id:'e3'},
+          {op:'lineError', line:8},
+          {op:'showErr', msg:'类型错误 · Type Mismatch',
+           detail:'表达式 <code>flag + 1</code> 中，左操作数类型为 <code>bool</code>，右操作数类型为 <code>int</code>。C 语言的加法算符 <code>+</code> 要求两个操作数均为可提升的数值类型（int、float、double 等）；<code>bool</code> 到 <code>int</code> 的隐式转换在类型检查阶段被明确禁止。<br/><br/>位置：<code>line 8</code>。建议改写为 <code>(int)flag + 1</code> 显式转换。'}] },
+
+  { stage:'C', line:null, title:'编译终止 · 报告错误',
+    body:`<p>本次语义分析在类型检查阶段发现 <b>1 处错误</b>，编译器停止后续代码生成，
+          并将错误位置与原因反馈给用户。</p>
+          <p>整个演示到此结束——你已经看到作用域链、符号表和类型检查三大机制协同工作。</p>`,
+    badges:[['tip','要点 · 三阶段协作'],['def','定义 · 语义分析完成']],
+    acts:[] },
+];
+
+// ------- 全局状态 -------
+let curStep = -1;
+let playing = false;
+let playTimer = null;
+let speed = 1; // 0.5 / 1 / 2
+const SPEED_BASE = 1600;
+
+// 模拟的运行时结构
+// scopes: [{name, level, vars:[{name,ty,val,shadowed?}]}]
+// tabs 与 scopes 同步（每层一张表）
+let scopes = [];
+let astExprs = {}; // id -> {label, lines:[...], status:'ok'|'err'|null}
+
+// ------- 渲染函数 -------
+function renderScopes(activeIdx){
+  const box = document.getElementById('scopeViz');
+  if(scopes.length===0){
+    box.innerHTML = '<div class="symtab-empty">尚未进入任何作用域</div>';
+    return;
+  }
+  // 从外到内嵌套渲染
+  let html = '';
+  scopes.forEach((s, idx) => {
+    const active = (idx === scopes.length-1) ? 'active' : '';
+    const vars = s.vars.map(v => {
+      const cls = ['var-card'];
+      if(v._flash) cls.push('inserted');
+      if(v._looked) cls.push('looked');
+      if(v.shadowed) cls.push('shadowed');
+      return `<div class="${cls.join(' ')}"><span class="vname mono">${v.name}</span>
+        <span class="vty mono">:${v.ty}</span>
+        <span class="veq">=</span><span class="vval mono">${v.val}</span></div>`;
+    }).join('') || '<span style="color:var(--fg-dim);font-size:12px;font-style:italic">（空）</span>';
+    html += `<div class="scope-box ${active}" style="margin-left:${idx*14}px">
+      <div class="scope-label"><span>${s.name}</span><span class="lvl">level ${s.level}</span></div>
+      <div class="var-cards">${vars}</div>
+    </div>`;
+  });
+  box.innerHTML = html;
+}
+
+function renderTabs(activeOp){
+  const box = document.getElementById('tableViz');
+  if(scopes.length===0){
+    box.innerHTML = '<div class="symtab-empty">符号表为空</div>';
+    return;
+  }
+  let html = '';
+  scopes.forEach((s, idx) => {
+    const cls = ['symtab'];
+    if(s._scan) cls.push('scanning');
+    if(s._hit) cls.push('hit');
+    let opTag = '';
+    if(s._opTag) opTag = `<span class="op-tag">${s._opTag}</span>`;
+    const rows = s.vars.map(v=>{
+      const rowCls = [];
+      if(v._newRow) rowCls.push('new');
+      if(v._hitRow) rowCls.push('hit');
+      return `<tr class="${rowCls.join(' ')}">
+        <td class="name">${v.name}</td>
+        <td class="type">${v.ty}</td>
+        <td class="val">${v.val}</td>
+      </tr>`;
+    }).join('');
+    html += `<div class="${cls.join(' ')}">
+      <div class="symtab-head"><span>${s.name} · level ${s.level}</span>${opTag}</div>
+      ${rows ? `<table><thead><tr><th>name</th><th>type</th><th>value</th></tr></thead><tbody>${rows}</tbody></table>` :
+        '<div class="symtab-empty">（空表）</div>'}
+    </div>`;
+  });
+  box.innerHTML = html;
+}
+
+function renderAst(){
+  const box = document.getElementById('tableViz');
+  const ids = Object.keys(astExprs);
+  if(ids.length===0){
+    box.innerHTML = '<div class="symtab-empty">尚未推导表达式</div>';
+    return;
+  }
+  let html = '<div class="ast-viz">';
+  ids.forEach(id => {
+    const e = astExprs[id];
+    const cls = ['ast-expr'];
+    if(e.status==='err') cls.push('error');
+    if(e.status==='ok') cls.push('pass');
+    const lines = e.lines.map(l=>{
+      const tagCls = l.tag==='err'?'err':(l.tag==='ok'?'ok':'');
+      return `<div class="ast-line">
+        <span class="mono">${l.t}</span>
+        <span class="arrow">⇒</span>
+        <span class="ty-tag ${tagCls}">${l.ty}</span>
+        ${l.note?`<span style="color:var(--fg-dim);font-size:12px;margin-left:6px">${l.note}</span>`:''}
+      </div>`;
+    }).join('');
+    html += `<div class="${cls.join(' ')}">
+      <div style="color:var(--fg-dim);font-size:11px;margin-bottom:6px">表达式 · ${e.label}</div>
+      ${lines}
+    </div>`;
+  });
+  if(window._errCard){
+    html += `<div class="err-card">
+      <div class="title">⚠ ${window._errCard.msg}</div>
+      <div class="body">${window._errCard.detail}</div>
+    </div>`;
+  }
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+function renderRightPanel(){
+  const step = STEPS[curStep];
+  if(!step){ renderTabs(); return; }
+  if(step.stage==='C') renderAst();
+  else renderTabs();
+  document.getElementById('rightColTitle').textContent =
+    step.stage==='C' ? '类型推导 / AST 节点' : '符号表';
+  document.getElementById('leftColTitle').textContent =
+    step.stage==='C' ? '作用域快照' : '作用域堆栈';
+}
+
+// ------- 应用一个步骤的动作序列 -------
+// 说明：为保证「上一步」正确，我们采用"从头重放到目标步骤"的方式
+function resetState(){
+  scopes = [];
+  astExprs = {};
+  window._errCard = null;
+  // 清除代码行状态
+  document.querySelectorAll('.code-line').forEach(el=>{
+    el.classList.remove('active','error');
+  });
+}
+
+// 清理临时闪烁标记（重放时用）
+function clearFlashes(){
+  scopes.forEach(s=>{
+    s._scan = false; s._hit=false; s._opTag='';
+    s.vars.forEach(v=>{ v._flash=false; v._looked=false; v._newRow=false; v._hitRow=false; });
+  });
+}
+
+function applyAct(a){
+  if(a.op==='reset'){ resetState(); return; }
+  if(a.op==='enterScope'){
+    scopes.push({name:a.name, level:a.level, vars:[]});
+    return;
+  }
+  if(a.op==='exitScope'){
+    scopes.pop();
+    return;
+  }
+  if(a.op==='insertVar'){
+    const s = scopes[a.scope];
+    if(!s) return;
+    // 若已存在则跳过（用于阶段 C 预置状态时避免重复）
+    if(s.vars.find(v=>v.name===a.name)) return;
+    s.vars.push({name:a.name, ty:a.ty, val:a.val, _flash:true, _newRow:true});
+    return;
+  }
+  if(a.op==='shadow'){
+    const outer = scopes[a.outerScope];
+    if(outer){
+      const v = outer.vars.find(v=>v.name===a.name);
+      if(v) v.shadowed = true;
+    }
+    return;
+  }
+  if(a.op==='tabOp'){
+    const s = scopes[a.scope];
+    if(!s) return;
+    s._opTag = `${a.kind}(${a.target})`;
+    if(a.kind==='lookup'){
+      s._scan = true;
+      if(a.hit){
+        s._hit = true;
+        const v = s.vars.find(v=>v.name===a.target);
+        if(v){ v._looked = true; v._hitRow = true; }
+      }
+    } else if(a.kind==='insert'){
+      const v = s.vars.find(v=>v.name===a.target);
+      if(v){ v._flash = true; v._newRow = true; }
+    }
+    return;
+  }
+  if(a.op==='astExpr'){
+    astExprs[a.id] = { label:a.label, lines:a.lines.slice(), status:null };
+    return;
+  }
+  if(a.op==='astExprAdd'){
+    if(astExprs[a.id]) astExprs[a.id].lines.push(a.line);
+    return;
+  }
+  if(a.op==='markPass'){
+    if(astExprs[a.id]) astExprs[a.id].status = 'ok';
+    return;
+  }
+  if(a.op==='markError'){
+    if(astExprs[a.id]) astExprs[a.id].status = 'err';
+    return;
+  }
+  if(a.op==='showErr'){
+    window._errCard = { msg:a.msg, detail:a.detail };
+    return;
+  }
+  if(a.op==='lineError'){
+    // 稍后在 renderStep 中统一处理
+    window._errLine = a.line;
+    return;
+  }
+}
+
+// 从头重放到 targetStep
+function replayTo(target){
+  resetState();
+  window._errLine = null;
+  for(let i=0;i<=target;i++){
+    // 每步开始前清除闪烁类
+    clearFlashes();
+    const step = STEPS[i];
+    if(step && step.acts){
+      step.acts.forEach(applyAct);
+    }
+    // 仅保留最后一步的闪烁（更符合"当前动作"语义）
+    if(i<target) clearFlashes();
+  }
+}
+
+// ------- 步骤切换 -------
+function gotoStep(idx){
+  if(idx<0 || idx>=STEPS.length) return;
+  curStep = idx;
+  replayTo(curStep);
+  renderStep();
+}
+
+function renderStep(){
+  const step = STEPS[curStep];
+  if(!step) return;
+
+  // 讲解区
+  document.getElementById('stepTitle').textContent = step.title;
+  document.getElementById('stepIndex').textContent = `Step ${curStep+1} / ${STEPS.length} · 阶段 ${step.stage}`;
+  document.getElementById('stepBody').innerHTML = step.body;
+  document.getElementById('stepBadges').innerHTML =
+    (step.badges||[]).map(([kind,text])=>`<span class="badge badge--${kind}">${text}</span>`).join('');
+
+  // Tab 高亮
+  document.querySelectorAll('.stage-tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.stage===step.stage);
+  });
+
+  // 代码行高亮
+  document.querySelectorAll('.code-line').forEach(el=>{
+    el.classList.remove('active','error');
+  });
+  if(step.line){
+    const el = document.querySelector(`.code-line[data-line="${step.line}"]`);
+    if(el) el.classList.add('active');
+  }
+  if(window._errLine){
+    const el = document.querySelector(`.code-line[data-line="${window._errLine}"]`);
+    if(el) el.classList.add('error');
+  }
+
+  // 右侧可视化
+  renderScopes();
+  renderRightPanel();
+
+  // 步骤指示器
+  document.querySelectorAll('.step-dot').forEach((d,i)=>{
+    d.classList.toggle('active', i===curStep);
+    d.classList.toggle('done', i<curStep);
+  });
+  document.getElementById('stepInfo').textContent = `${curStep+1} / ${STEPS.length}`;
+
+  // 按钮状态
+  document.getElementById('prevBtn').disabled = curStep<=0;
+  document.getElementById('nextBtn').disabled = curStep>=STEPS.length-1;
+}
+
+// ------- 控件绑定 -------
+function next(){ if(curStep<STEPS.length-1) gotoStep(curStep+1); else stopPlay(); }
+function prev(){ if(curStep>0) gotoStep(curStep-1); }
+function reset(){ stopPlay(); gotoStep(0); }
+
+function startPlay(){
+  if(curStep>=STEPS.length-1) gotoStep(0);
+  playing = true;
+  document.getElementById('playBtn').textContent = '❚❚ 暂停';
+  playTimer = setInterval(()=>{
+    if(curStep>=STEPS.length-1){ stopPlay(); return; }
+    next();
+  }, SPEED_BASE/speed);
+}
+function stopPlay(){
+  playing = false;
+  document.getElementById('playBtn').textContent = '▶ 播放';
+  if(playTimer){ clearInterval(playTimer); playTimer=null; }
+}
+
+function initDots(){
+  const dots = document.getElementById('stepDots');
+  dots.innerHTML = STEPS.map((_,i)=>`<div class="step-dot" data-idx="${i}"></div>`).join('');
+  dots.querySelectorAll('.step-dot').forEach(d=>{
+    d.addEventListener('click', ()=>{ stopPlay(); gotoStep(parseInt(d.dataset.idx)); });
+  });
+}
+
+function initTabs(){
+  document.querySelectorAll('.stage-tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      // 跳到对应阶段的第一步
+      const stage = t.dataset.stage;
+      const idx = STEPS.findIndex(s=>s.stage===stage);
+      if(idx>=0){ stopPlay(); gotoStep(idx); }
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderCode();
+  initDots();
+  initTabs();
+
+  document.getElementById('prevBtn').addEventListener('click', ()=>{ stopPlay(); prev(); });
+  document.getElementById('nextBtn').addEventListener('click', ()=>{ stopPlay(); next(); });
+  document.getElementById('resetBtn').addEventListener('click', reset);
+  document.getElementById('playBtn').addEventListener('click', ()=>{
+    if(playing) stopPlay(); else startPlay();
+  });
+  document.getElementById('speedBtn').addEventListener('click', ()=>{
+    const seq = [0.5, 1, 2];
+    speed = seq[(seq.indexOf(speed)+1)%seq.length];
+    document.getElementById('speedBtn').textContent = speed+'×';
+    if(playing){ stopPlay(); startPlay(); }
+  });
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='ArrowRight'){ e.preventDefault(); stopPlay(); next(); }
+    else if(e.key==='ArrowLeft'){ e.preventDefault(); stopPlay(); prev(); }
+    else if(e.key===' '){ e.preventDefault(); if(playing) stopPlay(); else startPlay(); }
+    else if(e.key==='r' || e.key==='R'){ e.preventDefault(); reset(); }
+  });
+
+  gotoStep(0);
+});
+</script>
+</body>
+</html>

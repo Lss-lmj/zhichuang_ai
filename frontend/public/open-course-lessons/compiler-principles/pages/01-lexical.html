@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>词法分析 · 从正则到 DFA</title>
+<style>
+/* ========== 设计规范：CSS 变量（与 DESIGN_SPEC.md 保持一致） ========== */
+:root{
+  --bg:#0f1226; --bg-soft:#171a35; --bg-code:#0a0c1c;
+  --fg:#e7ebff; --fg-dim:#a0a8d0; --line:#2a2f55;
+  --accent:#6ee7ff; --accent-2:#ffb86b;
+  --success:#7ee787; --danger:#ff6b8a; --purple:#b78cff;
+  --shadow:0 10px 30px rgba(0,0,0,0.35);
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  height:100%;overflow:hidden}
+code,.mono{font-family:"JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+
+.demo-shell{display:flex;flex-direction:column;height:100vh}
+
+/* Header */
+.demo-header{
+  display:flex;align-items:center;gap:16px;padding:12px 22px;
+  background:linear-gradient(90deg,#141735,#1a1e42);
+  border-bottom:1px solid var(--line);box-shadow:var(--shadow)
+}
+.demo-header h1{font-size:18px;margin:0;letter-spacing:.5px}
+.demo-header h1 .sub{color:var(--fg-dim);font-weight:400;margin-left:8px;font-size:13px}
+.back-btn{
+  color:var(--fg);text-decoration:none;padding:6px 12px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:var(--bg-soft);font-size:13px;
+  transition:all .2s
+}
+.back-btn:hover{border-color:var(--accent);color:var(--accent)}
+.header-spacer{flex:1}
+.regex-badge{
+  padding:6px 14px;background:var(--bg-code);border:1px solid var(--line);
+  border-radius:var(--radius-sm);color:var(--accent);font-size:14px
+}
+
+/* Main */
+.demo-main{flex:1;display:flex;min-height:0}
+.panel-explain{
+  width:32%;min-width:340px;padding:18px 20px;overflow-y:auto;
+  background:var(--bg-soft);border-right:1px solid var(--line)
+}
+.panel-stage{flex:1;position:relative;background:var(--bg);overflow:hidden}
+
+/* 讲解卡片 */
+.phase-tag{
+  display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;
+  background:rgba(110,231,255,.12);color:var(--accent);
+  border:1px solid rgba(110,231,255,.35);margin-bottom:10px
+}
+.step-title{font-size:20px;margin:0 0 10px;line-height:1.4}
+.step-body{font-size:14px;line-height:1.75;color:var(--fg)}
+.step-body p{margin:8px 0}
+.step-body code{background:var(--bg-code);padding:1px 6px;border-radius:4px;color:var(--accent);font-size:13px}
+.badge{
+  display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;
+  margin-right:6px;font-weight:600;letter-spacing:.5px
+}
+.badge--def{background:rgba(183,140,255,.18);color:var(--purple);border:1px solid rgba(183,140,255,.4)}
+.badge--tip{background:rgba(126,231,135,.15);color:var(--success);border:1px solid rgba(126,231,135,.4)}
+.badge--warn{background:rgba(255,107,138,.15);color:var(--danger);border:1px solid rgba(255,107,138,.4)}
+.tip-block{
+  border-left:3px solid var(--accent);padding:8px 12px;margin:10px 0;
+  background:rgba(110,231,255,.06);border-radius:4px;font-size:13px;line-height:1.7
+}
+
+/* 子集构造表格（阶段 B） */
+.subset-table{
+  width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;
+  background:var(--bg-code);border-radius:var(--radius-sm);overflow:hidden
+}
+.subset-table th,.subset-table td{
+  padding:5px 7px;border-bottom:1px solid var(--line);text-align:left;
+  font-family:"JetBrains Mono",Menlo,monospace
+}
+.subset-table th{background:rgba(110,231,255,.08);color:var(--accent);font-weight:600}
+.subset-table tr.hi td{background:rgba(255,184,107,.12);color:var(--accent-2)}
+
+/* 输入串（阶段 C） */
+.input-strip{
+  display:flex;gap:6px;justify-content:center;margin:20px 0 10px;padding:14px;
+  background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--radius-sm)
+}
+.token{
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  font-family:"JetBrains Mono",Menlo,monospace;font-size:20px;font-weight:600;
+  border:2px solid var(--line);border-radius:var(--radius-sm);
+  color:var(--fg-dim);transition:all .3s;background:var(--bg)
+}
+.token.consumed{color:var(--fg-dim);border-color:var(--line);background:rgba(126,231,135,.08)}
+.token.current{
+  color:var(--bg);background:var(--accent-2);border-color:var(--accent-2);
+  transform:translateY(-4px);box-shadow:0 6px 16px rgba(255,184,107,.4)
+}
+.trace-line{
+  text-align:center;font-family:"JetBrains Mono",Menlo,monospace;font-size:14px;
+  color:var(--fg-dim);margin-top:6px
+}
+.trace-line .st{color:var(--accent);font-weight:600}
+.verdict{
+  text-align:center;margin-top:14px;padding:10px;border-radius:var(--radius-sm);
+  font-size:15px;font-weight:600
+}
+.verdict.accept{background:rgba(126,231,135,.15);color:var(--success);border:1px solid var(--success)}
+.verdict.reject{background:rgba(255,107,138,.15);color:var(--danger);border:1px solid var(--danger)}
+
+/* 舞台 SVG */
+.stage-title{
+  position:absolute;top:14px;left:20px;font-size:13px;
+  color:var(--fg-dim);letter-spacing:1px;text-transform:uppercase
+}
+.stage-title .num{color:var(--accent);font-weight:700}
+svg.stage-svg{width:100%;height:100%;display:block}
+
+/* SVG 节点样式 */
+.node circle{
+  fill:var(--bg-soft);stroke:var(--line);stroke-width:2;transition:all .35s ease
+}
+.node text{
+  fill:var(--fg);font-family:"JetBrains Mono",Menlo,monospace;font-size:12px;
+  text-anchor:middle;dominant-baseline:central;pointer-events:none;transition:fill .3s
+}
+.node.visible circle{stroke:var(--accent)}
+.node.active circle{
+  fill:var(--accent-2);stroke:var(--accent-2);
+  filter:drop-shadow(0 0 10px rgba(255,184,107,.7))
+}
+.node.active text{fill:#111}
+.node.done circle{stroke:var(--success)}
+.node.accept circle{stroke-dasharray:none}
+.node.accept .ring{fill:none;stroke:var(--success);stroke-width:2}
+.node:not(.visible){opacity:0;transform:scale(.6);transform-origin:center}
+.node{opacity:1;transition:opacity .5s ease}
+
+/* 边 */
+.edge path{
+  fill:none;stroke:var(--line);stroke-width:1.8;
+  marker-end:url(#arrow);transition:all .35s
+}
+.edge text{
+  fill:var(--fg-dim);font-family:"JetBrains Mono",Menlo,monospace;font-size:12px;
+  text-anchor:middle;transition:fill .3s
+}
+.edge.visible path{stroke:var(--fg-dim)}
+.edge.visible text{fill:var(--fg)}
+.edge.active path{stroke:var(--accent);stroke-width:2.6;marker-end:url(#arrow-active)}
+.edge.active text{fill:var(--accent);font-weight:600}
+.edge.eps path{stroke-dasharray:4 4}
+.edge:not(.visible){opacity:0}
+.edge{opacity:1;transition:opacity .5s}
+
+/* Footer 控制条 */
+.demo-controls{
+  display:flex;align-items:center;gap:14px;padding:10px 22px;
+  background:var(--bg-soft);border-top:1px solid var(--line)
+}
+.ctrl-btn{
+  background:var(--bg);color:var(--fg);border:1px solid var(--line);
+  padding:8px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;
+  transition:all .2s;font-family:inherit
+}
+.ctrl-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.ctrl-btn:disabled{opacity:.4;cursor:not-allowed}
+.ctrl-btn.primary{background:var(--accent);color:#0b0e22;border-color:var(--accent);font-weight:600}
+.ctrl-btn.primary:hover:not(:disabled){background:#8ff0ff}
+.step-indicator{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap
+}
+.step-dot{
+  width:9px;height:9px;border-radius:50%;background:var(--line);transition:all .3s;cursor:pointer
+}
+.step-dot.active{background:var(--accent);transform:scale(1.35);box-shadow:0 0 8px var(--accent)}
+.step-dot.done{background:var(--fg-dim)}
+.step-info{
+  font-size:12px;color:var(--fg-dim);font-family:"JetBrains Mono",Menlo,monospace;
+  min-width:80px;text-align:center
+}
+.speed-btn{
+  background:transparent;color:var(--fg-dim);border:1px solid var(--line);
+  padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px
+}
+.speed-btn:hover{color:var(--accent)}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+<div class="demo-shell">
+
+  <!-- ============ Header ============ -->
+  <header class="demo-header">
+    <a href="../index.html" class="back-btn">← 返回目录</a>
+    <h1>词法分析 · 从正则到 DFA <span class="sub">Thompson 构造 · 子集构造 · DFA 扫描</span></h1>
+    <span class="header-spacer"></span>
+    <span class="regex-badge mono">RE = (a|b)*abb</span>
+  </header>
+
+  <!-- ============ Main ============ -->
+  <main class="demo-main">
+    <!-- 左侧：讲解 -->
+    <aside class="panel-explain" id="panelExplain">
+      <!-- 由 JS 渲染 -->
+    </aside>
+
+    <!-- 右侧：SVG 舞台 -->
+    <section class="panel-stage">
+      <div class="stage-title" id="stageTitle"><span class="num">阶段 A</span> · Thompson 构造 NFA</div>
+      <svg class="stage-svg" id="stageSvg" viewBox="0 0 900 560" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#a0a8d0"/>
+          </marker>
+          <marker id="arrow-active" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#6ee7ff"/>
+          </marker>
+        </defs>
+        <g id="edgesLayer"></g>
+        <g id="nodesLayer"></g>
+      </svg>
+    </section>
+  </main>
+
+  <!-- ============ Footer 控制条 ============ -->
+  <footer class="demo-controls">
+    <button class="ctrl-btn" id="btnReset" title="R">↺ 重置</button>
+    <button class="ctrl-btn" id="btnPrev" title="←">◀ 上一步</button>
+    <button class="ctrl-btn primary" id="btnNext" title="→">下一步 ▶</button>
+    <button class="ctrl-btn" id="btnPlay" title="Space">▶ 自动</button>
+    <div class="step-indicator" id="stepDots"></div>
+    <div class="step-info" id="stepInfo">1 / N</div>
+    <button class="speed-btn" id="btnSpeed">1×</button>
+  </footer>
+</div>
+
+<script>
+/* ================================================================
+ *  词法分析教学演示：正则 (a|b)*abb → NFA → DFA → 扫描 "ababb"
+ *  ---------------------------------------------------------------
+ *  数据组织：
+ *    NFA_NODES / NFA_EDGES  —— 阶段 A 用（Thompson 构造）
+ *    DFA_NODES / DFA_EDGES  —— 阶段 B、C 用（子集构造与扫描）
+ *    STEPS                 —— 整个演示的 15+ 步"脚本"
+ *  每一步描述：
+ *    { phase:'A'|'B'|'C', title, html, show:{nodes,edges}, active:{nodes,edges},
+ *      subsetRow:.., inputIdx:.., curDFA:.., verdict:.. }
+ * ================================================================ */
+
+/* -------- NFA 节点坐标（Thompson 构造完整 NFA） -------- */
+/* 状态编号沿用龙书经典 (a|b)*abb 的 11 个状态 0..10 */
+const NFA_NODES = [
+  {id:'n0',  label:'0', x: 60, y:280, accept:false},
+  {id:'n1',  label:'1', x:140, y:280},
+  {id:'n2',  label:'2', x:230, y:200},
+  {id:'n3',  label:'3', x:330, y:200},
+  {id:'n4',  label:'2\'',x:230, y:360},  // 显示为 4
+  {id:'n5',  label:'3\'',x:330, y:360},
+  {id:'n6',  label:'6', x:430, y:280},
+  {id:'n7',  label:'7', x:540, y:280},
+  {id:'n8',  label:'8', x:640, y:280},
+  {id:'n9',  label:'9', x:740, y:280},
+  {id:'n10', label:'10',x:840, y:280, accept:true}
+];
+/* 为清晰起见，重新用数字标签 */
+NFA_NODES[0].label='0'; NFA_NODES[1].label='1';
+NFA_NODES[2].label='2'; NFA_NODES[3].label='3';
+NFA_NODES[4].label='4'; NFA_NODES[5].label='5';
+NFA_NODES[6].label='6'; NFA_NODES[7].label='7';
+NFA_NODES[8].label='8'; NFA_NODES[9].label='9';
+NFA_NODES[10].label='10';
+
+/* -------- NFA 边（含 ε 转移） --------
+ *  Thompson 构造 (a|b)*abb 的边集：
+ *  0-ε→1, 0-ε→7  外层 Kleene 起点分叉
+ *  1-ε→2, 1-ε→4  内层选择 (a|b) 分叉
+ *  2-a→3          原子 a
+ *  4-b→5          原子 b
+ *  3-ε→6, 5-ε→6   选择合并
+ *  6-ε→1, 6-ε→7   Kleene 回环 / 跳出
+ *  7-a→8, 8-b→9, 9-b→10  尾部 abb
+ */
+const NFA_EDGES = [
+  {id:'e0_1',  from:'n0', to:'n1', label:'ε', eps:true, curve:0},
+  {id:'e0_7',  from:'n0', to:'n7', label:'ε', eps:true, curve:-140},
+  {id:'e1_2',  from:'n1', to:'n2', label:'ε', eps:true, curve:0},
+  {id:'e1_4',  from:'n1', to:'n4', label:'ε', eps:true, curve:0},
+  {id:'e2_3',  from:'n2', to:'n3', label:'a', eps:false, curve:0},
+  {id:'e4_5',  from:'n4', to:'n5', label:'b', eps:false, curve:0},
+  {id:'e3_6',  from:'n3', to:'n6', label:'ε', eps:true, curve:0},
+  {id:'e5_6',  from:'n5', to:'n6', label:'ε', eps:true, curve:0},
+  {id:'e6_1',  from:'n6', to:'n1', label:'ε', eps:true, curve:120},
+  {id:'e6_7',  from:'n6', to:'n7', label:'ε', eps:true, curve:0},
+  {id:'e7_8',  from:'n7', to:'n8', label:'a', eps:false, curve:0},
+  {id:'e8_9',  from:'n8', to:'n9', label:'b', eps:false, curve:0},
+  {id:'e9_10', from:'n9', to:'n10',label:'b', eps:false, curve:0}
+];
+
+/* -------- DFA 节点（子集构造结果） --------
+ *  A = ε-closure({0})     = {0,1,2,4,7}
+ *  B = ε-closure(move(A,a))= {1,2,3,4,6,7,8}
+ *  C = ε-closure(move(A,b))= {1,2,4,5,6,7}
+ *  D = ε-closure(move(B,b))= {1,2,4,5,6,7,9}
+ *  E = ε-closure(move(D,b))= {1,2,4,5,6,7,10}  (accept)
+ */
+const DFA_NODES = [
+  {id:'A', label:'A', x:120, y:280, accept:false, set:'{0,1,2,4,7}'},
+  {id:'B', label:'B', x:320, y:180, accept:false, set:'{1,2,3,4,6,7,8}'},
+  {id:'C', label:'C', x:320, y:400, accept:false, set:'{1,2,4,5,6,7}'},
+  {id:'D', label:'D', x:540, y:180, accept:false, set:'{1,2,4,5,6,7,9}'},
+  {id:'E', label:'E', x:760, y:280, accept:true,  set:'{1,2,4,5,6,7,10}'}
+];
+const DFA_EDGES = [
+  {id:'dA_B', from:'A', to:'B', label:'a', curve:0},
+  {id:'dA_C', from:'A', to:'C', label:'b', curve:0},
+  {id:'dB_B', from:'B', to:'B', label:'a', self:true},
+  {id:'dB_D', from:'B', to:'D', label:'b', curve:0},
+  {id:'dC_B', from:'C', to:'B', label:'a', curve:60},
+  {id:'dC_C', from:'C', to:'C', label:'b', self:true},
+  {id:'dD_B', from:'D', to:'B', label:'a', curve:-80, back:true},
+  {id:'dD_E', from:'D', to:'E', label:'b', curve:0},
+  {id:'dE_B', from:'E', to:'B', label:'a', curve:-120},
+  {id:'dE_C', from:'E', to:'C', label:'b', curve:120}
+];
+
+/* -------- 演示脚本：15+ 步 --------
+ *  每步 show/active 用节点或边的 id 列表控制可见与高亮 */
+const STEPS = [
+  /* ========== 阶段 A：Thompson 构造 ========== */
+  {
+    phase:'A', title:'Step 1 · 原子表达式 <code>a</code> 与 <code>b</code>',
+    html:`<span class="badge badge--def">定义</span>Thompson 构造法为每个正则表达式子式建立一个<strong>子 NFA</strong>：拥有唯一开始态和唯一接受态。
+    <p>先为字母表中的原子符号 <code>a</code>、<code>b</code> 各建立一段最简单的子 NFA：起始态 → <em>字符边</em> → 接受态。</p>
+    <div class="tip-block"><span class="badge badge--tip">要点</span>字符边不消耗 ε；ε 转移是"免费"迁移，用于粘合子结构。</div>`,
+    show:{nodes:['n2','n3','n4','n5'], edges:['e2_3','e4_5']},
+    active:{nodes:[], edges:['e2_3','e4_5']}
+  },
+  {
+    phase:'A', title:'Step 2 · 用 ε 转移实现选择 <code>a|b</code>',
+    html:`<span class="badge badge--def">定义</span>为 <code>r|s</code> 建立一个新起点 <code>1</code>，分别用 ε 边进入 <code>r</code>、<code>s</code> 的子 NFA；两个子 NFA 的接受态再通过 ε 汇合到一个新终点 <code>6</code>。
+    <p>由此形成 <strong>(a|b)</strong> 的子 NFA：状态 1 分叉进入 a 分支或 b 分支，最终合流于状态 6。</p>
+    <div class="tip-block"><span class="badge badge--tip">要点</span>ε 边使 NFA 可以"同时处于多状态"，这正是后续子集构造要处理的核心难点。</div>`,
+    show:{nodes:['n1','n2','n3','n4','n5','n6'],
+          edges:['e1_2','e1_4','e2_3','e4_5','e3_6','e5_6']},
+    active:{nodes:['n1','n6'], edges:['e1_2','e1_4','e3_6','e5_6']}
+  },
+  {
+    phase:'A', title:'Step 3 · 闭包 <code>(a|b)*</code>：加两条回环 ε 边',
+    html:`<span class="badge badge--def">定义</span>为 <code>r*</code> 引入新的起点 <code>0</code> 和终点 <code>7</code>，加入四条 ε 边：
+    <p>① 0 → r.start（进入 r） &nbsp; ② 0 → 7（<em>零次匹配</em>直接跳过） &nbsp; ③ r.end → r.start（<em>回环</em>产生多次匹配） &nbsp; ④ r.end → 7（结束）。</p>
+    <div class="tip-block"><span class="badge badge--warn">注意</span>正是这条 <code>6→1</code> 的回环边让 <code>(a|b)*</code> 能匹配任意长度串，也是后面 DFA 状态集合出现循环的根源。</div>`,
+    show:{nodes:['n0','n1','n2','n3','n4','n5','n6','n7'],
+          edges:['e0_1','e0_7','e1_2','e1_4','e2_3','e4_5','e3_6','e5_6','e6_1','e6_7']},
+    active:{nodes:['n0','n7'], edges:['e0_1','e0_7','e6_1','e6_7']}
+  },
+  {
+    phase:'A', title:'Step 4 · 拼接尾部 <code>abb</code>',
+    html:`<span class="badge badge--def">定义</span>拼接 <code>rs</code>：把 r 的接受态与 s 的起始态<strong>合并为同一个状态</strong>（或用 ε 边相连）。
+    <p>把 <code>(a|b)*</code> 子 NFA 的出口 <code>7</code> 作为 <code>abb</code> 的入口，依次加入：<code>7 -a→ 8 -b→ 9 -b→ 10</code>。状态 10 双圈表示<strong>唯一接受态</strong>。</p>
+    <div class="tip-block"><span class="badge badge--tip">要点</span>Thompson 构造保证：整个 NFA 只有 1 个起始态、1 个接受态；边数与状态数都是正则式长度的 O(n)。</div>`,
+    show:'all',
+    active:{nodes:['n7','n8','n9','n10'], edges:['e7_8','e8_9','e9_10']}
+  },
+  {
+    phase:'A', title:'Step 5 · 完整 NFA 一览',
+    html:`<span class="badge badge--tip">小结</span>11 个状态、13 条边（含 8 条 ε 边）的 NFA 已构造完毕。
+    <p>接下来的问题：面对一个输入串，NFA 因为 ε 转移和分叉可能同时处于多个状态，程序化模拟很别扭。</p>
+    <p>解决方案 —— <strong>子集构造法（Subset Construction）</strong>：把 NFA 的"状态集合"当作 DFA 的一个状态。</p>
+    <div class="tip-block"><span class="badge badge--def">关键定义</span>
+    <br/>• <code>ε-closure(T)</code>：从状态集合 T 出发，只走 ε 边能到达的所有状态。
+    <br/>• <code>move(T, c)</code>：T 中每个状态在字符 c 下的直接后继。</div>`,
+    show:'all', active:{nodes:[], edges:[]}
+  },
+
+  /* ========== 阶段 B：子集构造 ========== */
+  {
+    phase:'B', title:'Step 6 · 计算 DFA 起始状态 A = ε-closure({0})',
+    html:`<span class="badge badge--tip">要点</span>DFA 的起始状态定义为 NFA 起始态 0 的 ε 闭包。
+    <p>从 0 出发沿 ε 边可到达：0 → 1（ε） → 2、4（ε） → …还有 0 → 7（ε）。</p>
+    <p>故 <strong>A = {0, 1, 2, 4, 7}</strong>。</p>
+    <div class="tip-block"><span class="badge badge--warn">注意</span>ε-closure 一定要"闭包"，即持续扩张直到不再增加新状态。</div>`,
+    subsetRow:0, curDFA:'A',
+    show:{nodes:['A'], edges:[]}, active:{nodes:['A'], edges:[]}
+  },
+  {
+    phase:'B', title:'Step 7 · 从 A 读入 <code>a</code>：得到 B',
+    html:`<span class="badge badge--def">套路</span>对当前 DFA 状态 T 和字符 c：<br/>
+    ① 计算 <code>move(T, c)</code>； ② 再取 ε-closure。
+    <p>A={0,1,2,4,7}，其中在 <code>a</code> 下有出边的是 2 和 7：move(A,a) = {3, 8}。</p>
+    <p>ε-closure({3,8}) = {3, 6, 1, 7, 2, 4, 8}，整理为 <strong>B = {1,2,3,4,6,7,8}</strong>。得到 A -a→ B。</p>`,
+    subsetRow:1, curDFA:'B',
+    show:{nodes:['A','B'], edges:['dA_B']}, active:{nodes:['B'], edges:['dA_B']}
+  },
+  {
+    phase:'B', title:'Step 8 · 从 A 读入 <code>b</code>：得到 C',
+    html:`<span class="badge badge--tip">要点</span>类似地 move(A,b) = {5}，ε-closure({5}) = {5,6,1,7,2,4} = <strong>C = {1,2,4,5,6,7}</strong>。
+    <p>注意 C ≠ B，因为 C 不含 3、8；虽然两者都能通过 (a|b)* 的回环再次"重启"，但走过的最近一个字符不同，是否含 3/8 决定了后续能否直接接上尾部 <code>abb</code> 的第一个字符 <code>a</code>。</p>`,
+    subsetRow:2, curDFA:'C',
+    show:{nodes:['A','B','C'], edges:['dA_B','dA_C']}, active:{nodes:['C'], edges:['dA_C']}
+  },
+  {
+    phase:'B', title:'Step 9 · 展开 B 的两个转移',
+    html:`<span class="badge badge--tip">要点</span>继续处理未展开的状态 B：
+    <p>• move(B,a) = {3,8}，ε-closure = <strong>B 自身</strong>（回环自转）。</p>
+    <p>• move(B,b) = {5, 9}，ε-closure({5,9}) = {5,6,1,7,2,4,9} = <strong>D = {1,2,4,5,6,7,9}</strong>，多了状态 9。</p>
+    <div class="tip-block"><span class="badge badge--warn">注意</span>状态 9 = "已经读到了 <code>ab</code>"，DFA 用不同状态记住了这段"进度"。</div>`,
+    subsetRow:4, curDFA:'D',
+    show:{nodes:['A','B','C','D'], edges:['dA_B','dA_C','dB_B','dB_D']},
+    active:{nodes:['D'], edges:['dB_B','dB_D']}
+  },
+  {
+    phase:'B', title:'Step 10 · 展开 C 与 D',
+    html:`<span class="badge badge--tip">要点</span>用同样的方法把剩下的转移全部补齐：
+    <p>• C -a→ B，C -b→ C（自环）</p>
+    <p>• D -a→ B（回退！刚才读到 ab，现在又读到 a，只能算"新一轮的第一个 a"）</p>
+    <p>• D -b→ E = {1,2,4,5,6,7,10}，出现了 NFA 接受态 <code>10</code>！</p>`,
+    subsetRow:6, curDFA:'E',
+    show:{nodes:['A','B','C','D','E'],
+          edges:['dA_B','dA_C','dB_B','dB_D','dC_B','dC_C','dD_B','dD_E']},
+    active:{nodes:['E'], edges:['dD_E']}
+  },
+  {
+    phase:'B', title:'Step 11 · E 的转移 + 接受态标注',
+    html:`<span class="badge badge--tip">要点</span>E -a→ B，E -b→ C。所有转移已闭合，子集构造终止。
+    <p><strong>只要 DFA 状态包含 NFA 的任一接受态，它就是 DFA 的接受态</strong>。E 含状态 10，因此 E 是唯一接受态（双圈）。</p>
+    <div class="tip-block"><span class="badge badge--def">死状态</span>本例中 A/B/C/D/E 都对所有输入字符有出边，因此不存在"死状态"（陷阱态）。若有，工程实现中通常合并为一个 <code>∅</code> 状态。</div>`,
+    subsetRow:8, curDFA:'E',
+    show:'all-dfa', active:{nodes:['E'], edges:['dE_B','dE_C']}
+  },
+
+  /* ========== 阶段 C：DFA 扫描输入串 ababb ========== */
+  {
+    phase:'C', title:'Step 12 · 开始扫描：状态 A，指针指向 <code>a</code>',
+    html:`<span class="badge badge--tip">要点</span>DFA 是<strong>确定的</strong>：每一步只有一个状态、一条转移；实现只是一个 while 循环 + 二维表查表。
+    <p>输入串 <code>ababb</code>，从起始状态 A 开始，读入首字符 <code>a</code>。</p>`,
+    show:'all-dfa', active:{nodes:['A'], edges:[]},
+    inputIdx:0, curDFA:'A'
+  },
+  {
+    phase:'C', title:'Step 13 · 读 <code>a</code>：A → B',
+    html:`<span class="badge badge--tip">要点</span>查转移表 δ(A, a) = B，指针右移。<br/>轨迹：<code class="mono">A ─a→ B</code>`,
+    show:'all-dfa', active:{nodes:['B'], edges:['dA_B']},
+    inputIdx:1, curDFA:'B'
+  },
+  {
+    phase:'C', title:'Step 14 · 读 <code>b</code>：B → D',
+    html:`<span class="badge badge--tip">要点</span>δ(B, b) = D。D 相当于"已经读到 <code>ab</code>，还差一个 <code>b</code> 就接受"。<br/>轨迹：<code class="mono">A ─a→ B ─b→ D</code>`,
+    show:'all-dfa', active:{nodes:['D'], edges:['dB_D']},
+    inputIdx:2, curDFA:'D'
+  },
+  {
+    phase:'C', title:'Step 15 · 读 <code>a</code>：D → B（回退）',
+    html:`<span class="badge badge--warn">注意</span>δ(D, a) = B —— 不是失败，而是<strong>把"已匹配 ab"的记忆回退成"已匹配 a"</strong>，因为最新的 a 又开启了新一轮尝试。
+    <p>这正是 DFA 优雅的地方：无需回溯，一次扫描搞定。</p>`,
+    show:'all-dfa', active:{nodes:['B'], edges:['dD_B']},
+    inputIdx:3, curDFA:'B'
+  },
+  {
+    phase:'C', title:'Step 16 · 读 <code>b</code>：B → D',
+    html:`<span class="badge badge--tip">要点</span>δ(B, b) = D，再次到达 D。<br/>轨迹：<code class="mono">A → B → D → B → D</code>`,
+    show:'all-dfa', active:{nodes:['D'], edges:['dB_D']},
+    inputIdx:4, curDFA:'D'
+  },
+  {
+    phase:'C', title:'Step 17 · 读 <code>b</code>：D → E · <strong>接受！</strong>',
+    html:`<span class="badge badge--tip">结论</span>δ(D, b) = E，E 是接受态。输入串全部消耗完且停在接受态 —— <strong>识别成功</strong>。
+    <p>完整路径：<code class="mono">A ─a→ B ─b→ D ─a→ B ─b→ D ─b→ E ✓</code></p>
+    <div class="tip-block"><span class="badge badge--def">整个流程回顾</span>
+    <br/>正则 → NFA（Thompson，结构规整但有多路径） → DFA（子集构造，状态爆炸但扫描确定）→ 表驱动扫描（O(n) 时间）。
+    <br/>这就是 lex/flex 生成扫描器的核心原理。</div>`,
+    show:'all-dfa', active:{nodes:['E'], edges:['dD_E']},
+    inputIdx:5, curDFA:'E', verdict:'accept'
+  }
+];
+
+/* -------- 子集构造表格数据（阶段 B 左侧展示） -------- */
+const SUBSET_ROWS = [
+  ['A', '—',          '—', '{0,1,2,4,7}'],
+  ['A', 'a → {3,8}',   'B', '{1,2,3,4,6,7,8}'],
+  ['A', 'b → {5}',     'C', '{1,2,4,5,6,7}'],
+  ['B', 'a → {3,8}',   'B', '{1,2,3,4,6,7,8}'],
+  ['B', 'b → {5,9}',   'D', '{1,2,4,5,6,7,9}'],
+  ['C', 'a → {3,8}',   'B', '{1,2,3,4,6,7,8}'],
+  ['C', 'b → {5}',     'C', '{1,2,4,5,6,7}'],
+  ['D', 'a → {3,8}',   'B', '{1,2,3,4,6,7,8}'],
+  ['D', 'b → {5,10}',  'E★','{1,2,4,5,6,7,10}'],
+  ['E', 'a → {3,8}',   'B', '{1,2,3,4,6,7,8}'],
+  ['E', 'b → {5}',     'C', '{1,2,4,5,6,7}']
+];
+
+const INPUT_STR = 'ababb';
+
+/* ================================================================
+ *                        渲染层
+ * ================================================================ */
+const stageSvg  = document.getElementById('stageSvg');
+const nodesLayer= document.getElementById('nodesLayer');
+const edgesLayer= document.getElementById('edgesLayer');
+const stageTitle= document.getElementById('stageTitle');
+const panelExpl = document.getElementById('panelExplain');
+const stepInfo  = document.getElementById('stepInfo');
+const stepDots  = document.getElementById('stepDots');
+const btnPrev = document.getElementById('btnPrev');
+const btnNext = document.getElementById('btnNext');
+const btnPlay = document.getElementById('btnPlay');
+const btnReset= document.getElementById('btnReset');
+const btnSpeed= document.getElementById('btnSpeed');
+
+let curStep = 0;
+let curGraph = 'NFA';   // 'NFA' | 'DFA'
+let playing = false; let playTimer = null;
+let speedIdx = 1; const SPEEDS=[0.5,1,2]; const BASE_DELAY=1800;
+
+/* ---------- 绘制节点 ---------- */
+function drawNodes(nodes){
+  nodesLayer.innerHTML = '';
+  nodes.forEach(n=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','node'); g.dataset.id = n.id;
+    g.setAttribute('transform',`translate(${n.x},${n.y})`);
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('r',22);
+    g.appendChild(c);
+    if(n.accept){
+      const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ring.setAttribute('r',16); ring.setAttribute('class','ring');
+      ring.setAttribute('fill','none');
+      g.appendChild(ring);
+      g.classList.add('accept');
+    }
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.textContent = n.label;
+    g.appendChild(t);
+    nodesLayer.appendChild(g);
+  });
+}
+
+/* ---------- 绘制边（含自环与曲线） ---------- */
+function edgePath(a, b, edge){
+  if(edge.self){
+    // 自环：在节点上方画一个环
+    const r=22, cx=a.x, cy=a.y-r;
+    return `M ${a.x-14} ${a.y-r} C ${a.x-40} ${a.y-70}, ${a.x+40} ${a.y-70}, ${a.x+14} ${a.y-r}`;
+  }
+  const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy);
+  const ux=dx/len, uy=dy/len;   // 单位向量
+  const r=24;
+  const sx=a.x+ux*r, sy=a.y+uy*r;
+  const ex=b.x-ux*r, ey=b.y-uy*r;
+  const curve = edge.curve||0;
+  if(!curve) return `M ${sx} ${sy} L ${ex} ${ey}`;
+  // 中点 + 法向偏移
+  const mx=(sx+ex)/2, my=(sy+ey)/2;
+  const nx=-uy, ny=ux;
+  const cx=mx+nx*curve, cy=my+ny*curve;
+  return `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`;
+}
+function edgeLabelPos(a,b,edge){
+  if(edge.self) return {x:a.x, y:a.y-78};
+  const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy);
+  const ux=dx/len, uy=dy/len;
+  const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+  const nx=-uy, ny=ux;
+  const off=(edge.curve||0)*0.55 - 10;
+  return {x:mx+nx*off, y:my+ny*off};
+}
+function drawEdges(nodes, edges){
+  edgesLayer.innerHTML = '';
+  const nmap = {}; nodes.forEach(n=>nmap[n.id]=n);
+  edges.forEach(e=>{
+    const a=nmap[e.from], b=nmap[e.to];
+    if(!a||!b) return;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','edge'+(e.eps?' eps':''));
+    g.dataset.id = e.id;
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d', edgePath(a,b,e));
+    g.appendChild(p);
+    const pos = edgeLabelPos(a,b,e);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',pos.x); t.setAttribute('y',pos.y);
+    t.textContent = e.label;
+    g.appendChild(t);
+    edgesLayer.appendChild(g);
+  });
+}
+
+/* ---------- 切换图（NFA / DFA） ---------- */
+function switchGraph(kind){
+  if(curGraph === kind) return;
+  curGraph = kind;
+  if(kind==='NFA'){
+    stageSvg.setAttribute('viewBox','0 0 900 560');
+    drawNodes(NFA_NODES); drawEdges(NFA_NODES, NFA_EDGES);
+  } else {
+    stageSvg.setAttribute('viewBox','0 0 900 560');
+    drawNodes(DFA_NODES); drawEdges(DFA_NODES, DFA_EDGES);
+  }
+}
+
+/* ---------- 根据 step 描述更新可见/高亮 ---------- */
+function applyVisibility(step){
+  const allNodeIds = curGraph==='NFA' ? NFA_NODES.map(n=>n.id) : DFA_NODES.map(n=>n.id);
+  const allEdgeIds = curGraph==='NFA' ? NFA_EDGES.map(e=>e.id) : DFA_EDGES.map(e=>e.id);
+  let showN, showE;
+  if(step.show==='all'){ showN=allNodeIds; showE=allEdgeIds; }
+  else if(step.show==='all-dfa'){ showN=DFA_NODES.map(n=>n.id); showE=DFA_EDGES.map(e=>e.id); }
+  else { showN = step.show.nodes||[]; showE = step.show.edges||[]; }
+  const setShowN=new Set(showN), setShowE=new Set(showE);
+  const actN = new Set((step.active&&step.active.nodes)||[]);
+  const actE = new Set((step.active&&step.active.edges)||[]);
+
+  nodesLayer.querySelectorAll('.node').forEach(g=>{
+    const id = g.dataset.id;
+    g.classList.toggle('visible', setShowN.has(id));
+    g.classList.toggle('active',  actN.has(id));
+  });
+  edgesLayer.querySelectorAll('.edge').forEach(g=>{
+    const id = g.dataset.id;
+    g.classList.toggle('visible', setShowE.has(id));
+    g.classList.toggle('active',  actE.has(id));
+  });
+}
+
+/* ---------- 渲染左侧讲解 ---------- */
+function renderExplain(step, idx){
+  const phaseName = {A:'阶段 A · Thompson 构造 NFA',
+                     B:'阶段 B · 子集构造 NFA→DFA',
+                     C:'阶段 C · DFA 扫描输入串'}[step.phase];
+  let html = `<span class="phase-tag">${phaseName}</span>
+              <h2 class="step-title">${step.title}</h2>
+              <div class="step-body">${step.html}</div>`;
+
+  /* 阶段 B：附加子集构造表格 */
+  if(step.phase==='B' && step.subsetRow!=null){
+    html += `<table class="subset-table">
+      <thead><tr><th>状态</th><th>move</th><th>结果</th><th>集合</th></tr></thead>
+      <tbody>`;
+    for(let i=0;i<=step.subsetRow;i++){
+      const r = SUBSET_ROWS[i];
+      const hi = (i===step.subsetRow) ? ' class="hi"' : '';
+      html += `<tr${hi}><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+
+  /* 阶段 C：附加输入串条 + 轨迹 */
+  if(step.phase==='C'){
+    html += `<div class="input-strip">`;
+    for(let i=0;i<INPUT_STR.length;i++){
+      let cls='token';
+      if(i < step.inputIdx) cls='token consumed';
+      else if(i === step.inputIdx) cls='token current';
+      html += `<div class="${cls}">${INPUT_STR[i]}</div>`;
+    }
+    html += `</div>`;
+    html += `<div class="trace-line">当前 DFA 状态：<span class="st">${step.curDFA}</span> ${step.curDFA==='E'?'（接受态）':''}</div>`;
+    if(step.verdict==='accept'){
+      html += `<div class="verdict accept">✓ 输入串 "${INPUT_STR}" 被接受</div>`;
+    } else if(step.verdict==='reject'){
+      html += `<div class="verdict reject">✗ 输入串被拒绝</div>`;
+    }
+  }
+  panelExpl.innerHTML = html;
+  panelExpl.scrollTop = 0;
+}
+
+/* ---------- 渲染步骤指示 ---------- */
+function renderDots(){
+  stepDots.innerHTML = '';
+  STEPS.forEach((s,i)=>{
+    const d = document.createElement('div');
+    d.className = 'step-dot' + (i===curStep?' active':(i<curStep?' done':''));
+    d.title = `Step ${i+1}`;
+    d.addEventListener('click',()=>go(i));
+    stepDots.appendChild(d);
+  });
+  stepInfo.textContent = `${curStep+1} / ${STEPS.length}`;
+  btnPrev.disabled = (curStep===0);
+  btnNext.disabled = (curStep===STEPS.length-1);
+}
+
+/* ---------- 阶段标题 ---------- */
+function updateStageTitle(step){
+  const map={A:'阶段 A · Thompson 构造 NFA',
+             B:'阶段 B · 子集构造 NFA → DFA',
+             C:'阶段 C · DFA 扫描 "ababb"'};
+  const num={A:'A',B:'B',C:'C'};
+  stageTitle.innerHTML = `<span class="num">阶段 ${num[step.phase]}</span> · ${map[step.phase].split(' · ')[1]}`;
+}
+
+/* ---------- 跳转到指定步骤（主渲染） ---------- */
+function go(i){
+  if(i<0||i>=STEPS.length) return;
+  curStep = i;
+  const step = STEPS[i];
+  // 切换 NFA / DFA
+  switchGraph(step.phase==='A' ? 'NFA' : 'DFA');
+  applyVisibility(step);
+  renderExplain(step, i);
+  renderDots();
+  updateStageTitle(step);
+}
+
+/* ---------- 控制按钮 ---------- */
+btnPrev.onclick = ()=>go(curStep-1);
+btnNext.onclick = ()=>go(curStep+1);
+btnReset.onclick= ()=>{ stopPlay(); go(0); };
+btnPlay.onclick = togglePlay;
+btnSpeed.onclick= ()=>{
+  speedIdx = (speedIdx+1)%SPEEDS.length;
+  btnSpeed.textContent = SPEEDS[speedIdx]+'×';
+  if(playing){ stopPlay(); startPlay(); }
+};
+
+function togglePlay(){ playing ? stopPlay() : startPlay(); }
+function startPlay(){
+  if(curStep >= STEPS.length-1) go(0);
+  playing = true; btnPlay.textContent = '⏸ 暂停';
+  const tick = ()=>{
+    if(curStep < STEPS.length-1){ go(curStep+1); playTimer=setTimeout(tick, BASE_DELAY/SPEEDS[speedIdx]); }
+    else { stopPlay(); }
+  };
+  playTimer = setTimeout(tick, BASE_DELAY/SPEEDS[speedIdx]);
+}
+function stopPlay(){
+  playing = false; btnPlay.textContent = '▶ 自动';
+  if(playTimer){ clearTimeout(playTimer); playTimer=null; }
+}
+
+/* ---------- 键盘 ---------- */
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight'){ e.preventDefault(); go(curStep+1); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); go(curStep-1); }
+  else if(e.key===' '){ e.preventDefault(); togglePlay(); }
+  else if(e.key==='r'||e.key==='R'){ e.preventDefault(); stopPlay(); go(0); }
+});
+
+/* ---------- 初始化 ---------- */
+switchGraph('NFA');
+go(0);
+</script>
+</body>
+</html>

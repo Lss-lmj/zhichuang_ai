@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>作用域规则 · 声明绑定与遮蔽</title>
+<style>
+:root{
+  --bg:#0f1226; --bg-soft:#171a35; --bg-code:#0a0c1c;
+  --fg:#e7ebff; --fg-dim:#a0a8d0; --line:#2a2f55;
+  --accent:#6ee7ff; --accent-2:#ffb86b;
+  --success:#7ee787; --danger:#ff6b8a; --purple:#b78cff;
+  --shadow:0 10px 30px rgba(0,0,0,0.35);
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  height:100%;overflow:hidden}
+code,.mono{font-family:"JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+
+.demo-shell{display:flex;flex-direction:column;height:100vh}
+.demo-header{
+  display:flex;align-items:center;gap:16px;padding:12px 22px;
+  background:linear-gradient(90deg,#141735,#1a1e42);
+  border-bottom:1px solid var(--line);box-shadow:var(--shadow)
+}
+.demo-header h1{font-size:18px;margin:0;letter-spacing:.5px}
+.demo-header h1 .sub{color:var(--fg-dim);font-weight:400;margin-left:8px;font-size:13px}
+.back-btn{
+  color:var(--fg);text-decoration:none;padding:6px 12px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:var(--bg-soft);font-size:13px;
+  transition:all .2s
+}
+.back-btn:hover{border-color:var(--accent);color:var(--accent)}
+.header-spacer{flex:1}
+.scope-badge{
+  padding:6px 14px;background:var(--bg-code);border:1px solid var(--line);
+  border-radius:var(--radius-sm);color:var(--accent);font-size:13px;white-space:nowrap
+}
+
+.demo-main{flex:1;display:flex;min-height:0}
+.panel-explain{
+  width:31%;min-width:350px;padding:18px 20px;overflow-y:auto;
+  background:var(--bg-soft);border-right:1px solid var(--line)
+}
+.panel-stage{flex:1;display:grid;grid-template-columns:minmax(310px,.88fr) minmax(0,1.55fr);min-width:0;background:var(--bg);overflow:hidden}
+
+.phase-tag{
+  display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;
+  background:rgba(110,231,255,.12);color:var(--accent);
+  border:1px solid rgba(110,231,255,.35);margin-bottom:10px
+}
+.step-title{font-size:20px;margin:0 0 10px;line-height:1.4}
+.step-body{font-size:14px;line-height:1.75;color:var(--fg)}
+.step-body p{margin:8px 0}
+.step-body code{background:var(--bg-code);padding:1px 6px;border-radius:4px;color:var(--accent);font-size:13px}
+.badge{
+  display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;
+  margin-right:6px;font-weight:600;letter-spacing:.5px
+}
+.badge--def{background:rgba(183,140,255,.18);color:var(--purple);border:1px solid rgba(183,140,255,.4)}
+.badge--tip{background:rgba(126,231,135,.15);color:var(--success);border:1px solid rgba(126,231,135,.4)}
+.badge--warn{background:rgba(255,107,138,.15);color:var(--danger);border:1px solid rgba(255,107,138,.4)}
+.scope-rule,.trace-box{
+  margin-top:12px;padding:12px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:rgba(10,12,28,.55)
+}
+.scope-rule h3,.trace-box h3{
+  margin:0 0 8px;font-size:12px;color:var(--fg-dim);letter-spacing:1px;text-transform:uppercase
+}
+.scope-rule ul{margin:0;padding-left:18px;color:var(--fg-dim);font-size:12.5px;line-height:1.65}
+.trace-box pre{margin:0;white-space:pre-wrap;color:var(--success);font-size:12px;line-height:1.55}
+
+.code-panel{
+  display:grid;grid-template-rows:auto 1fr;min-width:0;
+  border-right:1px solid var(--line);background:linear-gradient(180deg,rgba(23,26,53,.92),rgba(10,12,28,.78))
+}
+.panel-title{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+  color:var(--fg-dim);font-size:12px;letter-spacing:1px;text-transform:uppercase
+}
+.panel-title b{color:var(--accent)}
+.code-view{padding:16px;overflow:auto}
+.code-line{
+  display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;
+  min-height:30px;padding:4px 8px;border-radius:7px;color:var(--fg-dim);
+  font-family:"JetBrains Mono",Menlo,Consolas,monospace;font-size:13px;line-height:1.6;
+  transition:all .22s ease
+}
+.code-line .ln{color:#5d668d;text-align:right;user-select:none}
+.code-line.active{background:rgba(110,231,255,.12);color:var(--fg);box-shadow:inset 3px 0 0 var(--accent)}
+.code-line.declare{background:rgba(126,231,135,.11);color:var(--fg);box-shadow:inset 3px 0 0 var(--success)}
+.code-line.lookup{background:rgba(255,184,107,.12);color:var(--fg);box-shadow:inset 3px 0 0 var(--accent-2)}
+.code-line.error{background:rgba(255,107,138,.12);color:var(--fg);box-shadow:inset 3px 0 0 var(--danger)}
+.kw{color:#b78cff}.ty{color:#6ee7ff}.id{color:#e7ebff}.num{color:#ffb86b}.com{color:#7380ad}.op{color:#a0a8d0}
+
+.scope-stage{position:relative;display:grid;grid-template-rows:auto 1fr auto;min-width:0;overflow:hidden}
+.scope-stage::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.26;
+  background-image:
+    linear-gradient(rgba(110,231,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110,231,255,.06) 1px, transparent 1px);
+  background-size:40px 40px;
+  mask-image:radial-gradient(ellipse at center, black 28%, transparent 76%);
+  -webkit-mask-image:radial-gradient(ellipse at center, black 28%, transparent 76%)
+}
+.stage-head{
+  position:relative;z-index:1;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+  padding:14px 18px 10px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(23,26,53,.9),rgba(15,18,38,.84))
+}
+.stage-title{font-size:13px;color:var(--fg-dim);letter-spacing:1px;text-transform:uppercase}
+.stage-title .num{color:var(--accent);font-weight:700}
+.legend{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;font-size:11px;color:var(--fg-dim)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid var(--line);background:rgba(23,26,53,.9)}
+.legend .active{border-color:var(--accent);background:rgba(110,231,255,.18)}
+.legend .hit{border-color:var(--success);background:rgba(126,231,135,.2)}
+.legend .shadow{border-color:var(--accent-2);background:rgba(255,184,107,.16)}
+.legend .err{border-color:var(--danger);background:rgba(255,107,138,.16)}
+
+.scope-canvas{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px;min-height:0;overflow:auto}
+.stack-column,.lookup-column{display:grid;gap:12px;align-content:start}
+.scope-frame{
+  display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);
+  background:rgba(23,26,53,.76);box-shadow:0 8px 24px rgba(0,0,0,.2);
+  transition:all .25s ease
+}
+.scope-frame.visible{opacity:1;transform:translateY(0)}
+.scope-frame:not(.visible){opacity:.28;filter:saturate(.55)}
+.scope-frame.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(110,231,255,.25),0 12px 30px rgba(0,0,0,.28)}
+.scope-frame h3{
+  display:flex;justify-content:space-between;gap:8px;margin:0;font-size:13px;color:var(--fg);
+  font-family:"JetBrains Mono",Menlo,Consolas,monospace
+}
+.scope-frame h3 span{color:var(--accent)}
+.scope-frame table{width:100%;border-collapse:collapse;font-size:12px;overflow:hidden;border-radius:8px}
+.scope-frame th,.scope-frame td{padding:7px 8px;border-bottom:1px solid rgba(42,47,85,.7);text-align:left}
+.scope-frame th{color:var(--fg-dim);font-weight:600;background:rgba(10,12,28,.5)}
+.symbol-row{transition:all .2s ease}
+.symbol-row.hit td{background:rgba(126,231,135,.16);color:var(--success)}
+.symbol-row.shadow td{background:rgba(255,184,107,.13);color:var(--accent-2)}
+.symbol-row.err td{background:rgba(255,107,138,.14);color:var(--danger)}
+
+.lookup-card,.binding-card{
+  min-height:108px;display:grid;gap:8px;align-content:start;padding:12px;border-radius:var(--radius);
+  border:1px solid var(--line);background:rgba(10,12,28,.58)
+}
+.lookup-card h3,.binding-card h3{margin:0;font-size:13px;color:var(--accent)}
+.lookup-path{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.lookup-path span{
+  display:inline-flex;align-items:center;min-height:30px;padding:5px 9px;border-radius:8px;
+  border:1px solid var(--line);background:rgba(23,26,53,.8);font-size:12px;color:var(--fg-dim);
+  font-family:"JetBrains Mono",Menlo,Consolas,monospace
+}
+.lookup-path span.active{color:#07111d;background:var(--accent);border-color:var(--accent)}
+.lookup-path span.hit{color:#07111d;background:var(--success);border-color:var(--success)}
+.lookup-path span.fail{color:var(--danger);border-color:var(--danger);background:rgba(255,107,138,.08)}
+.binding-card p{margin:0;color:var(--fg-dim);font-size:13px;line-height:1.6}
+.binding-card strong{color:var(--success)}
+.binding-card .warn{color:var(--accent-2)}
+.binding-card .err{color:var(--danger)}
+
+.event-strip{
+  position:relative;z-index:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;
+  padding:10px 16px;border-top:1px solid var(--line);background:rgba(23,26,53,.72)
+}
+.event-card{
+  min-height:58px;display:grid;align-content:center;gap:3px;padding:8px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:rgba(10,12,28,.55);transition:all .22s ease
+}
+.event-card.active{border-color:var(--accent);background:rgba(110,231,255,.1)}
+.event-card strong{font-size:12px;color:var(--accent)}
+.event-card span{font-size:11px;color:var(--fg-dim)}
+
+.demo-controls{
+  display:flex;align-items:center;gap:14px;padding:10px 22px;
+  background:var(--bg-soft);border-top:1px solid var(--line)
+}
+.ctrl-btn{
+  background:var(--bg);color:var(--fg);border:1px solid var(--line);
+  padding:8px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;
+  transition:all .2s;font-family:inherit
+}
+.ctrl-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.ctrl-btn:disabled{opacity:.4;cursor:not-allowed}
+.ctrl-btn.primary{background:var(--accent);color:#0b0e22;border-color:var(--accent);font-weight:600}
+.step-indicator{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.step-dot{width:9px;height:9px;border-radius:50%;background:var(--line);transition:all .3s;cursor:pointer}
+.step-dot.active{background:var(--accent);transform:scale(1.35);box-shadow:0 0 8px var(--accent)}
+.step-dot.done{background:var(--fg-dim)}
+.step-info{font-size:12px;color:var(--fg-dim);font-family:"JetBrains Mono",Menlo,monospace;min-width:80px;text-align:center}
+.speed-btn{
+  background:transparent;color:var(--fg-dim);border:1px solid var(--line);
+  padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px
+}
+.speed-btn:hover{color:var(--accent)}
+
+@media (max-width:1060px){
+  html,body{overflow:auto;height:auto}
+  .demo-shell{height:auto;min-height:100vh}
+  .demo-main{display:grid}
+  .panel-explain{width:auto;min-width:0;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  .panel-stage{grid-template-columns:1fr}
+  .code-panel{border-right:0;border-bottom:1px solid var(--line)}
+  .scope-stage{min-height:760px}
+}
+@media (max-width:720px){
+  .scope-canvas{grid-template-columns:1fr}
+  .event-strip{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <header class="demo-header">
+    <a href="../index.html" class="back-btn">← 返回目录</a>
+    <h1>作用域规则 · 声明绑定与遮蔽 <span class="sub">Scope Stack · Name Binding · Shadowing</span></h1>
+    <span class="header-spacer"></span>
+    <span class="scope-badge mono">nearest declaration wins</span>
+  </header>
+
+  <main class="demo-main">
+    <aside class="panel-explain" id="panelExplain"></aside>
+
+    <section class="panel-stage">
+      <div class="code-panel">
+        <div class="panel-title"><b>Source Program</b><span>块级作用域示例</span></div>
+        <div class="code-view" id="codeView">
+          <div class="code-line" data-line="1"><span class="ln">1</span><span><span class="kw">int</span> <span class="id">x</span> <span class="op">=</span> <span class="num">1</span>;</span></div>
+          <div class="code-line" data-line="2"><span class="ln">2</span><span><span class="kw">int</span> <span class="id">y</span> <span class="op">=</span> <span class="num">2</span>;</span></div>
+          <div class="code-line" data-line="3"><span class="ln">3</span><span>{</span></div>
+          <div class="code-line" data-line="4"><span class="ln">4</span><span>  <span class="kw">int</span> <span class="id">x</span> <span class="op">=</span> <span class="id">y</span> <span class="op">+</span> <span class="num">3</span>; <span class="com">// shadow outer x</span></span></div>
+          <div class="code-line" data-line="5"><span class="ln">5</span><span>  <span class="id">print</span>(<span class="id">x</span>);</span></div>
+          <div class="code-line" data-line="6"><span class="ln">6</span><span>  {</span></div>
+          <div class="code-line" data-line="7"><span class="ln">7</span><span>    <span class="kw">bool</span> <span class="id">flag</span> <span class="op">=</span> <span class="kw">true</span>;</span></div>
+          <div class="code-line" data-line="8"><span class="ln">8</span><span>    <span class="id">x</span> <span class="op">=</span> <span class="id">x</span> <span class="op">+</span> <span class="num">1</span>;</span></div>
+          <div class="code-line" data-line="9"><span class="ln">9</span><span>  }</span></div>
+          <div class="code-line" data-line="10"><span class="ln">10</span><span>  <span class="id">print</span>(<span class="id">flag</span>); <span class="com">// undefined</span></span></div>
+          <div class="code-line" data-line="11"><span class="ln">11</span><span>}</span></div>
+          <div class="code-line" data-line="12"><span class="ln">12</span><span><span class="id">print</span>(<span class="id">x</span>);</span></div>
+        </div>
+      </div>
+
+      <div class="scope-stage">
+        <div class="stage-head">
+          <div class="stage-title" id="stageTitle"><span class="num">阶段 A</span> · 建立全局作用域</div>
+          <div class="legend">
+            <span><i></i>可见作用域</span>
+            <span><i class="active"></i>当前作用域</span>
+            <span><i class="hit"></i>命中声明</span>
+            <span><i class="shadow"></i>被遮蔽</span>
+            <span><i class="err"></i>查找失败</span>
+          </div>
+        </div>
+
+        <div class="scope-canvas">
+          <div class="stack-column">
+            <div class="scope-frame" id="scope-global">
+              <h3><span>S0</span> global</h3>
+              <table>
+                <thead><tr><th>name</th><th>type</th><th>line</th></tr></thead>
+                <tbody>
+                  <tr class="symbol-row" data-symbol="global:x"><td>x</td><td>int</td><td>1</td></tr>
+                  <tr class="symbol-row" data-symbol="global:y"><td>y</td><td>int</td><td>2</td></tr>
+                  <tr class="symbol-row" data-symbol="global:print"><td>print</td><td>fn</td><td>built-in</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="scope-frame" id="scope-block1">
+              <h3><span>S1</span> block @ line 3</h3>
+              <table>
+                <thead><tr><th>name</th><th>type</th><th>line</th></tr></thead>
+                <tbody>
+                  <tr class="symbol-row" data-symbol="block1:x"><td>x</td><td>int</td><td>4</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="scope-frame" id="scope-block2">
+              <h3><span>S2</span> block @ line 6</h3>
+              <table>
+                <thead><tr><th>name</th><th>type</th><th>line</th></tr></thead>
+                <tbody>
+                  <tr class="symbol-row" data-symbol="block2:flag"><td>flag</td><td>bool</td><td>7</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="lookup-column">
+            <article class="lookup-card">
+              <h3>查找路径</h3>
+              <div class="lookup-path" id="lookupPath"></div>
+            </article>
+            <article class="binding-card" id="bindingCard">
+              <h3>当前绑定</h3>
+              <p>等待扫描源码。</p>
+            </article>
+          </div>
+        </div>
+
+        <div class="event-strip">
+          <div class="event-card" data-event="declare"><strong>DECLARE</strong><span>声明写入当前作用域</span></div>
+          <div class="event-card" data-event="enter"><strong>ENTER</strong><span>遇到 `{` 压入新作用域</span></div>
+          <div class="event-card" data-event="lookup"><strong>LOOKUP</strong><span>从内向外查找名称</span></div>
+          <div class="event-card" data-event="exit"><strong>EXIT</strong><span>遇到 `}` 弹出作用域</span></div>
+          <div class="event-card" data-event="error"><strong>ERROR</strong><span>离开作用域后不可见</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="demo-controls">
+    <button class="ctrl-btn" id="btnPrev">← 上一步</button>
+    <button class="ctrl-btn primary" id="btnPlay">▶ 自动</button>
+    <button class="ctrl-btn" id="btnNext">下一步 →</button>
+    <div class="step-info" id="stepInfo">1 / 1</div>
+    <div class="step-indicator" id="stepDots"></div>
+    <button class="ctrl-btn" id="btnReset">⟳ 重置</button>
+    <button class="speed-btn" id="btnSpeed">1×</button>
+  </footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const panelExplain = $("panelExplain");
+const stageTitle = $("stageTitle");
+const lookupPath = $("lookupPath");
+const bindingCard = $("bindingCard");
+const stepDots = $("stepDots");
+const stepInfo = $("stepInfo");
+const btnPrev = $("btnPrev");
+const btnNext = $("btnNext");
+const btnPlay = $("btnPlay");
+const btnReset = $("btnReset");
+const btnSpeed = $("btnSpeed");
+
+const scopeIds = ["scope-global","scope-block1","scope-block2"];
+
+const STEPS = [
+  {
+    phase:"A", tag:"阶段 A · 全局作用域", title:"扫描全局声明",
+    html:`<span class="badge badge--def">规则</span>
+      <p>编译器从最外层开始建立作用域。每遇到一个声明，就把名字、类型和源码位置记录到当前作用域表。</p>
+      <p>本例第 1、2 行把 <code>x:int</code> 和 <code>y:int</code> 放入全局作用域。</p>`,
+    rules:["声明进入当前作用域。","同一作用域内不允许重复声明同名变量。"],
+    lines:{declare:[1,2]}, scopes:["scope-global"], activeScope:"scope-global",
+    symbols:["global:x","global:y"], event:"declare",
+    path:["global"], binding:`global.x:int, global.y:int`,
+    trace:`S0 = { x:int@1, y:int@2, print:fn }`
+  },
+  {
+    phase:"B", tag:"阶段 B · 进入块", title:"遇到左花括号，压入新作用域",
+    html:`<span class="badge badge--tip">栈结构</span>
+      <p>第 3 行进入新的代码块。作用域栈压入 <code>S1</code>，之后的声明优先写入 <code>S1</code>。</p>
+      <p>查找名字时从栈顶向外层搜索，因此内层可以访问外层，但外层不能访问内层。</p>`,
+    rules:["<code>{</code> 触发 enterScope。","新作用域的外链指向进入前的栈顶。"],
+    lines:{active:[3]}, scopes:["scope-global","scope-block1"], activeScope:"scope-block1",
+    event:"enter", path:["block@3","global"], binding:`top = S1, parent(S1)=S0`,
+    trace:`push S1
+scope stack: S0 -> S1`
+  },
+  {
+    phase:"B", tag:"阶段 B · 遮蔽", title:"内层 x 遮蔽外层 x",
+    html:`<span class="badge badge--warn">遮蔽</span>
+      <p>第 4 行声明了新的 <code>x</code>。它与全局 <code>x</code> 同名，但处在不同作用域，因此不是重复声明，而是遮蔽。</p>
+      <p>初始化表达式中的 <code>y</code> 在当前作用域找不到，会继续向全局作用域查找并命中。</p>`,
+    rules:["不同作用域允许同名声明。","最近的声明会遮蔽外层同名声明。","初始化表达式仍按普通查找规则解析。"],
+    lines:{declare:[4],lookup:[4]}, scopes:["scope-global","scope-block1"], activeScope:"scope-block1",
+    symbols:["block1:x"], shadow:["global:x"], event:"declare", path:["block@3","global"], hit:["global:y"],
+    binding:`<span class="warn">block.x:int@4 shadows global.x:int@1</span><br><strong>lookup(y) -> global.y:int@2</strong>`,
+    trace:`declare S1.x:int
+lookup y: S1 miss -> S0 hit`
+  },
+  {
+    phase:"C", tag:"阶段 C · 最近声明优先", title:"print(x) 命中内层 x",
+    html:`<span class="badge badge--tip">查找</span>
+      <p>第 5 行使用 <code>x</code>。查找从当前作用域 <code>S1</code> 开始，立刻命中第 4 行声明的 <code>x</code>。</p>
+      <p>全局第 1 行的 <code>x</code> 仍然存在，但在当前块内不可作为这个引用的绑定目标。</p>`,
+    rules:["名字引用绑定到最近的可见声明。","外层同名声明被遮蔽，但并未删除。"],
+    lines:{lookup:[5]}, scopes:["scope-global","scope-block1"], activeScope:"scope-block1",
+    symbols:["block1:x"], shadow:["global:x"], event:"lookup", path:["block@3","global"], pathHit:"block@3",
+    binding:`<strong>lookup(x) -> block.x:int@4</strong><br><span class="warn">global.x:int@1 is shadowed</span>`,
+    trace:`lookup x:
+S1 hit x:int@4
+stop search`
+  },
+  {
+    phase:"C", tag:"阶段 C · 嵌套块", title:"进入第二层块并声明 flag",
+    html:`<span class="badge badge--def">嵌套</span>
+      <p>第 6 行再次进入块，压入 <code>S2</code>。第 7 行声明 <code>flag:bool</code>，它只在 <code>S2</code> 及其内部可见。</p>
+      <p>此时作用域栈是 <code>S0 -> S1 -> S2</code>。</p>`,
+    rules:["嵌套块形成链式父作用域。","内层声明的生命周期随作用域退出结束。"],
+    lines:{active:[6],declare:[7]}, scopes:["scope-global","scope-block1","scope-block2"], activeScope:"scope-block2",
+    symbols:["block2:flag"], event:"enter", path:["block@6","block@3","global"], binding:`top = S2, declare flag:bool@7`,
+    trace:`push S2
+declare S2.flag:bool`
+  },
+  {
+    phase:"C", tag:"阶段 C · 向外层查找", title:"内层赋值 x = x + 1",
+    html:`<span class="badge badge--tip">链式查找</span>
+      <p>第 8 行在最内层块使用 <code>x</code>。当前 <code>S2</code> 没有 <code>x</code>，于是沿父链到 <code>S1</code>，命中第 4 行声明的内层 <code>x</code>。</p>
+      <p>查找不会继续到全局 <code>x</code>，因为最近命中已经确定绑定。</p>`,
+    rules:["查找路径从当前作用域开始。","首次命中即停止。","左值和右值引用都需要绑定到声明。"],
+    lines:{lookup:[8]}, scopes:["scope-global","scope-block1","scope-block2"], activeScope:"scope-block2",
+    symbols:["block1:x"], shadow:["global:x"], event:"lookup", path:["block@6","block@3","global"], pathHit:"block@3",
+    binding:`<strong>lookup(x) -> block.x:int@4</strong><br>S2 miss, S1 hit, S0 skipped`,
+    trace:`lookup x:
+S2 miss
+S1 hit x:int@4`
+  },
+  {
+    phase:"D", tag:"阶段 D · 退出内层块", title:"右花括号弹出 S2",
+    html:`<span class="badge badge--warn">退出</span>
+      <p>第 9 行离开最内层块，<code>S2</code> 从作用域栈弹出。它里面的 <code>flag</code> 不再可见。</p>
+      <p>编译器通常不会“删除”历史信息，而是让当前查找链不再经过该表。</p>`,
+    rules:["<code>}</code> 触发 exitScope。","被弹出的作用域不参与后续名称查找。"],
+    lines:{active:[9]}, scopes:["scope-global","scope-block1"], inactive:["scope-block2"], activeScope:"scope-block1",
+    event:"exit", path:["block@3","global"], binding:`pop S2; flag leaves visible scope`,
+    trace:`pop S2
+scope stack: S0 -> S1`
+  },
+  {
+    phase:"D", tag:"阶段 D · 未定义引用", title:"print(flag) 查找失败",
+    html:`<span class="badge badge--warn">错误</span>
+      <p>第 10 行使用 <code>flag</code>。当前查找链只有 <code>S1 -> S0</code>，而 <code>flag</code> 曾经在 <code>S2</code> 中声明，已经不可见。</p>
+      <p>因此这是未定义标识符错误，不是类型错误。</p>`,
+    rules:["离开声明所在作用域后，名字不可见。","查找失败应报告变量名和源码位置。"],
+    lines:{error:[10]}, scopes:["scope-global","scope-block1"], inactive:["scope-block2"], activeScope:"scope-block1",
+    symbols:["block2:flag"], errors:["block2:flag"], event:"error", path:["block@3","global"], pathFail:true,
+    binding:`<span class="err">lookup(flag) failed at line 10</span>`,
+    trace:`lookup flag:
+S1 miss
+S0 miss
+error: undefined identifier flag`
+  },
+  {
+    phase:"D", tag:"阶段 D · 回到全局", title:"退出 S1 后再次使用 x",
+    html:`<span class="badge badge--tip">恢复</span>
+      <p>第 11 行退出外层块，<code>S1</code> 弹出。第 12 行的 <code>print(x)</code> 只在全局作用域中查找，因此绑定到第 1 行声明的 <code>x</code>。</p>
+      <p>这说明遮蔽只在内层作用域有效，离开后外层声明重新成为最近可见声明。</p>`,
+    rules:["退出块后，内层同名声明不再参与查找。","外层声明恢复为当前可见绑定。"],
+    lines:{active:[11],lookup:[12]}, scopes:["scope-global"], inactive:["scope-block1","scope-block2"], activeScope:"scope-global",
+    symbols:["global:x"], event:"exit", path:["global"], pathHit:"global",
+    binding:`<strong>lookup(x) -> global.x:int@1</strong>`,
+    trace:`pop S1
+lookup x: S0 hit x:int@1`
+  }
+];
+
+let curStep = 0;
+let playing = false;
+let playTimer = null;
+let speedIdx = 1;
+const SPEEDS = [0.5,1,2];
+const BASE_DELAY = 1900;
+
+function clearClasses(){
+  document.querySelectorAll(".code-line").forEach(line=>{
+    line.classList.remove("active","declare","lookup","error");
+  });
+  document.querySelectorAll(".scope-frame").forEach(frame=>{
+    frame.classList.remove("visible","active");
+  });
+  document.querySelectorAll(".symbol-row").forEach(row=>{
+    row.classList.remove("hit","shadow","err");
+  });
+  document.querySelectorAll(".event-card").forEach(card=>card.classList.remove("active"));
+}
+
+function setLines(lines){
+  const active = new Set(lines?.active || []);
+  const declare = new Set(lines?.declare || []);
+  const lookup = new Set(lines?.lookup || []);
+  const error = new Set(lines?.error || []);
+  document.querySelectorAll(".code-line").forEach(line=>{
+    const n = Number(line.dataset.line);
+    line.classList.toggle("active", active.has(n));
+    line.classList.toggle("declare", declare.has(n));
+    line.classList.toggle("lookup", lookup.has(n));
+    line.classList.toggle("error", error.has(n));
+  });
+}
+
+function setScopes(step){
+  const visible = new Set(step.scopes || []);
+  const inactive = new Set(step.inactive || []);
+  scopeIds.forEach(id=>{
+    const frame = $(id);
+    frame.classList.toggle("visible", visible.has(id) || inactive.has(id));
+    frame.classList.toggle("active", step.activeScope === id);
+  });
+}
+
+function setSymbols(step){
+  const hit = new Set([...(step.symbols || []), ...(step.hit || [])]);
+  const shadow = new Set(step.shadow || []);
+  const err = new Set([...(step.errors || [])]);
+  document.querySelectorAll(".symbol-row").forEach(row=>{
+    const id = row.dataset.symbol;
+    row.classList.toggle("hit", hit.has(id));
+    row.classList.toggle("shadow", shadow.has(id));
+    row.classList.toggle("err", err.has(id));
+  });
+}
+
+function renderPath(step){
+  lookupPath.innerHTML = "";
+  (step.path || []).forEach(label=>{
+    const item = document.createElement("span");
+    item.textContent = label;
+    if(step.pathHit === label) item.classList.add("hit");
+    else if(step.pathFail) item.classList.add("fail");
+    else item.classList.add("active");
+    lookupPath.appendChild(item);
+  });
+}
+
+function renderBinding(step){
+  bindingCard.innerHTML = `<h3>当前绑定</h3><p>${step.binding || "等待扫描源码。"}</p>`;
+}
+
+function renderExplain(step){
+  const rules = (step.rules || []).map(item=>`<li>${item}</li>`).join("");
+  panelExplain.innerHTML = `
+    <span class="phase-tag">${step.tag}</span>
+    <h2 class="step-title">${step.title}</h2>
+    <div class="step-body">${step.html}</div>
+    <div class="scope-rule"><h3>作用域规则</h3><ul>${rules}</ul></div>
+    <div class="trace-box"><h3>当前动作</h3><pre>${step.trace || ""}</pre></div>
+  `;
+  panelExplain.scrollTop = 0;
+}
+
+function renderDots(){
+  stepDots.innerHTML = "";
+  STEPS.forEach((_, index)=>{
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "step-dot" + (index === curStep ? " active" : index < curStep ? " done" : "");
+    dot.title = `Step ${index + 1}`;
+    dot.addEventListener("click",()=>go(index));
+    stepDots.appendChild(dot);
+  });
+  stepInfo.textContent = `${curStep + 1} / ${STEPS.length}`;
+  btnPrev.disabled = curStep === 0;
+  btnNext.disabled = curStep === STEPS.length - 1;
+}
+
+function updateStageTitle(step){
+  const map = {A:"建立全局作用域",B:"进入块与遮蔽",C:"链式查找",D:"退出作用域"};
+  stageTitle.innerHTML = `<span class="num">阶段 ${step.phase}</span> · ${map[step.phase]}`;
+}
+
+function go(index){
+  if(index < 0 || index >= STEPS.length) return;
+  curStep = index;
+  const step = STEPS[index];
+  clearClasses();
+  setLines(step.lines);
+  setScopes(step);
+  setSymbols(step);
+  renderPath(step);
+  renderBinding(step);
+  renderExplain(step);
+  renderDots();
+  updateStageTitle(step);
+  document.querySelector(`[data-event="${step.event}"]`)?.classList.add("active");
+}
+
+function next(){ go(curStep + 1); }
+function prev(){ go(curStep - 1); }
+function reset(){ stopPlay(); go(0); }
+
+function startPlay(){
+  if(curStep >= STEPS.length - 1) go(0);
+  playing = true;
+  btnPlay.textContent = "⏸ 暂停";
+  const tick = ()=>{
+    if(curStep < STEPS.length - 1){
+      go(curStep + 1);
+      playTimer = window.setTimeout(tick, BASE_DELAY / SPEEDS[speedIdx]);
+    }else{
+      stopPlay();
+    }
+  };
+  playTimer = window.setTimeout(tick, BASE_DELAY / SPEEDS[speedIdx]);
+}
+
+function stopPlay(){
+  playing = false;
+  btnPlay.textContent = "▶ 自动";
+  if(playTimer){
+    window.clearTimeout(playTimer);
+    playTimer = null;
+  }
+}
+
+function togglePlay(){ playing ? stopPlay() : startPlay(); }
+
+btnPrev.addEventListener("click",prev);
+btnNext.addEventListener("click",next);
+btnReset.addEventListener("click",reset);
+btnPlay.addEventListener("click",togglePlay);
+btnSpeed.addEventListener("click",()=>{
+  speedIdx = (speedIdx + 1) % SPEEDS.length;
+  btnSpeed.textContent = `${SPEEDS[speedIdx]}×`;
+  if(playing){ stopPlay(); startPlay(); }
+});
+
+document.addEventListener("keydown",event=>{
+  if(event.key === "ArrowRight"){ event.preventDefault(); next(); }
+  if(event.key === "ArrowLeft"){ event.preventDefault(); prev(); }
+  if(event.key === " "){ event.preventDefault(); togglePlay(); }
+  if(event.key === "r" || event.key === "R"){ event.preventDefault(); reset(); }
+});
+
+go(0);
+</script>
+</body>
+</html>

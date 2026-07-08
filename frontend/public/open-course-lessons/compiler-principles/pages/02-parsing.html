@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>语法分析 · LL(1) 与 LR(0)</title>
+<style>
+/* ========== 全局变量（遵循 DESIGN_SPEC.md） ========== */
+:root{
+  --bg:#0f1226; --bg-soft:#171a35; --bg-code:#0a0c1c;
+  --fg:#e7ebff; --fg-dim:#a0a8d0; --line:#2a2f55;
+  --accent:#6ee7ff; --accent-2:#ffb86b;
+  --success:#7ee787; --danger:#ff6b8a; --purple:#b78cff;
+  --shadow:0 10px 30px rgba(0,0,0,0.35);
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  min-height:100vh;}
+code,pre,.mono{font-family:"JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+
+/* ========== 骨架 ========== */
+.demo-shell{max-width:1440px;margin:0 auto;padding:16px 20px 96px;display:flex;flex-direction:column;gap:14px}
+.demo-header{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px 18px;background:linear-gradient(135deg,var(--bg-soft),#1c2046);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
+.demo-header h1{font-size:20px;margin:0;letter-spacing:.5px}
+.demo-header h1 .dim{color:var(--fg-dim);font-weight:400;font-size:14px;margin-left:6px}
+.back-btn{color:var(--fg);text-decoration:none;background:#232752;border:1px solid var(--line);
+  padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;transition:.2s}
+.back-btn:hover{background:#2c3268;border-color:var(--accent)}
+
+/* ========== Tab ========== */
+.tab-bar{display:flex;gap:8px;padding:6px;background:var(--bg-soft);border:1px solid var(--line);
+  border-radius:var(--radius);width:fit-content;}
+.tab-bar button{background:transparent;color:var(--fg-dim);border:none;padding:10px 20px;
+  border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:600;transition:.2s}
+.tab-bar button.active{background:linear-gradient(135deg,var(--accent),#4ac6e0);color:#0a0c1c;
+  box-shadow:0 4px 14px rgba(110,231,255,.35)}
+.tab-bar button:hover:not(.active){color:var(--fg);background:#232752}
+
+/* ========== 主区 ========== */
+.demo-main{display:grid;grid-template-columns:minmax(320px,30%) 1fr;gap:14px;min-height:640px}
+.panel-explain,.panel-stage{background:var(--bg-soft);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;overflow:hidden}
+.panel-explain{display:flex;flex-direction:column;gap:12px}
+.panel-explain h2{font-size:16px;margin:0 0 4px;color:var(--accent)}
+.explain-step-title{font-size:15px;color:var(--accent-2);font-weight:600}
+.explain-body{font-size:14px;line-height:1.75;color:var(--fg)}
+.explain-body p{margin:8px 0}
+.explain-body code{background:var(--bg-code);padding:1px 6px;border-radius:4px;color:var(--accent);font-size:13px}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;
+  border:1px solid var(--line);margin-right:6px;letter-spacing:.5px}
+.badge--tip{color:var(--accent);border-color:var(--accent)}
+.badge--warn{color:var(--accent-2);border-color:var(--accent-2)}
+.badge--def{color:var(--purple);border-color:var(--purple)}
+.grammar-box{background:var(--bg-code);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:10px 14px;font-family:"JetBrains Mono",Menlo,monospace;font-size:13px;line-height:1.7;color:var(--fg-dim)}
+.grammar-box .lhs{color:var(--purple)}
+.grammar-box .arrow{color:var(--accent-2);margin:0 6px}
+.grammar-box .term{color:var(--success)}
+
+/* ========== 舞台 ========== */
+.panel-stage{display:flex;flex-direction:column;gap:14px;overflow:auto}
+.stage-title{font-size:14px;color:var(--fg-dim);margin:0}
+
+/* First/Follow 表 */
+.ff-tables{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+table.tbl{width:100%;border-collapse:collapse;font-family:"JetBrains Mono",Menlo,monospace;font-size:13px}
+table.tbl th,table.tbl td{border:1px solid var(--line);padding:6px 10px;text-align:center;background:#131634}
+table.tbl th{background:#1c2046;color:var(--accent);font-weight:600}
+table.tbl td.hl{background:rgba(110,231,255,.16);color:var(--accent);animation:pulse 1.2s ease}
+@keyframes pulse{0%{background:rgba(110,231,255,.4)}100%{background:rgba(110,231,255,.16)}}
+
+/* 预测表 */
+.pred-wrap{overflow-x:auto}
+table.pred{border-collapse:collapse;font-family:"JetBrains Mono",monospace;font-size:12px;width:100%}
+table.pred th,table.pred td{border:1px solid var(--line);padding:5px 8px;text-align:center;background:#131634;min-width:80px}
+table.pred th{background:#1c2046;color:var(--accent)}
+table.pred td.filled{color:var(--fg);background:#181c3d}
+table.pred td.hit{background:rgba(255,184,107,.25);color:var(--accent-2);box-shadow:inset 0 0 0 2px var(--accent-2)}
+
+/* 三栏动画（LL） */
+.ll-anim{display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:12px;margin-top:6px}
+.col-box{background:#131634;border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px;display:flex;flex-direction:column;gap:6px;min-height:180px}
+.col-box h3{margin:0;font-size:12px;color:var(--fg-dim);text-transform:uppercase;letter-spacing:1px}
+.stack-list,.buffer-list,.output-list{display:flex;flex-wrap:wrap;gap:4px;font-family:"JetBrains Mono",monospace;font-size:13px}
+.stack-list{flex-direction:row-reverse;justify-content:flex-end}
+.stack-item,.buf-item{padding:4px 9px;border-radius:6px;background:#232752;border:1px solid var(--line);color:var(--fg)}
+.stack-item.top{background:linear-gradient(135deg,var(--accent),#4ac6e0);color:#0a0c1c;border-color:var(--accent);box-shadow:0 0 10px rgba(110,231,255,.5)}
+.buf-item.current{background:linear-gradient(135deg,var(--accent-2),#e69856);color:#0a0c1c;border-color:var(--accent-2);box-shadow:0 0 10px rgba(255,184,107,.5)}
+.buf-item.consumed{opacity:.35;text-decoration:line-through}
+.output-list{flex-direction:column;gap:3px;font-size:12px;color:var(--fg-dim);max-height:200px;overflow:auto}
+.output-list div.new{color:var(--success)}
+
+/* LR 四栏动画 */
+.lr-anim{display:grid;grid-template-columns:1fr 1fr 1fr 1.2fr;gap:10px;margin-top:6px}
+.lr-anim .col-box{min-height:140px}
+.action-tag{padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;display:inline-block}
+.action-tag.shift{background:rgba(110,231,255,.18);color:var(--accent);border:1px solid var(--accent)}
+.action-tag.reduce{background:rgba(183,140,255,.18);color:var(--purple);border:1px solid var(--purple)}
+.action-tag.accept{background:rgba(126,231,135,.2);color:var(--success);border:1px solid var(--success)}
+
+/* 项集 */
+.itemsets{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.itemset{background:#131634;border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.55;transition:.3s}
+.itemset.active{border-color:var(--accent);box-shadow:0 0 14px rgba(110,231,255,.4);background:#1a1f42}
+.itemset .name{color:var(--accent-2);font-weight:600;font-size:13px;margin-bottom:4px;letter-spacing:.5px}
+.itemset .item{color:var(--fg-dim)}
+.itemset .item.kernel{color:var(--fg)}
+.itemset .dot{color:var(--danger);font-weight:700}
+.goto-arrows{font-size:11px;color:var(--purple);margin-top:4px}
+
+/* ACTION/GOTO 表 */
+table.lrtab{border-collapse:collapse;font-family:"JetBrains Mono",monospace;font-size:12px}
+table.lrtab th,table.lrtab td{border:1px solid var(--line);padding:5px 10px;text-align:center;background:#131634;min-width:56px}
+table.lrtab th{background:#1c2046;color:var(--accent)}
+table.lrtab td.act{color:var(--accent)}
+table.lrtab td.hit{background:rgba(255,184,107,.25);color:var(--accent-2);box-shadow:inset 0 0 0 2px var(--accent-2)}
+
+/* 控制条 */
+.demo-controls{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;
+  background:linear-gradient(0deg,rgba(15,18,38,.98),rgba(15,18,38,.92));
+  border-top:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:14px;z-index:50;backdrop-filter:blur(6px)}
+.demo-controls button{background:#232752;color:var(--fg);border:1px solid var(--line);
+  padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;transition:.2s}
+.demo-controls button:hover:not(:disabled){background:#2e3470;border-color:var(--accent)}
+.demo-controls button:disabled{opacity:.35;cursor:not-allowed}
+.demo-controls button.primary{background:linear-gradient(135deg,var(--accent),#4ac6e0);color:#0a0c1c;border:none;font-weight:600}
+.step-indicator{display:flex;gap:5px;padding:0 6px;flex-wrap:wrap;max-width:380px}
+.step-dot{width:8px;height:8px;border-radius:50%;background:#2a2f55;transition:.2s}
+.step-dot.active{background:var(--accent);box-shadow:0 0 6px var(--accent);transform:scale(1.35)}
+.step-dot.done{background:var(--purple)}
+.step-counter{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--fg-dim);min-width:60px;text-align:center}
+.speed-btn{position:fixed;right:20px;bottom:66px;background:#232752;border:1px solid var(--line);color:var(--fg);
+  padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;z-index:50}
+.speed-btn:hover{border-color:var(--accent)}
+
+.tab-panel{display:none}
+.tab-panel.active{display:contents}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <!-- 顶部 -->
+  <div class="demo-header">
+    <div style="display:flex;align-items:center;gap:16px">
+      <a class="back-btn" href="../index.html">← 返回目录</a>
+      <h1>语法分析 · LL(1) 与 LR(0)<span class="dim">Syntax Analysis — Top-Down &amp; Bottom-Up</span></h1>
+    </div>
+    <div class="tab-bar" role="tablist">
+      <button id="tab-ll" class="active" onclick="switchTab('ll')">LL(1) 自顶向下</button>
+      <button id="tab-lr" onclick="switchTab('lr')">LR(0) 自底向上</button>
+    </div>
+  </div>
+
+  <!-- 主区 -->
+  <div class="demo-main">
+    <!-- 左侧讲解 -->
+    <div class="panel-explain">
+      <h2 id="explain-tab-title">🔍 讲解 · LL(1) 预测分析</h2>
+      <div class="explain-step-title" id="explain-step-title">步骤 1</div>
+      <div class="explain-body" id="explain-body"></div>
+      <div style="flex:1"></div>
+      <div class="grammar-box" id="grammar-box"></div>
+    </div>
+
+    <!-- 右侧舞台 -->
+    <div class="panel-stage">
+      <!-- LL Tab -->
+      <div class="tab-panel active" id="panel-ll">
+        <p class="stage-title">📌 输入串：<code style="color:var(--accent-2)">id + id * id $</code></p>
+
+        <!-- First / Follow -->
+        <div class="ff-tables" id="ll-ff-wrap">
+          <div>
+            <h3 style="margin:4px 0;font-size:13px;color:var(--fg-dim)">First 集</h3>
+            <table class="tbl" id="tbl-first">
+              <thead><tr><th>非终结符</th><th>First</th></tr></thead>
+              <tbody>
+                <tr data-nt="E"><td>E</td><td>{ ( , id }</td></tr>
+                <tr data-nt="Ep"><td>E'</td><td>{ + , ε }</td></tr>
+                <tr data-nt="T"><td>T</td><td>{ ( , id }</td></tr>
+                <tr data-nt="Tp"><td>T'</td><td>{ * , ε }</td></tr>
+                <tr data-nt="F"><td>F</td><td>{ ( , id }</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <h3 style="margin:4px 0;font-size:13px;color:var(--fg-dim)">Follow 集</h3>
+            <table class="tbl" id="tbl-follow">
+              <thead><tr><th>非终结符</th><th>Follow</th></tr></thead>
+              <tbody>
+                <tr data-nt="E"><td>E</td><td>{ $ , ) }</td></tr>
+                <tr data-nt="Ep"><td>E'</td><td>{ $ , ) }</td></tr>
+                <tr data-nt="T"><td>T</td><td>{ + , $ , ) }</td></tr>
+                <tr data-nt="Tp"><td>T'</td><td>{ + , $ , ) }</td></tr>
+                <tr data-nt="F"><td>F</td><td>{ * , + , $ , ) }</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 预测表 -->
+        <div>
+          <h3 style="margin:8px 0 4px;font-size:13px;color:var(--fg-dim)">LL(1) 预测分析表 M[A, a]</h3>
+          <div class="pred-wrap">
+            <table class="pred" id="tbl-pred">
+              <thead><tr><th></th><th>id</th><th>+</th><th>*</th><th>(</th><th>)</th><th>$</th></tr></thead>
+              <tbody>
+                <tr><th>E</th><td class="filled" data-k="E,id">E→TE'</td><td></td><td></td><td class="filled" data-k="E,(">E→TE'</td><td></td><td></td></tr>
+                <tr><th>E'</th><td></td><td class="filled" data-k="Ep,+">E'→+TE'</td><td></td><td></td><td class="filled" data-k="Ep,)">E'→ε</td><td class="filled" data-k="Ep,$">E'→ε</td></tr>
+                <tr><th>T</th><td class="filled" data-k="T,id">T→FT'</td><td></td><td></td><td class="filled" data-k="T,(">T→FT'</td><td></td><td></td></tr>
+                <tr><th>T'</th><td></td><td class="filled" data-k="Tp,+">T'→ε</td><td class="filled" data-k="Tp,*">T'→*FT'</td><td></td><td class="filled" data-k="Tp,)">T'→ε</td><td class="filled" data-k="Tp,$">T'→ε</td></tr>
+                <tr><th>F</th><td class="filled" data-k="F,id">F→id</td><td></td><td></td><td class="filled" data-k="F,(">F→(E)</td><td></td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 三栏动画 -->
+        <div class="ll-anim">
+          <div class="col-box">
+            <h3>分析栈 (Stack)</h3>
+            <div class="stack-list" id="ll-stack"></div>
+          </div>
+          <div class="col-box">
+            <h3>输入缓冲 (Input)</h3>
+            <div class="buffer-list" id="ll-buffer"></div>
+          </div>
+          <div class="col-box">
+            <h3>推导 / 动作 (Output)</h3>
+            <div class="output-list" id="ll-output"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LR Tab -->
+      <div class="tab-panel" id="panel-lr">
+        <p class="stage-title">📌 增广文法输入串：<code style="color:var(--accent-2)">id + id $</code></p>
+
+        <!-- 项集族 -->
+        <div>
+          <h3 style="margin:4px 0;font-size:13px;color:var(--fg-dim)">LR(0) 项集族（Canonical Collection）</h3>
+          <div class="itemsets" id="itemsets"></div>
+        </div>
+
+        <!-- ACTION / GOTO 表 -->
+        <div>
+          <h3 style="margin:8px 0 4px;font-size:13px;color:var(--fg-dim)">ACTION / GOTO 表</h3>
+          <div style="overflow-x:auto">
+            <table class="lrtab" id="tbl-lr">
+              <thead>
+                <tr><th rowspan="2">状态</th><th colspan="3">ACTION</th><th colspan="2">GOTO</th></tr>
+                <tr><th>id</th><th>+</th><th>$</th><th>E</th><th>T</th></tr>
+              </thead>
+              <tbody>
+                <tr><th>0</th><td class="act" data-k="0,id">s3</td><td></td><td></td><td class="act" data-k="0,E">1</td><td class="act" data-k="0,T">2</td></tr>
+                <tr><th>1</th><td></td><td class="act" data-k="1,+">s4</td><td class="act" data-k="1,$">acc</td><td></td><td></td></tr>
+                <tr><th>2</th><td class="act r" data-k="2,id">r2</td><td class="act r" data-k="2,+">r2</td><td class="act r" data-k="2,$">r2</td><td></td><td></td></tr>
+                <tr><th>3</th><td class="act r" data-k="3,id">r3</td><td class="act r" data-k="3,+">r3</td><td class="act r" data-k="3,$">r3</td><td></td><td></td></tr>
+                <tr><th>4</th><td class="act" data-k="4,id">s3</td><td></td><td></td><td></td><td class="act" data-k="4,T">5</td></tr>
+                <tr><th>5</th><td class="act r" data-k="5,id">r1</td><td class="act r" data-k="5,+">r1</td><td class="act r" data-k="5,$">r1</td><td></td><td></td></tr>
+              </tbody>
+            </table>
+            <div style="font-size:11px;color:var(--fg-dim);margin-top:4px">
+              产生式编号：r1: E→E+T　　r2: E→T　　r3: T→id
+            </div>
+          </div>
+        </div>
+
+        <!-- 四栏动画 -->
+        <div class="lr-anim">
+          <div class="col-box"><h3>状态栈</h3><div class="stack-list" id="lr-sstack"></div></div>
+          <div class="col-box"><h3>符号栈</h3><div class="stack-list" id="lr-ystack"></div></div>
+          <div class="col-box"><h3>输入</h3><div class="buffer-list" id="lr-buffer"></div></div>
+          <div class="col-box"><h3>动作</h3><div id="lr-action" style="font-size:13px;line-height:1.8;color:var(--fg)"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部控制条 -->
+<div class="demo-controls">
+  <button id="btn-prev" onclick="prevStep()">← 上一步</button>
+  <button id="btn-play" class="primary" onclick="togglePlay()">▶ 播放</button>
+  <button id="btn-next" onclick="nextStep()">下一步 →</button>
+  <div class="step-counter" id="step-counter">1 / 1</div>
+  <div class="step-indicator" id="step-dots"></div>
+  <button onclick="resetStep()">⟳ 重置</button>
+</div>
+<button class="speed-btn" id="speed-btn" onclick="cycleSpeed()">速度 1×</button>
+
+<script>
+/* ===========================================================
+   语法分析教学演示 · 主脚本
+   - 两个 tab 共享一套步骤系统 stepSystem
+   - 切换 tab 时自动 reset
+   - 每一步是一个描述 { title, html, apply(state) } 的对象
+   =========================================================== */
+
+/* ---------- 通用工具 ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ---------- 文法展示（左下角）---------- */
+const GRAMMAR_LL = `<b style="color:var(--accent)">文法 G (LL(1))</b><br>
+<span class="lhs">E </span><span class="arrow">→</span> T E'<br>
+<span class="lhs">E'</span><span class="arrow">→</span> + T E' | <span class="term">ε</span><br>
+<span class="lhs">T </span><span class="arrow">→</span> F T'<br>
+<span class="lhs">T'</span><span class="arrow">→</span> * F T' | <span class="term">ε</span><br>
+<span class="lhs">F </span><span class="arrow">→</span> ( E ) | <span class="term">id</span>`;
+
+const GRAMMAR_LR = `<b style="color:var(--accent)">增广文法 G' (LR(0))</b><br>
+<span class="lhs">S </span><span class="arrow">→</span> E　　<i style="color:var(--fg-dim)">(增广)</i><br>
+<span class="lhs">E </span><span class="arrow">→</span> E + T<br>
+<span class="lhs">E </span><span class="arrow">→</span> T<br>
+<span class="lhs">T </span><span class="arrow">→</span> <span class="term">id</span>`;
+
+/* ===========================================================
+   LL(1) 步骤定义
+   =========================================================== */
+
+// 输入串 tokens（$ 作为结束符）
+const LL_TOKENS = ['id','+','id','*','id','$'];
+
+// 分析过程模拟：预先计算每一步的 stack / buffer index / action
+// 栈用数组，栈顶在末尾
+function llTraceBuild(){
+  // 每步：{stack:[...], bufIdx:n, action:'...', hitCell:'E,id'|null, deriv:'...', kind:'match'|'expand'|'accept'}
+  const trace = [];
+  let stack = ['$','E'];
+  let i = 0;
+  const push = (act,hit,deriv,kind='expand')=>{
+    trace.push({stack:[...stack], bufIdx:i, action:act, hitCell:hit, deriv, kind});
+  };
+  // 初始
+  push('初始化：把 $ 与开始符号 E 压栈','', 'E', 'init');
+  // 展开 E→TE' (top E, cur id)
+  stack.pop(); stack.push("E'",'T');
+  push('栈顶 E，当前 id，查表 M[E,id]=E→TE\'，弹 E 压入 T E\'（逆序）', 'E,id', "E ⇒ T E'", 'expand');
+  // 展开 T→FT'
+  stack.pop(); stack.push("T'",'F');
+  push('栈顶 T，当前 id，M[T,id]=T→FT\'', 'T,id', "T ⇒ F T'", 'expand');
+  // F→id
+  stack.pop(); stack.push('id');
+  push('栈顶 F，当前 id，M[F,id]=F→id', 'F,id', "F ⇒ id", 'expand');
+  // match id
+  stack.pop(); i++;
+  push('栈顶 id 与当前输入 id 相同 → 匹配并前移', null, '匹配 id', 'match');
+  // T'→ε  (当前 +)
+  stack.pop();
+  push('栈顶 T\'，当前 +，M[T\',+]=T\'→ε（弹出）', "Tp,+", "T' ⇒ ε", 'expand');
+  // E'→+TE'
+  stack.pop(); stack.push("E'",'T','+');
+  push("栈顶 E'，当前 +，M[E',+]=E'→+TE'", "Ep,+", "E' ⇒ + T E'", 'expand');
+  // match +
+  stack.pop(); i++;
+  push('匹配 +', null, '匹配 +', 'match');
+  // T→FT'
+  stack.pop(); stack.push("T'",'F');
+  push("栈顶 T，当前 id，M[T,id]=T→FT'", 'T,id', "T ⇒ F T'", 'expand');
+  // F→id
+  stack.pop(); stack.push('id');
+  push('栈顶 F，当前 id，M[F,id]=F→id', 'F,id', 'F ⇒ id', 'expand');
+  // match id
+  stack.pop(); i++;
+  push('匹配 id', null, '匹配 id', 'match');
+  // T'→*FT'
+  stack.pop(); stack.push("T'",'F','*');
+  push("栈顶 T'，当前 *，M[T',*]=T'→*FT'", "Tp,*", "T' ⇒ * F T'", 'expand');
+  // match *
+  stack.pop(); i++;
+  push('匹配 *', null, '匹配 *', 'match');
+  // F→id
+  stack.pop(); stack.push('id');
+  push('栈顶 F，当前 id，F→id', 'F,id', 'F ⇒ id', 'expand');
+  // match id
+  stack.pop(); i++;
+  push('匹配 id', null, '匹配 id', 'match');
+  // T'→ε (cur $)
+  stack.pop();
+  push("栈顶 T'，当前 $，M[T',$]=T'→ε", "Tp,$", "T' ⇒ ε", 'expand');
+  // E'→ε
+  stack.pop();
+  push("栈顶 E'，当前 $，M[E',$]=E'→ε", "Ep,$", "E' ⇒ ε", 'expand');
+  // accept
+  stack.pop();
+  push('栈顶 $，输入也是 $ → 接受 (Accept) 🎉', null, 'ACCEPT', 'accept');
+  return trace;
+}
+const LL_TRACE = llTraceBuild();
+
+/* LL 步骤集合：前 3 步做「概念铺垫」，之后 16 步跑动画 */
+const LL_STEPS = [];
+
+// 步 1：文法与输入
+LL_STEPS.push({
+  title:'认识文法与输入串',
+  html:`<span class="badge badge--def">定义</span>
+  <p>本演示使用<b>表达式文法（简化版）</b>，它是经典的<b>LL(1) 文法</b>：无左递归、每个产生式选择项的 First 集互不相交。</p>
+  <p>输入串：<code>id + id * id</code>，追加结束符 <code>$</code> 后送入分析。</p>
+  <p><b>目标</b>：自顶向下地为输入串构造一棵最左推导对应的分析树。</p>`,
+  ui:{ffHl:null, predHl:null, showAnim:false}
+});
+
+// 步 2：First
+LL_STEPS.push({
+  title:'计算 First 集',
+  html:`<span class="badge badge--tip">要点</span>
+  <p><b>First(α)</b> = 由 α 能推出的串的所有可能<b>首终结符</b>集合（若能推出 ε 则含 ε）。</p>
+  <p>示例：<code>First(F) = { ( , id }</code>，因为 <code>F → (E)</code> 首字符是 <code>(</code>，<code>F → id</code> 首字符是 <code>id</code>。</p>
+  <p>由于 <code>T → F T'</code>，且 <code>F</code> 不产生 ε，故 <code>First(T) = First(F)</code>；同理 <code>First(E) = First(T)</code>。</p>`,
+  ui:{ffHl:{tbl:'first', nts:['F','T','E','Ep','Tp']}, predHl:null, showAnim:false}
+});
+
+// 步 3：Follow
+LL_STEPS.push({
+  title:'计算 Follow 集',
+  html:`<span class="badge badge--tip">要点</span>
+  <p><b>Follow(A)</b> = 在某句型中紧跟 A 后面的所有终结符（或 <code>$</code>）。</p>
+  <p>规则：① 开始符号 <code>E</code> 的 Follow 含 <code>$</code>；② 由 <code>F → (E)</code>，将 <code>)</code> 放入 <code>Follow(E)</code>；③ 由 <code>E → T E'</code>，把 <code>First(E') − {ε}</code> 放入 <code>Follow(T)</code>，即 <code>+</code>。</p>
+  <p>Follow 决定了「当 A 前瞻符号命中 Follow(A) 时，选择 <code>A → ε</code>」——这是 T' 与 E' 何时选空产生式的依据。</p>`,
+  ui:{ffHl:{tbl:'follow', nts:['E','Ep','T','Tp','F']}, predHl:null, showAnim:false}
+});
+
+// 步 4：预测分析表
+LL_STEPS.push({
+  title:'构造 LL(1) 预测分析表',
+  html:`<span class="badge badge--def">定义</span>
+  <p>对每个产生式 <code>A → α</code>：<br>
+  · 对每个 <code>a ∈ First(α)</code>：令 <code>M[A, a] = A→α</code>；<br>
+  · 若 <code>ε ∈ First(α)</code>：对每个 <code>b ∈ Follow(A)</code>：令 <code>M[A, b] = A→α</code>。</p>
+  <p>无冲突 → 该文法是 <b>LL(1)</b>。空白单元格表示语法错误。</p>`,
+  ui:{ffHl:null, predHl:'all', showAnim:false}
+});
+
+// 后续步骤：动画（每一 trace 一个步骤）
+LL_TRACE.forEach((t,idx)=>{
+  let explain = '';
+  const kindBadge = {
+    'init'   :'<span class="badge badge--def">初始</span>',
+    'expand' :'<span class="badge badge--tip">推导</span>',
+    'match'  :'<span class="badge badge--warn">匹配</span>',
+    'accept' :'<span class="badge" style="color:var(--success);border-color:var(--success)">接受</span>'
+  }[t.kind];
+  if(t.kind==='init'){
+    explain = `<p>栈底放 <code>$</code>，再把开始符号 <code>E</code> 压栈；输入尾部追加 <code>$</code>。</p>
+    <p>之后每一步：若栈顶是终结符且等于当前输入 → <b>匹配</b>；若栈顶是非终结符 → 查 <b>M[A, a]</b> 展开。</p>`;
+  }else if(t.kind==='expand'){
+    explain = `<p>当前栈顶是非终结符，查预测表命中单元格；将栈顶弹出，然后把产生式右部以<b>逆序</b>压入栈中。</p>
+    <p>动作：${esc(t.action)}</p>`;
+  }else if(t.kind==='match'){
+    explain = `<p>栈顶终结符与当前输入相同 → 弹出栈顶，输入指针右移一位。</p>
+    <p>动作：${esc(t.action)}</p>`;
+  }else if(t.kind==='accept'){
+    explain = `<p>栈中只剩 <code>$</code>，输入也读完（当前为 <code>$</code>）→ <b>分析成功</b>。</p>
+    <p>对应的最左推导序列已在右侧「Output」中记录。</p>`;
+  }
+  LL_STEPS.push({
+    title:`分析进行中 · 第 ${idx+1} 步`,
+    html: kindBadge + explain,
+    ui:{ffHl:null, predHl:t.hitCell, showAnim:true, trace:t, traceIdx:idx}
+  });
+});
+
+/* ===========================================================
+   LR(0) 步骤定义
+   =========================================================== */
+
+// 项集族数据
+const ITEMSETS = [
+  {name:'I0', items:['S → · E','E → · E + T','E → · T','T → · id'], kernel:[0], gotoInfo:'E→I1, T→I2, id→I3'},
+  {name:'I1', items:['S → E ·','E → E · + T'], kernel:[0,1], gotoInfo:'+ → I4'},
+  {name:'I2', items:['E → T ·'], kernel:[0], gotoInfo:'（归约项）'},
+  {name:'I3', items:['T → id ·'], kernel:[0], gotoInfo:'（归约项）'},
+  {name:'I4', items:['E → E + · T','T → · id'], kernel:[0], gotoInfo:'T→I5, id→I3'},
+  {name:'I5', items:['E → E + T ·'], kernel:[0], gotoInfo:'（归约项）'}
+];
+
+// LR 分析 trace
+const LR_TRACE = [
+  {sstack:[0], ystack:[], input:['id','+','id','$'], bufIdx:0, action:'shift 3', kind:'shift'},
+  {sstack:[0,3], ystack:['id'], input:['id','+','id','$'], bufIdx:1, action:'reduce T→id', kind:'reduce', prod:'T→id'},
+  {sstack:[0,2], ystack:['T'], input:['id','+','id','$'], bufIdx:1, action:'reduce E→T', kind:'reduce', prod:'E→T'},
+  {sstack:[0,1], ystack:['E'], input:['id','+','id','$'], bufIdx:1, action:'shift 4', kind:'shift'},
+  {sstack:[0,1,4], ystack:['E','+'], input:['id','+','id','$'], bufIdx:2, action:'shift 3', kind:'shift'},
+  {sstack:[0,1,4,3], ystack:['E','+','id'], input:['id','+','id','$'], bufIdx:3, action:'reduce T→id', kind:'reduce', prod:'T→id'},
+  {sstack:[0,1,4,5], ystack:['E','+','T'], input:['id','+','id','$'], bufIdx:3, action:'reduce E→E+T', kind:'reduce', prod:'E→E+T'},
+  {sstack:[0,1], ystack:['E'], input:['id','+','id','$'], bufIdx:3, action:'accept 🎉', kind:'accept'}
+];
+
+const LR_STEPS = [];
+
+// 步 1：增广文法
+LR_STEPS.push({
+  title:'增广文法与 LR(0) 项',
+  html:`<span class="badge badge--def">定义</span>
+  <p>增广文法：新增开始产生式 <code>S → E</code>，用来标识「整个输入已被归约到根」。</p>
+  <p><b>LR(0) 项 (item)</b>：产生式右部加一个圆点 <code>·</code>，例如 <code>E → E · + T</code> 表示"已识别 E，接下来期待 +T"。</p>
+  <p>圆点位置划分为：<b>核心项</b>（原始项目）与由 <b>closure</b> 引入的非核心项。</p>`,
+  ui:{itemsHl:[], lrtabHl:null, showAnim:false}
+});
+
+// 步 2：I0 闭包
+LR_STEPS.push({
+  title:'构造项集 I0 · closure({S→·E})',
+  html:`<span class="badge badge--tip">要点 · closure</span>
+  <p>从核心项 <code>S → · E</code> 出发，反复应用：若项形如 <code>A → α · B β</code>，则将所有 <code>B → · γ</code> 加入。</p>
+  <p>加入 <code>E → · E + T</code>、<code>E → · T</code>；因新出现 <code>T</code>，再加入 <code>T → · id</code>。闭包收敛。</p>`,
+  ui:{itemsHl:['I0'], lrtabHl:null, showAnim:false}
+});
+
+// 步 3-6：从 I0 出发的 GOTO 产生 I1/I2/I3
+LR_STEPS.push({
+  title:'GOTO(I0, E) = I1',
+  html:`<span class="badge badge--tip">要点 · GOTO</span>
+  <p><b>GOTO(I, X)</b>：将 I 中所有形如 <code>A → α · X β</code> 的项前进一位得到 <code>A → α X · β</code>，再对结果取 closure。</p>
+  <p>I0 中含 <code>·E</code> 的两个项前进后得到 <code>S → E ·</code> 与 <code>E → E · + T</code>；均已无非终结符待展开 → 即为 I1。</p>`,
+  ui:{itemsHl:['I0','I1'], lrtabHl:null, showAnim:false}
+});
+LR_STEPS.push({
+  title:'GOTO(I0, T) = I2　与　GOTO(I0, id) = I3',
+  html:`<p>I0 中 <code>E → · T</code> 前进得 <code>E → T ·</code>，即 <b>I2</b>（归约项，指示可用 <code>E→T</code> 归约）。</p>
+  <p>I0 中 <code>T → · id</code> 前进得 <code>T → id ·</code>，即 <b>I3</b>（归约项）。</p>`,
+  ui:{itemsHl:['I0','I2','I3'], lrtabHl:null, showAnim:false}
+});
+LR_STEPS.push({
+  title:'GOTO(I1, +) = I4',
+  html:`<p>I1 的 <code>E → E · + T</code> 遇 <code>+</code> 前进得 <code>E → E + · T</code>。</p>
+  <p>由于圆点后是非终结符 <code>T</code>，closure 加入 <code>T → · id</code>，构成 <b>I4</b>。</p>`,
+  ui:{itemsHl:['I1','I4'], lrtabHl:null, showAnim:false}
+});
+LR_STEPS.push({
+  title:'GOTO(I4, T) = I5　与　GOTO(I4, id) = I3',
+  html:`<p>I4 遇 <code>T</code> 前进得 <code>E → E + T ·</code>，即 <b>I5</b>（归约项）。</p>
+  <p>I4 遇 <code>id</code> 前进得 <code>T → id ·</code>，与已有 <b>I3</b> 相同，复用不新建。</p>
+  <p>至此闭包收敛：项集族 = { I0..I5 }。</p>`,
+  ui:{itemsHl:['I4','I5','I3'], lrtabHl:null, showAnim:false}
+});
+
+// 步 7：ACTION/GOTO 表
+LR_STEPS.push({
+  title:'构造 ACTION / GOTO 表',
+  html:`<span class="badge badge--def">定义</span>
+  <p>对每个项集 Ii：<br>
+  · 若 <code>A → α · a β ∈ Ii</code> 且 GOTO(Ii,a)=Ij，则 <code>ACTION[i,a] = shift j</code>；<br>
+  · 若 <code>A → α · ∈ Ii</code>（归约项），对<b>所有终结符</b>（LR(0)）填 <code>reduce A→α</code>；<br>
+  · 若 <code>S → E · ∈ Ii</code>，则 <code>ACTION[i,$] = accept</code>；<br>
+  · GOTO 列对非终结符类似 shift 填入目标状态号。</p>
+  <p>可以看到状态 2/3/5 都是归约项，无 shift/reduce 冲突 → 本文法是 <b>LR(0)</b>。</p>`,
+  ui:{itemsHl:[], lrtabHl:'all', showAnim:false}
+});
+
+// 后续：动画（每一 trace 一步）
+LR_TRACE.forEach((t,idx)=>{
+  const topS = t.sstack[t.sstack.length-1];
+  const cur = t.input[t.bufIdx] || '$';
+  let hit = null, explain = '';
+  const kindBadge = {
+    shift :'<span class="badge badge--tip">Shift（移进）</span>',
+    reduce:'<span class="badge" style="color:var(--purple);border-color:var(--purple)">Reduce（归约）</span>',
+    accept:'<span class="badge" style="color:var(--success);border-color:var(--success)">Accept</span>'
+  }[t.kind];
+  if(t.kind==='shift'){
+    hit = `${topS},${cur}`;
+    explain = `<p>状态栈顶 <code>${topS}</code>，当前输入 <code>${cur}</code>，查表 <code>ACTION[${topS},${cur}] = ${esc(t.action)}</code>。</p>
+    <p><b>移进</b>：把当前符号压入符号栈，把目标状态压入状态栈，输入指针右移。</p>`;
+  }else if(t.kind==='reduce'){
+    hit = `${topS},${cur}`;
+    explain = `<p>状态栈顶 <code>${topS}</code>，当前 <code>${cur}</code>，命中 <code>${esc(t.action)}</code>。</p>
+    <p><b>归约</b>：按产生式 <code>${esc(t.prod)}</code>，从两个栈顶弹出 |右部| 个元素，然后把左部符号压入符号栈；再用 GOTO 决定新状态压入状态栈。</p>`;
+  }else{
+    hit = `${topS},${cur}`;
+    explain = `<p>状态栈顶 <code>${topS}</code>，当前 <code>${cur}</code>，命中 <code>acc</code> → <b>分析成功</b>。</p>
+    <p>整个输入串已被归约到开始符号 <code>E</code>。</p>`;
+  }
+  LR_STEPS.push({
+    title:`分析进行中 · 第 ${idx+1} 步`,
+    html: kindBadge + explain,
+    ui:{itemsHl:[], lrtabHl:hit, showAnim:true, trace:t}
+  });
+});
+
+/* ===========================================================
+   渲染逻辑
+   =========================================================== */
+
+// 渲染 LL 三栏
+function renderLLAnim(trace){
+  const st = $('ll-stack'), bf = $('ll-buffer'), op = $('ll-output');
+  if(!trace){ st.innerHTML=bf.innerHTML=op.innerHTML=''; return; }
+  // 栈：栈底在左，栈顶在右；因 stack-list 用 row-reverse，我们仍按原顺序输出，但让最后一个元素显示为最右（视觉栈顶）
+  st.innerHTML = trace.stack.map((s,i)=>{
+    const isTop = i === trace.stack.length-1;
+    return `<span class="stack-item ${isTop?'top':''}">${esc(s)}</span>`;
+  }).reverse().join('');
+  // 缓冲区
+  bf.innerHTML = LL_TOKENS.map((t,i)=>{
+    const cls = i<trace.bufIdx ? 'consumed' : (i===trace.bufIdx?'current':'');
+    return `<span class="buf-item ${cls}">${esc(t)}</span>`;
+  }).join('');
+  // Output：累积到当前步
+  // 我们从 LL_TRACE 起点渲染到当前 trace 的 index
+  const idx = LL_TRACE.indexOf(trace);
+  const list = LL_TRACE.slice(0, idx+1).map((tr,i)=>{
+    const isNew = i===idx;
+    return `<div class="${isNew?'new':''}">${i+1}. ${esc(tr.deriv)}</div>`;
+  });
+  op.innerHTML = list.join('');
+  op.scrollTop = op.scrollHeight;
+}
+
+// 渲染 First/Follow 高亮
+function renderFFHl(hl){
+  document.querySelectorAll('#tbl-first td, #tbl-follow td').forEach(td=>td.classList.remove('hl'));
+  if(!hl) return;
+  const tbl = hl.tbl==='first' ? 'tbl-first':'tbl-follow';
+  hl.nts.forEach(nt=>{
+    const row = document.querySelector(`#${tbl} tr[data-nt="${nt}"]`);
+    if(row) row.querySelectorAll('td').forEach(td=>td.classList.add('hl'));
+  });
+}
+
+// 渲染预测表高亮
+function renderPredHl(hl){
+  document.querySelectorAll('#tbl-pred td').forEach(td=>td.classList.remove('hit'));
+  if(!hl || hl==='all') return;
+  document.querySelectorAll(`#tbl-pred td[data-k="${hl}"]`).forEach(td=>td.classList.add('hit'));
+}
+
+// 渲染项集
+function renderItemsets(activeNames){
+  const wrap = $('itemsets');
+  wrap.innerHTML = ITEMSETS.map(is=>{
+    const act = activeNames && activeNames.includes(is.name) ? 'active' : '';
+    const items = is.items.map((it,i)=>{
+      // 把 · 高亮
+      const html = esc(it).replace(/·/g,'<span class="dot">·</span>');
+      const kernel = is.kernel.includes(i) ? 'kernel' : '';
+      return `<div class="item ${kernel}">${html}</div>`;
+    }).join('');
+    return `<div class="itemset ${act}">
+      <div class="name">${is.name}</div>${items}
+      <div class="goto-arrows">GOTO: ${esc(is.gotoInfo)}</div>
+    </div>`;
+  }).join('');
+}
+
+// 渲染 LR 表格高亮
+function renderLRTabHl(hl){
+  document.querySelectorAll('#tbl-lr td').forEach(td=>td.classList.remove('hit'));
+  if(!hl || hl==='all') return;
+  document.querySelectorAll(`#tbl-lr td[data-k="${hl}"]`).forEach(td=>td.classList.add('hit'));
+}
+
+// 渲染 LR 四栏动画
+const LR_TOKENS = ['id','+','id','$'];
+function renderLRAnim(trace){
+  const ss = $('lr-sstack'), ys = $('lr-ystack'), bf = $('lr-buffer'), ac = $('lr-action');
+  if(!trace){ ss.innerHTML=ys.innerHTML=bf.innerHTML=''; ac.innerHTML=''; return; }
+  ss.innerHTML = trace.sstack.map((s,i)=>{
+    const isTop = i===trace.sstack.length-1;
+    return `<span class="stack-item ${isTop?'top':''}">${esc(s)}</span>`;
+  }).reverse().join('');
+  ys.innerHTML = trace.ystack.length===0
+    ? '<span style="color:var(--fg-dim);font-size:12px">(空)</span>'
+    : trace.ystack.map((s,i)=>{
+        const isTop = i===trace.ystack.length-1;
+        return `<span class="stack-item ${isTop?'top':''}">${esc(s)}</span>`;
+      }).reverse().join('');
+  bf.innerHTML = LR_TOKENS.map((t,i)=>{
+    const cls = i<trace.bufIdx ? 'consumed' : (i===trace.bufIdx?'current':'');
+    return `<span class="buf-item ${cls}">${esc(t)}</span>`;
+  }).join('');
+  const kindCls = trace.kind==='shift' ? 'shift' : (trace.kind==='reduce'?'reduce':'accept');
+  ac.innerHTML = `<div class="action-tag ${kindCls}">${esc(trace.action)}</div>`;
+  if(trace.kind==='reduce'){
+    ac.innerHTML += `<div style="margin-top:8px;font-size:12px;color:var(--fg-dim)">被归约的产生式：<br><b style="color:var(--purple)">${esc(trace.prod)}</b></div>`;
+  }
+}
+
+/* ===========================================================
+   步骤系统 · 支持切换 tab / 上一步 / 下一步 / 自动播放 / 键盘
+   =========================================================== */
+const state = {
+  tab:'ll',
+  step:0,
+  playing:false,
+  speed:1,
+  timer:null
+};
+
+function currentSteps(){ return state.tab==='ll' ? LL_STEPS : LR_STEPS; }
+
+function renderStep(){
+  const steps = currentSteps();
+  const s = steps[state.step];
+  // 讲解卡
+  $('explain-step-title').textContent = `步骤 ${state.step+1} · ${s.title}`;
+  $('explain-body').innerHTML = s.html;
+  // 步进器
+  $('step-counter').textContent = `${state.step+1} / ${steps.length}`;
+  const dots = $('step-dots');
+  dots.innerHTML = steps.map((_,i)=>{
+    const cls = i===state.step?'active':(i<state.step?'done':'');
+    return `<div class="step-dot ${cls}"></div>`;
+  }).join('');
+  // 上/下按钮
+  $('btn-prev').disabled = state.step<=0;
+  $('btn-next').disabled = state.step>=steps.length-1;
+  // 舞台
+  if(state.tab==='ll'){
+    renderFFHl(s.ui.ffHl);
+    renderPredHl(s.ui.predHl);
+    if(s.ui.showAnim && s.ui.trace){
+      renderLLAnim(s.ui.trace);
+    }else{
+      renderLLAnim(null);
+    }
+  }else{
+    renderItemsets(s.ui.itemsHl || []);
+    renderLRTabHl(s.ui.lrtabHl);
+    if(s.ui.showAnim && s.ui.trace){
+      renderLRAnim(s.ui.trace);
+    }else{
+      renderLRAnim(null);
+    }
+  }
+}
+
+function nextStep(){
+  const steps = currentSteps();
+  if(state.step<steps.length-1){ state.step++; renderStep(); }
+  else{ stopPlay(); }
+}
+function prevStep(){
+  if(state.step>0){ state.step--; renderStep(); }
+}
+function resetStep(){
+  stopPlay();
+  state.step=0;
+  renderStep();
+}
+function togglePlay(){
+  if(state.playing) stopPlay(); else startPlay();
+}
+function startPlay(){
+  state.playing = true;
+  $('btn-play').textContent = '⏸ 暂停';
+  const interval = 1600 / state.speed;
+  state.timer = setInterval(()=>{
+    const steps = currentSteps();
+    if(state.step>=steps.length-1){ stopPlay(); return; }
+    nextStep();
+  }, interval);
+}
+function stopPlay(){
+  state.playing = false;
+  $('btn-play').textContent = '▶ 播放';
+  if(state.timer){ clearInterval(state.timer); state.timer=null; }
+}
+function cycleSpeed(){
+  const seq = [0.5, 1, 2];
+  const idx = seq.indexOf(state.speed);
+  state.speed = seq[(idx+1)%seq.length];
+  $('speed-btn').textContent = `速度 ${state.speed}×`;
+  if(state.playing){ stopPlay(); startPlay(); }
+}
+
+function switchTab(tab){
+  if(state.tab===tab) return;
+  stopPlay();
+  state.tab = tab;
+  state.step = 0;
+  $('tab-ll').classList.toggle('active', tab==='ll');
+  $('tab-lr').classList.toggle('active', tab==='lr');
+  $('panel-ll').classList.toggle('active', tab==='ll');
+  $('panel-lr').classList.toggle('active', tab==='lr');
+  // 左侧标题 & 文法
+  $('explain-tab-title').textContent = tab==='ll' ? '🔍 讲解 · LL(1) 预测分析' : '🔍 讲解 · LR(0) 移进-归约分析';
+  $('grammar-box').innerHTML = tab==='ll' ? GRAMMAR_LL : GRAMMAR_LR;
+  renderStep();
+}
+
+// 键盘
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'){ e.preventDefault(); nextStep(); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); prevStep(); }
+  else if(e.key===' '){ e.preventDefault(); togglePlay(); }
+  else if(e.key==='r'||e.key==='R'){ e.preventDefault(); resetStep(); }
+});
+
+// 初始化
+$('grammar-box').innerHTML = GRAMMAR_LL;
+renderStep();
+// 首次也渲染一下 LR 舞台的项集（用户切过去能立即看到）
+renderItemsets([]);
+</script>
+</body>
+</html>

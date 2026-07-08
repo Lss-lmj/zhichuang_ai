@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码优化 · 五种经典技术</title>
+<style>
+:root{
+  --bg:#0f1226; --bg-soft:#171a35; --bg-code:#0a0c1c;
+  --fg:#e7ebff; --fg-dim:#a0a8d0; --line:#2a2f55;
+  --accent:#6ee7ff; --accent-2:#ffb86b;
+  --success:#7ee787; --danger:#ff6b8a; --purple:#b78cff;
+  --shadow:0 10px 30px rgba(0,0,0,0.35);
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--fg);
+  overflow:hidden;
+}
+code,pre,.mono{font-family:"JetBrains Mono","Fira Code",Menlo,Consolas,monospace}
+
+.demo-shell{display:flex;flex-direction:column;height:100vh}
+
+.demo-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 24px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(110,231,255,0.05),transparent);
+}
+.demo-header h1{font-size:20px;font-weight:600;letter-spacing:0.5px}
+.demo-header h1 .sub{color:var(--accent);margin-left:8px;font-size:14px;font-weight:400}
+.back-btn{
+  color:var(--fg-dim);text-decoration:none;font-size:14px;
+  padding:6px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  transition:all .2s;
+}
+.back-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+.tab-bar{
+  display:flex;gap:6px;padding:12px 24px 0;border-bottom:1px solid var(--line);
+  background:var(--bg-soft);flex-wrap:wrap;
+}
+.tab-btn{
+  background:transparent;border:none;color:var(--fg-dim);
+  padding:10px 14px;font-size:13px;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .2s;
+  font-family:inherit;white-space:nowrap;
+}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-btn:hover{color:var(--fg)}
+.tab-btn .num{
+  display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;
+  border-radius:50%;background:var(--bg-code);font-size:11px;margin-right:6px;
+  border:1px solid var(--line);
+}
+.tab-btn.active .num{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+.demo-main{flex:1;display:grid;grid-template-columns:30% 70%;overflow:hidden}
+
+.panel-explain{
+  padding:20px;border-right:1px solid var(--line);
+  overflow-y:auto;background:var(--bg-soft);
+}
+.step-title{font-size:16px;font-weight:600;margin-bottom:12px;color:var(--accent)}
+.step-desc{font-size:14px;line-height:1.75;color:var(--fg);margin-bottom:14px}
+.step-desc code{
+  background:var(--bg-code);padding:2px 6px;border-radius:4px;
+  color:var(--accent-2);font-size:13px;
+}
+.step-desc b{color:var(--accent)}
+
+.badge{
+  display:inline-block;padding:3px 9px;font-size:11px;border-radius:20px;
+  margin-right:6px;margin-bottom:8px;font-weight:600;letter-spacing:0.5px;
+}
+.badge--tip{background:rgba(110,231,255,0.15);color:var(--accent)}
+.badge--warn{background:rgba(255,184,107,0.15);color:var(--accent-2)}
+.badge--def{background:rgba(183,140,255,0.15);color:var(--purple)}
+.badge--ok{background:rgba(126,231,135,0.15);color:var(--success)}
+
+/* Right stage */
+.panel-stage{
+  display:flex;flex-direction:column;
+  padding:16px;overflow:hidden;gap:14px;
+}
+.side-by-side{
+  flex:1;display:grid;grid-template-columns:1fr auto 1fr;
+  gap:14px;align-items:stretch;overflow:hidden;
+}
+.code-panel{
+  background:var(--bg-soft);border-radius:var(--radius);
+  border:1px solid var(--line);padding:14px;
+  display:flex;flex-direction:column;overflow:hidden;min-width:0;
+}
+.code-panel.before{border-color:rgba(255,107,138,0.28)}
+.code-panel.after{border-color:rgba(126,231,135,0.28)}
+.code-label{
+  font-size:12px;color:var(--fg-dim);text-transform:uppercase;
+  letter-spacing:1.5px;margin-bottom:10px;font-weight:600;
+  display:flex;align-items:center;gap:8px;
+}
+.code-label .dot{width:8px;height:8px;border-radius:50%}
+.before .code-label .dot{background:var(--danger)}
+.after .code-label .dot{background:var(--success)}
+
+.arrow-mid{
+  display:flex;align-items:center;justify-content:center;
+  color:var(--fg-dim);font-size:24px;padding:0 4px;
+  min-width:32px;
+}
+.arrow-mid .arrow-inner{
+  padding:8px 6px;border-radius:50%;background:var(--bg-soft);
+  border:1px solid var(--line);transition:all .3s;
+}
+.arrow-mid.active .arrow-inner{
+  color:var(--accent);border-color:var(--accent);
+  box-shadow:0 0 20px rgba(110,231,255,0.3);
+}
+
+.code-list{
+  flex:1;overflow-y:auto;background:var(--bg-code);
+  border-radius:var(--radius-sm);padding:12px;
+  font-family:"JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:13px;line-height:1.85;
+}
+.cline{
+  display:flex;align-items:center;gap:10px;
+  padding:2px 6px;border-radius:4px;transition:all .35s;
+  min-height:24px;
+}
+.cline.hl{background:rgba(110,231,255,0.16);color:var(--accent)}
+.cline.match{background:rgba(183,140,255,0.14);color:var(--purple)}
+.cline.dead{background:rgba(255,107,138,0.14);color:var(--danger);text-decoration:line-through;text-decoration-color:var(--danger)}
+.cline.removed{opacity:0.35;text-decoration:line-through;color:var(--fg-dim)}
+.cline.new{background:rgba(126,231,135,0.16);color:var(--success)}
+.cline.changed{background:rgba(255,184,107,0.16);color:var(--accent-2)}
+.cline.hoisted{background:rgba(126,231,135,0.16);color:var(--success);font-weight:600}
+.cline.loop-marker{color:var(--purple);font-size:11px;padding-left:2px}
+.cline.hide{display:none}
+.cnum{color:var(--fg-dim);min-width:26px;text-align:right;font-size:11px;opacity:.7;user-select:none}
+.ccode{flex:1;white-space:pre;overflow-x:auto}
+.ctag{
+  font-size:10px;padding:1px 6px;border-radius:10px;
+  background:var(--line);color:var(--fg-dim);white-space:nowrap;
+}
+.cline.hl .ctag{background:var(--accent);color:var(--bg)}
+.cline.dead .ctag{background:var(--danger);color:var(--bg)}
+.cline.new .ctag{background:var(--success);color:var(--bg)}
+.cline.match .ctag{background:var(--purple);color:var(--bg)}
+.cline.hoisted .ctag{background:var(--success);color:var(--bg)}
+.cline.changed .ctag{background:var(--accent-2);color:var(--bg)}
+
+/* DAG SVG */
+.dag-wrap{
+  flex:1;background:var(--bg-code);border-radius:var(--radius-sm);
+  padding:10px;overflow:hidden;
+}
+.dag-svg{width:100%;height:100%}
+.dagnode{opacity:0;transition:opacity .4s}
+.dagnode.visible{opacity:1}
+.dagnode circle{fill:var(--bg-soft);stroke:var(--purple);stroke-width:2;transition:all .35s}
+.dagnode text{fill:var(--fg);font-family:"JetBrains Mono",Menlo,Consolas,monospace;font-size:12px;text-anchor:middle;dominant-baseline:middle}
+.dagnode.active circle{stroke:var(--accent);fill:rgba(110,231,255,0.12);stroke-width:2.5}
+.dagnode.reused circle{stroke:var(--accent-2);fill:rgba(255,184,107,0.15)}
+.dagnode.reused text{fill:var(--accent-2)}
+.dagnode .var{font-size:9px;fill:var(--fg-dim)}
+.dagnode.active .var{fill:var(--accent)}
+.dagedge{stroke:var(--line);stroke-width:1.5;fill:none;opacity:0;transition:opacity .4s,stroke .35s}
+.dagedge.visible{opacity:1}
+.dagedge.active{stroke:var(--accent);stroke-width:2}
+
+/* Controls */
+.demo-controls{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  padding:14px 24px;border-top:1px solid var(--line);background:var(--bg-soft);
+  flex-wrap:wrap;
+}
+.ctrl-btn{
+  background:var(--bg-code);color:var(--fg);border:1px solid var(--line);
+  padding:8px 16px;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:13px;font-family:inherit;transition:all .2s;
+}
+.ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+.ctrl-btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.ctrl-btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2);color:var(--bg)}
+.ctrl-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+.step-indicator{display:flex;gap:5px;align-items:center;padding:0 10px;flex-wrap:wrap;max-width:280px}
+.step-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--line);
+  transition:all .3s;cursor:pointer;
+}
+.step-dot.active{background:var(--accent);transform:scale(1.4)}
+.step-dot.done{background:var(--fg-dim)}
+
+.step-counter{font-size:12px;color:var(--fg-dim);min-width:56px;text-align:center}
+
+.speed-btn{
+  position:fixed;bottom:70px;right:20px;
+  background:var(--bg-code);color:var(--fg-dim);border:1px solid var(--line);
+  padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:11px;font-family:inherit;z-index:10;
+}
+.speed-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+.hint-bar{
+  position:fixed;bottom:12px;left:24px;
+  font-size:11px;color:var(--fg-dim);opacity:.6;
+}
+.hint-bar kbd{
+  display:inline-block;padding:1px 6px;border:1px solid var(--line);
+  border-radius:3px;background:var(--bg-code);font-size:10px;margin:0 2px;
+}
+
+.tab-pane{display:none;height:100%;flex-direction:column;overflow:hidden}
+.tab-pane.active{display:flex;flex:1}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--fg-dim)}
+</style>
+</head>
+<body>
+<div class="demo-shell">
+  <header class="demo-header">
+    <a href="../index.html" class="back-btn">← 返回目录</a>
+    <h1>代码优化<span class="sub">· 五种经典技术</span></h1>
+    <div style="width:80px"></div>
+  </header>
+
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-btn active" data-tab="0"><span class="num">1</span>常量折叠</button>
+    <button class="tab-btn" data-tab="1"><span class="num">2</span>死代码消除</button>
+    <button class="tab-btn" data-tab="2"><span class="num">3</span>公共子表达式消除</button>
+    <button class="tab-btn" data-tab="3"><span class="num">4</span>循环不变量外提</button>
+    <button class="tab-btn" data-tab="4"><span class="num">5</span>基本块 DAG</button>
+  </div>
+
+  <!-- 5 个 Tab -->
+  <div class="tab-pane active" id="pane">
+    <div class="demo-main">
+      <aside class="panel-explain">
+        <div id="expl">
+          <span class="badge badge--tip">当前步骤</span>
+          <div class="step-title">准备开始</div>
+          <div class="step-desc">点击"下一步"或按 <code>→</code> 键开始演示。</div>
+        </div>
+      </aside>
+
+      <section class="panel-stage">
+        <div class="side-by-side">
+          <div class="code-panel before">
+            <div class="code-label"><span class="dot"></span>优化前 · Before</div>
+            <div class="code-list" id="beforeList"></div>
+          </div>
+          <div class="arrow-mid" id="arrowMid">
+            <div class="arrow-inner">→</div>
+          </div>
+          <div class="code-panel after">
+            <div class="code-label"><span class="dot"></span>优化后 · After</div>
+            <div class="code-list" id="afterList"></div>
+            <div class="dag-wrap" id="dagWrap" style="display:none;margin-top:10px;max-height:200px">
+              <svg class="dag-svg" id="dagSvg" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="demo-controls">
+    <button class="ctrl-btn" id="btnPrev">← 上一步</button>
+    <button class="ctrl-btn primary" id="btnNext">下一步 →</button>
+    <button class="ctrl-btn" id="btnPlay">▶ 自动播放</button>
+    <div class="step-indicator" id="stepDots"></div>
+    <span class="step-counter" id="stepCnt">0 / 0</span>
+    <button class="ctrl-btn" id="btnReset">↺ 重置</button>
+  </footer>
+  <button class="speed-btn" id="btnSpeed">速度 1×</button>
+  <div class="hint-bar">
+    <kbd>←</kbd><kbd>→</kbd> 切步骤 &nbsp; <kbd>Space</kbd> 播放/暂停 &nbsp; <kbd>R</kbd> 重置
+  </div>
+</div>
+
+<script>
+/* ================================================================
+ * 代码优化演示 · 主脚本
+ * 五个 tab：常量折叠 / 死代码消除 / CSE / 循环不变量外提 / 基本块 DAG
+ *
+ * 数据结构：
+ *   TABS[i] = {
+ *     before: [ "line1", "line2", ... ],   // 优化前每行代码
+ *     after:  [ "line1", "line2", ... ],   // 优化后每行代码（可为空数组）
+ *     steps:  [ {                          // 该 tab 的步骤列表
+ *       title, badge, badgeText, desc,     // 讲解卡
+ *       beforeCls: { lineIdx: 'hl'|'dead'|'match'|'removed' },
+ *       afterCls:  { lineIdx: 'hl'|'new'|'match'|'changed'|'hoisted' },
+ *       afterShow: N | 'all',              // 优化后代码只显示前 N 行（渐进出现）
+ *       arrowActive: true|false,           // 中间箭头是否点亮
+ *       dag: null | { nodes:[], edges:[], active:[], reused:[] }  // 仅 Tab 5 用
+ *     } ]
+ *   }
+ * ================================================================ */
+
+/* ================ Tab 1：常量折叠 Constant Folding ================ */
+const TAB_FOLD = {
+  before: [
+    "t1 = 3 + 4",
+    "t2 = t1 * 2",
+    "t3 = t2 + 5",
+    "x  = t3"
+  ],
+  after: [
+    "t1 = 7",
+    "t2 = 14",
+    "t3 = 19",
+    "x  = 19"
+  ],
+  steps: [
+    {
+      title:"初始三地址码",
+      badge:"tip", badgeText:"输入",
+      desc:"待优化的三地址码 4 行。<b>常量折叠</b>（Constant Folding）是最基础的编译期优化：<br>把在编译期就能求值的常量表达式提前算出，避免在运行期重复计算。",
+      beforeCls:{}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"识别常量表达式：3 + 4",
+      badge:"def", badgeText:"识别",
+      desc:"扫描第 1 行：<code>t1 = 3 + 4</code>。两个操作数都是<b>字面量常量</b>，可在编译期直接求值。",
+      beforeCls:{0:'hl'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"折叠 3 + 4 → 7",
+      badge:"warn", badgeText:"折叠",
+      desc:"用常量 <code>7</code> 替换表达式 <code>3 + 4</code>。生成新指令 <code>t1 = 7</code>。<br><b>常量传播</b>：t1 变成已知常量 <code>7</code>，可在后续被替换。",
+      beforeCls:{0:'match'}, afterCls:{0:'new'}, afterShow:1, arrowActive:true
+    },
+    {
+      title:"常量传播：t1 → 7，折叠 7 * 2",
+      badge:"warn", badgeText:"折叠 + 传播",
+      desc:"第 2 行 <code>t2 = t1 * 2</code>：把 <code>t1</code> 替换为已知的 <code>7</code>，得到 <code>t2 = 7 * 2</code>，再折叠为 <code>t2 = 14</code>。",
+      beforeCls:{0:'match',1:'hl'}, afterCls:{0:'new',1:'new'}, afterShow:2, arrowActive:true
+    },
+    {
+      title:"继续传播：t2 → 14，折叠 14 + 5",
+      badge:"warn", badgeText:"折叠 + 传播",
+      desc:"第 3 行：<code>t2</code> 替换为 <code>14</code>，得到 <code>14 + 5</code>，折叠为 <code>t3 = 19</code>。",
+      beforeCls:{2:'hl'}, afterCls:{0:'new',1:'new',2:'new'}, afterShow:3, arrowActive:true
+    },
+    {
+      title:"最后传播：t3 → 19",
+      badge:"warn", badgeText:"折叠 + 传播",
+      desc:"第 4 行 <code>x = t3</code>：<code>t3</code> 是常量 <code>19</code>，直接替换。<br><b>整段代码在编译期就求出了 x 的最终值！</b>",
+      beforeCls:{3:'hl'}, afterCls:{0:'new',1:'new',2:'new',3:'new'}, afterShow:4, arrowActive:true
+    },
+    {
+      title:"✓ 常量折叠完成",
+      badge:"ok", badgeText:"总结",
+      desc:"运行期消耗：<b>4 次算术运算 → 0 次</b>。<br>后续通常还能配合<b>死代码消除</b>把只用于中间计算的 <code>t1、t2、t3</code> 全部删掉，最终只留 <code>x = 19</code>。",
+      beforeCls:{}, afterCls:{0:'new',1:'new',2:'new',3:'new'}, afterShow:4, arrowActive:true
+    }
+  ]
+};
+
+/* ================ Tab 2：死代码消除 Dead Code Elimination ================ */
+const TAB_DCE = {
+  before: [
+    "a = x + y",
+    "b = x * y",
+    "c = a - b",     // c 从未被使用
+    "d = a + b",
+    "e = d * 2",     // e 从未被使用
+    "return d"
+  ],
+  after: [
+    "a = x + y",
+    "b = x * y",
+    "d = a + b",
+    "return d"
+  ],
+  steps: [
+    {
+      title:"初始代码 & 活跃变量分析",
+      badge:"tip", badgeText:"输入",
+      desc:"待优化代码 6 行。<b>死代码消除</b>（Dead Code Elimination, DCE）的关键判据：<br>若变量 <code>v</code> 被赋值后到基本块结束都没有被使用，则该赋值是<b>死代码</b>。<br>需要先做<b>活跃变量分析</b>（Liveness Analysis）。",
+      beforeCls:{}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"从出口向前扫描：return d",
+      badge:"def", badgeText:"活跃分析",
+      desc:"从<b>基本块出口</b>开始逆向分析。<br>最后一行 <code>return d</code>：<code>d</code> 在此处活跃。<br>活跃集：<code>Live = {d, x, y}</code>（x, y 是外部输入）。",
+      beforeCls:{5:'hl'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"检查 e = d * 2",
+      badge:"warn", badgeText:"发现死代码",
+      desc:"第 5 行赋值 <code>e</code>，但 <code>e</code> <b>未出现</b>在后续活跃集中 → <b>e 是死变量</b>。<br>这条赋值可以安全删除。",
+      beforeCls:{4:'dead',5:'hl'}, afterCls:{}, afterShow:0, arrowActive:true
+    },
+    {
+      title:"检查 d = a + b",
+      badge:"def", badgeText:"活跃分析",
+      desc:"第 4 行赋值 <code>d</code>，<code>d</code> 在后续 return 中活跃 → 保留。<br>新增其操作数到活跃集：<code>Live = {a, b, d, x, y}</code>。",
+      beforeCls:{3:'hl'}, afterCls:{}, afterShow:0, arrowActive:true
+    },
+    {
+      title:"检查 c = a - b",
+      badge:"warn", badgeText:"发现死代码",
+      desc:"第 3 行赋值 <code>c</code>，但 <code>c</code> <b>未出现</b>在后续活跃集中 → <b>c 是死变量</b>。<br>可以安全删除。",
+      beforeCls:{2:'dead',4:'dead'}, afterCls:{}, afterShow:0, arrowActive:true
+    },
+    {
+      title:"检查 a、b 的定义",
+      badge:"def", badgeText:"活跃分析",
+      desc:"第 1、2 行的 <code>a</code>、<code>b</code> 都在活跃集中（被 <code>d</code> 用到）→ 全部保留。",
+      beforeCls:{0:'hl',1:'hl',2:'dead',4:'dead'}, afterCls:{}, afterShow:0, arrowActive:true
+    },
+    {
+      title:"移除死代码，输出优化后版本",
+      badge:"ok", badgeText:"完成",
+      desc:"删除第 3 行 <code>c = a - b</code> 与第 5 行 <code>e = d * 2</code>。<br>代码行数：<b>6 → 4</b>。运行期节省了两次算术运算。<br><b>注意</b>：本例的 DCE 建立在<b>无副作用</b>假设上；若表达式可能有副作用（如函数调用），需保守处理。",
+      beforeCls:{2:'removed',4:'removed'}, afterCls:{0:'new',1:'new',2:'new',3:'new'}, afterShow:4, arrowActive:true
+    }
+  ]
+};
+
+/* ================ Tab 3：公共子表达式消除 CSE ================ */
+const TAB_CSE = {
+  before: [
+    "t1 = b * c",
+    "a  = t1 + 5",
+    "// ... （b, c 未被重新定义）",
+    "t2 = b * c",
+    "d  = t2 - 3",
+    "e  = t1 + t2"
+  ],
+  after: [
+    "t1 = b * c",
+    "a  = t1 + 5",
+    "// ... （b, c 未被重新定义）",
+    "// (t2 = b * c 已消除)",
+    "d  = t1 - 3",
+    "e  = t1 + t1"
+  ],
+  steps: [
+    {
+      title:"初始代码",
+      badge:"tip", badgeText:"输入",
+      desc:"注意到 <code>b * c</code> 在第 1 行和第 4 行<b>各出现一次</b>。<br><b>公共子表达式消除</b>（Common Subexpression Elimination, CSE）目标：只算一次，其余全部复用。",
+      beforeCls:{}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"记录第一次出现：b * c",
+      badge:"def", badgeText:"记录",
+      desc:"扫描到第 1 行 <code>t1 = b * c</code>，把表达式 <code>b * c</code> 登记到<b>可用表达式集</b>（Available Expressions）：<br><code>AVAIL = { b*c → t1 }</code>。",
+      beforeCls:{0:'match'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"关键判据：b、c 未被重新定义",
+      badge:"warn", badgeText:"安全性",
+      desc:"CSE 成立的<b>必要条件</b>：从第 1 行到第 4 行之间，<code>b</code> 与 <code>c</code> 都<b>没有被重新赋值</b>，否则表达式 <code>b*c</code> 的语义会变。<br>本例中区间安全（注释表明未重定义）。",
+      beforeCls:{0:'match',2:'hl'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"发现重复：第 4 行的 b * c",
+      badge:"warn", badgeText:"命中",
+      desc:"扫描到第 4 行 <code>t2 = b * c</code>：查 <code>AVAIL</code>，命中！<br>意味着 <code>b*c</code> 的结果已保存在 <code>t1</code> 中，可以直接复用。",
+      beforeCls:{0:'match',3:'match'}, afterCls:{}, afterShow:0, arrowActive:true
+    },
+    {
+      title:"替换 t2 → t1，消除重复计算",
+      badge:"warn", badgeText:"消除",
+      desc:"将第 4 行 <code>t2 = b * c</code> 替换为 <code>t2 = t1</code>（或直接把 <code>t2</code> 全部改名为 <code>t1</code>）。<br>随后所有用到 <code>t2</code> 的地方（第 5、6 行）都改成 <code>t1</code>。",
+      beforeCls:{0:'match',3:'match'}, afterCls:{0:'new',1:'new',2:'new',3:'new',4:'changed',5:'changed'}, afterShow:6, arrowActive:true
+    },
+    {
+      title:"清理死代码 t2",
+      badge:"ok", badgeText:"清理",
+      desc:"<code>t2</code> 的赋值被完全消除；后续引用统一改成 <code>t1</code>。<br>如果之后再没有对 <code>t2</code> 的引用，赋值可安全移除（配合 DCE 一起做）。",
+      beforeCls:{3:'removed'}, afterCls:{0:'new',1:'new',2:'new',3:'new',4:'new',5:'new'}, afterShow:6, arrowActive:true
+    },
+    {
+      title:"✓ CSE 完成",
+      badge:"ok", badgeText:"总结",
+      desc:"运行期节省：<b>1 次乘法</b>（<code>b*c</code> 只算一次而非两次）。<br>推广到大型表达式（如矩阵下标计算），CSE 常常带来数量级的性能提升。",
+      beforeCls:{0:'match',3:'removed'}, afterCls:{0:'new',1:'new',2:'new',3:'new',4:'new',5:'new'}, afterShow:6, arrowActive:true
+    }
+  ]
+};
+
+/* ================ Tab 4：循环不变量外提 LICM ================ */
+const TAB_LICM = {
+  before: [
+    "for (i = 0; i < n; i++) {",
+    "    x = y * z",
+    "    a[i] = x + i",
+    "}"
+  ],
+  after: [
+    "x = y * z",
+    "for (i = 0; i < n; i++) {",
+    "    a[i] = x + i",
+    "}"
+  ],
+  steps: [
+    {
+      title:"初始代码：一个 for 循环",
+      badge:"tip", badgeText:"输入",
+      desc:"待优化循环体包含 <code>x = y * z</code> 与 <code>a[i] = x + i</code>。<br><b>循环不变量外提</b>（Loop-Invariant Code Motion, LICM）目标：<br>识别循环内每次迭代<b>值都不变</b>的表达式，把它<b>提到循环之外</b>只算一次。",
+      beforeCls:{}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"识别候选：x = y * z",
+      badge:"def", badgeText:"扫描",
+      desc:"扫描循环体，逐条判断每个赋值是否为循环不变量。<br>候选 1：<code>x = y * z</code> — 操作数是 <code>y</code>、<code>z</code>。",
+      beforeCls:{1:'hl'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"判据 A：操作数在循环内不被修改",
+      badge:"warn", badgeText:"判据 A",
+      desc:"检查 <code>y</code> 和 <code>z</code>：循环体内<b>都没有出现左边</b>，即从未被赋值。<br>✓ 满足\"操作数循环不变\"条件。",
+      beforeCls:{1:'match'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"判据 B：唯一定义 & 支配所有使用",
+      badge:"warn", badgeText:"判据 B",
+      desc:"检查 <code>x</code>：<br>• 在循环内<b>只被赋值这一处</b>（唯一定义）<br>• 该定义<b>支配</b>（dominates）循环内所有对 <code>x</code> 的使用<br>✓ 满足外提的安全性条件。",
+      beforeCls:{1:'match',2:'hl'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"判据 C：循环必定至少执行一次",
+      badge:"warn", badgeText:"判据 C",
+      desc:"若循环体<b>可能一次都不执行</b>，直接外提会引入不该有的副作用。<br>本例是标准 for 循环，编译器可通过静态分析或插入 <code>if (i &lt; n)</code> 守卫来保证等价性。<br>假设本例满足条件，进入外提步骤。",
+      beforeCls:{0:'hl',1:'match'}, afterCls:{}, afterShow:0, arrowActive:false
+    },
+    {
+      title:"外提：把 x = y * z 移到循环之前",
+      badge:"ok", badgeText:"外提",
+      desc:"将 <code>x = y * z</code> 从循环体<b>提升到循环前置头（preheader）</b>。<br>新代码结构：先算一次 <code>x</code>，再进入 for 循环。",
+      beforeCls:{1:'removed'}, afterCls:{0:'hoisted',1:'new',2:'new',3:'new'}, afterShow:4, arrowActive:true
+    },
+    {
+      title:"验证：a[i] = x + i",
+      badge:"def", badgeText:"验证",
+      desc:"剩下的 <code>a[i] = x + i</code> <b>不是</b>循环不变量：右边含循环变量 <code>i</code>。<br>此条不外提，保留在循环内。",
+      beforeCls:{1:'removed',2:'hl'}, afterCls:{0:'new',1:'new',2:'hl',3:'new'}, afterShow:4, arrowActive:true
+    },
+    {
+      title:"✓ 循环不变量外提完成",
+      badge:"ok", badgeText:"总结",
+      desc:"性能收益：<code>y * z</code> 从被执行 <b>n 次</b>降为 <b>1 次</b>。<br>循环体越\"热\"，LICM 收益越大。常与<b>强度削减</b>（如 <code>i*4</code> → 逐次加 4）、<b>归纳变量分析</b>联合使用，是循环优化的核心手段。",
+      beforeCls:{1:'removed'}, afterCls:{0:'new',1:'new',2:'new',3:'new'}, afterShow:4, arrowActive:true
+    }
+  ]
+};
+
+/* ================ Tab 5：基本块 DAG ================ */
+/*
+ * 待优化基本块（源三地址码 6 行）：
+ *   1: t1 = a + b
+ *   2: t2 = t1 * c
+ *   3: t3 = a + b       ← 与 1 重复
+ *   4: t4 = t3 - d
+ *   5: t5 = t1 * c      ← 与 2 重复
+ *   6: t6 = t2 + t4
+ *
+ * DAG 构造：
+ *   节点：叶子（a,b,c,d）+ 内部节点（+₁, *₁, -, +₂）
+ *   变量标注：+₁ ← {t1, t3}；*₁ ← {t2, t5}
+ *
+ * 生成精简代码：
+ *   t1 = a + b     （+₁）
+ *   t2 = t1 * c    （*₁）
+ *   t4 = t1 - d    （-）  ← 原 t3 复用为 t1
+ *   t6 = t2 + t4   （+₂）
+ */
+const TAB_DAG = {
+  before: [
+    "t1 = a + b",
+    "t2 = t1 * c",
+    "t3 = a + b",
+    "t4 = t3 - d",
+    "t5 = t1 * c",
+    "t6 = t2 + t4"
+  ],
+  after: [
+    "t1 = a + b",
+    "t2 = t1 * c",
+    "t4 = t1 - d",
+    "t6 = t2 + t4"
+  ],
+  // DAG 节点坐标（viewBox 400×200）
+  dagNodes: [
+    {id:'a',   label:'a',   x:40,  y:170, kind:'leaf'},
+    {id:'b',   label:'b',   x:100, y:170, kind:'leaf'},
+    {id:'c',   label:'c',   x:220, y:170, kind:'leaf'},
+    {id:'d',   label:'d',   x:340, y:170, kind:'leaf'},
+    {id:'add1',label:'+',   x:70,  y:110, kind:'op', vars:['t1','t3']},
+    {id:'mul1',label:'*',   x:160, y:60,  kind:'op', vars:['t2','t5']},
+    {id:'sub', label:'−',   x:280, y:110, kind:'op', vars:['t4']},
+    {id:'add2',label:'+',   x:220, y:20,  kind:'op', vars:['t6']}
+  ],
+  dagEdges: [
+    {from:'add1', to:'a'},
+    {from:'add1', to:'b'},
+    {from:'mul1', to:'add1'},
+    {from:'mul1', to:'c'},
+    {from:'sub',  to:'add1'},
+    {from:'sub',  to:'d'},
+    {from:'add2', to:'mul1'},
+    {from:'add2', to:'sub'}
+  ],
+  steps: [
+    {
+      title:"初始基本块（6 条三地址码）",
+      badge:"tip", badgeText:"输入",
+      desc:"<b>基本块 DAG</b>（Directed Acyclic Graph）是同时实现<b>常量折叠、CSE、死代码消除</b>的统一框架。<br>核心思想：把基本块表示成一张 DAG——叶子是初始变量，内部节点是运算；<b>相同运算共享同一节点</b>，因此重复计算自动被识别。",
+      beforeCls:{}, afterCls:{}, afterShow:0, arrowActive:false,
+      dag:{nodes:[], edges:[], active:[], reused:[]}
+    },
+    {
+      title:"处理第 1 行：t1 = a + b",
+      badge:"def", badgeText:"建节点",
+      desc:"叶子 <code>a</code>、<code>b</code> 尚不存在 → 创建叶子节点。<br>创建内部节点 <code>+₁</code>，两个子节点为 <code>a</code>、<code>b</code>。变量列表 <code>{t1}</code> 标注在该节点上。",
+      beforeCls:{0:'hl'}, afterCls:{}, afterShow:0, arrowActive:true,
+      dag:{nodes:['a','b','add1'], edges:[0,1], active:['add1'], reused:[]}
+    },
+    {
+      title:"处理第 2 行：t2 = t1 * c",
+      badge:"def", badgeText:"建节点",
+      desc:"<code>t1</code> 已经对应 <code>+₁</code> 节点，<code>c</code> 需新建叶子。<br>创建 <code>*₁</code> 节点，子节点为 <code>+₁</code> 与 <code>c</code>，标注 <code>{t2}</code>。",
+      beforeCls:{1:'hl'}, afterCls:{}, afterShow:0, arrowActive:true,
+      dag:{nodes:['a','b','c','add1','mul1'], edges:[0,1,2,3], active:['mul1'], reused:[]}
+    },
+    {
+      title:"处理第 3 行：t3 = a + b —— 复用！",
+      badge:"warn", badgeText:"命中",
+      desc:"查表：运算 <code>a + b</code> 已存在于节点 <code>+₁</code>。<br><b>不创建新节点</b>，而是把 <code>t3</code> 追加到 <code>+₁</code> 的变量列表：<code>{t1, t3}</code>。<br>这一步等价于<b>公共子表达式消除</b>——但通过 DAG 自动完成。",
+      beforeCls:{0:'match',2:'match'}, afterCls:{}, afterShow:0, arrowActive:true,
+      dag:{nodes:['a','b','c','add1','mul1'], edges:[0,1,2,3], active:['add1'], reused:['add1']}
+    },
+    {
+      title:"处理第 4 行：t4 = t3 - d",
+      badge:"def", badgeText:"建节点",
+      desc:"<code>t3</code> 已经映射到 <code>+₁</code>，<code>d</code> 需新建叶子。<br>创建 <code>−</code> 节点，子节点为 <code>+₁</code> 与 <code>d</code>，标注 <code>{t4}</code>。<br>由于 t3 复用 t1 的节点，等价于 <code>t4 = t1 - d</code>。",
+      beforeCls:{3:'hl'}, afterCls:{}, afterShow:0, arrowActive:true,
+      dag:{nodes:['a','b','c','d','add1','mul1','sub'], edges:[0,1,2,3,4,5], active:['sub'], reused:[]}
+    },
+    {
+      title:"处理第 5 行：t5 = t1 * c —— 复用！",
+      badge:"warn", badgeText:"命中",
+      desc:"查表：运算 <code>t1 * c</code> 已存在（<code>*₁</code>）。<br>把 <code>t5</code> 追加到 <code>*₁</code> 的变量列表：<code>{t2, t5}</code>。<br>又一处 CSE 由 DAG 自动完成。",
+      beforeCls:{1:'match',4:'match'}, afterCls:{}, afterShow:0, arrowActive:true,
+      dag:{nodes:['a','b','c','d','add1','mul1','sub'], edges:[0,1,2,3,4,5], active:['mul1'], reused:['mul1']}
+    },
+    {
+      title:"处理第 6 行：t6 = t2 + t4",
+      badge:"def", badgeText:"建节点",
+      desc:"<code>t2</code> → <code>*₁</code>，<code>t4</code> → <code>−</code>。<br>创建 <code>+₂</code> 节点，子节点为 <code>*₁</code> 与 <code>−</code>，标注 <code>{t6}</code>。<br>DAG 构造完毕。",
+      beforeCls:{5:'hl'}, afterCls:{}, afterShow:0, arrowActive:true,
+      dag:{nodes:['a','b','c','d','add1','mul1','sub','add2'], edges:[0,1,2,3,4,5,6,7], active:['add2'], reused:[]}
+    },
+    {
+      title:"从 DAG 重新生成精简代码",
+      badge:"ok", badgeText:"输出",
+      desc:"遍历 DAG，为每个内部节点生成一条三地址码（复用的变量列表中只保留仍活跃的变量名，其余作为死代码丢弃）：<br>• <code>t1 = a + b</code>（+₁，t3 复用）<br>• <code>t2 = t1 * c</code>（*₁，t5 复用）<br>• <code>t4 = t1 - d</code>（−）<br>• <code>t6 = t2 + t4</code>（+₂）<br>代码 <b>6 → 4 条</b>。",
+      beforeCls:{0:'match',2:'removed',4:'removed'}, afterCls:{0:'new',1:'new',2:'new',3:'new'}, afterShow:4, arrowActive:true,
+      dag:{nodes:['a','b','c','d','add1','mul1','sub','add2'], edges:[0,1,2,3,4,5,6,7], active:[], reused:['add1','mul1']}
+    },
+    {
+      title:"✓ DAG 优化完成",
+      badge:"ok", badgeText:"总结",
+      desc:"DAG 一次性做到了三件事：<br>• <b>CSE</b>：相同表达式共享节点（<code>a+b</code>、<code>t1*c</code>）<br>• <b>DCE</b>：未被后续引用的变量（<code>t3</code>、<code>t5</code>）自然被丢弃<br>• <b>常量折叠</b>：若叶子是常量可直接求值合并<br>DAG 是<b>局部（基本块内）</b>优化的经典武器。",
+      beforeCls:{}, afterCls:{0:'new',1:'new',2:'new',3:'new'}, afterShow:4, arrowActive:true,
+      dag:{nodes:['a','b','c','d','add1','mul1','sub','add2'], edges:[0,1,2,3,4,5,6,7], active:[], reused:['add1','mul1']}
+    }
+  ]
+};
+
+const TABS = [TAB_FOLD, TAB_DCE, TAB_CSE, TAB_LICM, TAB_DAG];
+
+/* ---------------- 状态 ---------------- */
+const state = {
+  curTab: 0,
+  idx: [0,0,0,0,0],  // 每个 tab 各自的当前步骤索引
+  playing: false,
+  timer: null,
+  speed: 1,           // 1×
+  speedList: [1, 2, 0.5]  // 循环切换
+};
+
+function curSteps(){ return TABS[state.curTab].steps; }
+function curIdx(){ return state.idx[state.curTab]; }
+function setCurIdx(i){ state.idx[state.curTab] = i; }
+
+/* ---------------- 渲染 ---------------- */
+
+// 初次渲染代码列表（before / after），后续通过切换 class 实现动画
+function renderCodeLists(){
+  const tab = TABS[state.curTab];
+  const before = document.getElementById('beforeList');
+  const after = document.getElementById('afterList');
+  before.innerHTML = tab.before.map((line, i) =>
+    `<div class="cline" data-idx="${i}">
+       <span class="cnum">${i+1}</span>
+       <span class="ccode">${escapeHtml(line)}</span>
+     </div>`
+  ).join('');
+  after.innerHTML = tab.after.map((line, i) =>
+    `<div class="cline" data-idx="${i}">
+       <span class="cnum">${i+1}</span>
+       <span class="ccode">${escapeHtml(line)}</span>
+     </div>`
+  ).join('');
+
+  // Tab 5 显示 DAG 面板
+  const dagWrap = document.getElementById('dagWrap');
+  if(state.curTab === 4){
+    dagWrap.style.display = 'block';
+    renderDagStructure();
+  } else {
+    dagWrap.style.display = 'none';
+  }
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 初始化 DAG SVG（一次性绘所有节点/边，用 class 控制显隐）
+function renderDagStructure(){
+  const svg = document.getElementById('dagSvg');
+  const tab = TAB_DAG;
+  const nodePos = {};
+  tab.dagNodes.forEach(n => { nodePos[n.id] = n; });
+
+  let html = '';
+  // 箭头 marker
+  html += `<defs><marker id="dagArrow" viewBox="0 -3 6 6" refX="6" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+    <path d="M0,-3L6,0L0,3" fill="#2a2f55"/></marker></defs>`;
+
+  // 先绘边
+  tab.dagEdges.forEach((e, i) => {
+    const p = nodePos[e.from], c = nodePos[e.to];
+    // 稍微缩短端点，避免与圆重叠
+    const dx = c.x - p.x, dy = c.y - p.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const r = 18;
+    const x1 = p.x + dx*r/dist, y1 = p.y + dy*r/dist;
+    const x2 = c.x - dx*r/dist, y2 = c.y - dy*r/dist;
+    html += `<line class="dagedge" data-edge="${i}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-end="url(#dagArrow)"/>`;
+  });
+
+  // 再绘节点
+  tab.dagNodes.forEach(n => {
+    const isLeaf = n.kind === 'leaf';
+    html += `<g class="dagnode" data-node="${n.id}">
+      <circle cx="${n.x}" cy="${n.y}" r="${isLeaf?15:18}"/>
+      <text x="${n.x}" y="${n.y}">${n.label}</text>`;
+    if(n.vars){
+      html += `<text class="var" x="${n.x}" y="${n.y - 26}">${n.vars.join(',')}</text>`;
+    }
+    html += `</g>`;
+  });
+  svg.innerHTML = html;
+}
+
+// 每一步的应用：清空所有动态 class，再按当前步骤配置施加
+function applyStep(){
+  const step = curSteps()[curIdx()];
+  const tab = TABS[state.curTab];
+
+  // 讲解卡
+  const badgeCls = {
+    tip:'badge--tip', warn:'badge--warn', def:'badge--def', ok:'badge--ok'
+  }[step.badge || 'tip'];
+  document.getElementById('expl').innerHTML =
+    `<span class="badge ${badgeCls}">${step.badgeText || '当前步骤'}</span>
+     <div class="step-title">${step.title}</div>
+     <div class="step-desc">${step.desc}</div>`;
+
+  // Before 列表：清空后施加 class
+  const beforeLines = document.querySelectorAll('#beforeList .cline');
+  beforeLines.forEach((el, i) => {
+    el.classList.remove('hl','dead','match','removed','new','changed','hoisted');
+    if(step.beforeCls && step.beforeCls[i]){
+      el.classList.add(step.beforeCls[i]);
+    }
+  });
+
+  // After 列表：先根据 afterShow 决定可见行数，再施加 class
+  const afterLines = document.querySelectorAll('#afterList .cline');
+  const show = step.afterShow === 'all' ? tab.after.length : (step.afterShow || 0);
+  afterLines.forEach((el, i) => {
+    el.classList.remove('hl','dead','match','removed','new','changed','hoisted','hide');
+    if(i >= show){
+      el.classList.add('hide');
+    } else if(step.afterCls && step.afterCls[i]){
+      el.classList.add(step.afterCls[i]);
+    }
+  });
+
+  // 中间箭头
+  document.getElementById('arrowMid').classList.toggle('active', !!step.arrowActive);
+
+  // DAG（仅 Tab 5）
+  if(state.curTab === 4 && step.dag){
+    const svg = document.getElementById('dagSvg');
+    // 节点
+    svg.querySelectorAll('.dagnode').forEach(g => {
+      const id = g.getAttribute('data-node');
+      g.classList.remove('visible','active','reused');
+      if(step.dag.nodes.includes(id)){
+        g.classList.add('visible');
+      }
+      if(step.dag.active && step.dag.active.includes(id)){
+        g.classList.add('active');
+      }
+      if(step.dag.reused && step.dag.reused.includes(id)){
+        g.classList.add('reused');
+      }
+    });
+    // 边
+    svg.querySelectorAll('.dagedge').forEach(e => {
+      const idx = parseInt(e.getAttribute('data-edge'), 10);
+      e.classList.remove('visible','active');
+      if(step.dag.edges.includes(idx)){
+        e.classList.add('visible');
+      }
+    });
+  }
+
+  // 步骤计数与圆点
+  const total = curSteps().length;
+  const cur = curIdx();
+  document.getElementById('stepCnt').textContent = `${cur+1} / ${total}`;
+  renderDots();
+
+  // 按钮可用性
+  document.getElementById('btnPrev').disabled = (cur === 0);
+  document.getElementById('btnNext').disabled = (cur === total - 1);
+}
+
+function renderDots(){
+  const total = curSteps().length;
+  const cur = curIdx();
+  const container = document.getElementById('stepDots');
+  let html = '';
+  for(let i = 0; i < total; i++){
+    let cls = 'step-dot';
+    if(i === cur) cls += ' active';
+    else if(i < cur) cls += ' done';
+    html += `<div class="${cls}" data-step="${i}"></div>`;
+  }
+  container.innerHTML = html;
+  // 点击跳转
+  container.querySelectorAll('.step-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const i = parseInt(dot.getAttribute('data-step'), 10);
+      setCurIdx(i);
+      applyStep();
+    });
+  });
+}
+
+/* ---------------- Tab 切换 ---------------- */
+document.getElementById('tabBar').addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  const t = parseInt(btn.getAttribute('data-tab'), 10);
+  if(t === state.curTab) return;
+  stopPlay();
+  state.curTab = t;
+  // 更新 tab 高亮
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+  // 重新渲染代码列表 + 应用当前 tab 的当前步骤
+  renderCodeLists();
+  applyStep();
+});
+
+/* ---------------- 控制按钮 ---------------- */
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if(curIdx() > 0){
+    setCurIdx(curIdx() - 1);
+    applyStep();
+  }
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  if(curIdx() < curSteps().length - 1){
+    setCurIdx(curIdx() + 1);
+    applyStep();
+  }
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  stopPlay();
+  setCurIdx(0);
+  applyStep();
+});
+document.getElementById('btnPlay').addEventListener('click', togglePlay);
+document.getElementById('btnSpeed').addEventListener('click', cycleSpeed);
+
+function togglePlay(){
+  if(state.playing){ stopPlay(); }
+  else { startPlay(); }
+}
+function startPlay(){
+  state.playing = true;
+  document.getElementById('btnPlay').textContent = '⏸ 暂停';
+  scheduleNext();
+}
+function stopPlay(){
+  state.playing = false;
+  if(state.timer){ clearTimeout(state.timer); state.timer = null; }
+  document.getElementById('btnPlay').textContent = '▶ 自动播放';
+}
+function scheduleNext(){
+  const delay = 1600 / state.speed;
+  state.timer = setTimeout(() => {
+    if(!state.playing) return;
+    if(curIdx() < curSteps().length - 1){
+      setCurIdx(curIdx() + 1);
+      applyStep();
+      scheduleNext();
+    } else {
+      stopPlay();
+    }
+  }, delay);
+}
+function cycleSpeed(){
+  const cur = state.speedList.indexOf(state.speed);
+  state.speed = state.speedList[(cur + 1) % state.speedList.length];
+  document.getElementById('btnSpeed').textContent = `速度 ${state.speed}×`;
+}
+
+/* ---------------- 键盘 ---------------- */
+document.addEventListener('keydown', e => {
+  if(e.key === 'ArrowLeft'){ document.getElementById('btnPrev').click(); e.preventDefault(); }
+  else if(e.key === 'ArrowRight'){ document.getElementById('btnNext').click(); e.preventDefault(); }
+  else if(e.key === ' '){ togglePlay(); e.preventDefault(); }
+  else if(e.key === 'r' || e.key === 'R'){ document.getElementById('btnReset').click(); }
+});
+
+/* ---------------- 启动 ---------------- */
+renderCodeLists();
+applyStep();
+</script>
+</body>
+</html>
