@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智创Agent 开源课堂交互演示</title>
+    <style>
+      :root {
+        color: #172033;
+        background: #eef2f6;
+        font-family: "IBM Plex Sans", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+        --ink: #172033;
+        --muted: #657184;
+        --line: #d8e0ea;
+        --paper: #fff;
+        --accent: #d7ff64;
+        --blue: #174ea6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      main {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+      }
+
+      aside {
+        min-height: 100vh;
+        padding: 24px;
+        color: #f7fbff;
+        background: #162033;
+      }
+
+      h1,
+      h2,
+      p {
+        margin-top: 0;
+      }
+
+      .brand {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 24px;
+      }
+
+      .brand strong {
+        font-size: 22px;
+      }
+
+      .brand span {
+        color: #aeb9c9;
+        line-height: 1.5;
+      }
+
+      .direction-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      button {
+        border: 0;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .direction-list button {
+        min-height: 54px;
+        padding: 10px;
+        color: #d8e0ea;
+        text-align: left;
+        background: rgba(255, 255, 255, 0.08);
+        border-left: 4px solid transparent;
+        border-radius: 8px;
+      }
+
+      .direction-list button.active {
+        color: #172033;
+        background: var(--accent);
+        border-left-color: #fff;
+      }
+
+      .content {
+        display: grid;
+        gap: 18px;
+        align-content: start;
+        padding: 32px clamp(20px, 4vw, 56px);
+      }
+
+      .hero,
+      .board,
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 18px 45px rgba(30, 42, 62, 0.08);
+      }
+
+      .hero {
+        min-height: 180px;
+        display: grid;
+        align-content: end;
+        padding: 26px;
+        color: #f7fbff;
+        background:
+          linear-gradient(120deg, rgba(17, 29, 48, 0.96), rgba(17, 29, 48, 0.72)),
+          repeating-linear-gradient(90deg, rgba(215, 255, 100, 0.14) 0 1px, transparent 1px 32px),
+          #172033;
+      }
+
+      .hero h1 {
+        margin-bottom: 10px;
+        font-size: clamp(30px, 5vw, 56px);
+        line-height: 1.05;
+      }
+
+      .hero p {
+        max-width: 840px;
+        margin-bottom: 0;
+        color: #d8e0ea;
+        line-height: 1.7;
+      }
+
+      .board {
+        display: grid;
+        gap: 18px;
+        padding: 22px;
+      }
+
+      .board-head {
+        display: flex;
+        gap: 16px;
+        align-items: start;
+        justify-content: space-between;
+      }
+
+      .board-head span,
+      .card span {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .board-head h2 {
+        margin: 6px 0;
+        font-size: 30px;
+      }
+
+      .board-head p,
+      .card p {
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .stage {
+        min-height: 340px;
+        display: grid;
+        gap: 16px;
+        padding: 18px;
+        color: #f7fbff;
+        background:
+          linear-gradient(135deg, rgba(23, 32, 51, 0.98), rgba(42, 57, 83, 0.94)),
+          repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 28px);
+        border-radius: 8px;
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .step {
+        min-height: 86px;
+        display: grid;
+        place-items: center;
+        gap: 6px;
+        padding: 12px;
+        color: #aeb9c9;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        transition: 0.25s ease;
+      }
+
+      .step.active {
+        color: #172033;
+        background: var(--accent);
+        transform: translateY(-3px);
+      }
+
+      .step b {
+        font-size: 12px;
+      }
+
+      .runtime {
+        display: grid;
+        grid-template-columns: 1fr 1fr 0.8fr;
+        gap: 12px;
+      }
+
+      .runtime article {
+        min-height: 150px;
+        display: grid;
+        align-content: end;
+        gap: 10px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+      }
+
+      .runtime span {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .runtime code {
+        padding: 12px;
+        white-space: normal;
+        line-height: 1.55;
+        background: rgba(0, 0, 0, 0.28);
+        border-radius: 6px;
+      }
+
+      .runtime strong {
+        font-size: 30px;
+      }
+
+      .lesson-page {
+        min-height: 560px;
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        color: #f7fbff;
+        background:
+          linear-gradient(135deg, rgba(15, 24, 39, 0.98), rgba(36, 50, 74, 0.94)),
+          repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 28px);
+        border-radius: 8px;
+      }
+
+      .lesson-page-head {
+        display: flex;
+        gap: 12px;
+        align-items: start;
+        justify-content: space-between;
+      }
+
+      .lesson-page-head span,
+      .lesson-card > span,
+      .visual-grid span {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .lesson-page-head strong {
+        padding: 7px 9px;
+        color: #172033;
+        background: var(--accent);
+        border-radius: 6px;
+      }
+
+      .lesson-workspace-grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .lesson-card,
+      .lesson-visual {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.075);
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 8px;
+      }
+
+      .lesson-blackboard {
+        grid-column: span 4;
+        min-height: 320px;
+      }
+
+      .lesson-visual {
+        grid-column: span 8;
+        min-height: 320px;
+      }
+
+      .lesson-code {
+        grid-column: span 4;
+      }
+
+      .lesson-data {
+        grid-column: span 3;
+      }
+
+      .lesson-activity {
+        grid-column: span 5;
+      }
+
+      .lesson-evidence {
+        grid-column: span 4;
+      }
+
+      .lesson-rubric {
+        grid-column: span 8;
+      }
+
+      .lesson-page.surface-trace .lesson-blackboard {
+        grid-column: span 3;
+      }
+
+      .lesson-page.surface-trace .lesson-visual {
+        grid-column: span 9;
+      }
+
+      .lesson-page.surface-lab .lesson-code,
+      .lesson-page.surface-lab .lesson-data,
+      .lesson-page.surface-lab .lesson-activity,
+      .lesson-page.surface-lab .lesson-evidence,
+      .lesson-page.surface-review .lesson-evidence,
+      .lesson-page.surface-review .lesson-rubric {
+        grid-column: span 6;
+      }
+
+      .lesson-card h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .lesson-card p,
+      .lesson-card div,
+      .lesson-card code {
+        margin: 0;
+        padding: 9px 10px;
+        color: #d8e0ea;
+        line-height: 1.55;
+        background: rgba(255, 255, 255, 0.075);
+        border-left: 3px solid transparent;
+        border-radius: 7px;
+      }
+
+      .lesson-card p.active,
+      .lesson-card div.active,
+      .lesson-card code.active {
+        color: #172033;
+        background: var(--accent);
+        border-left-color: #fff;
+      }
+
+      .lesson-card b,
+      .lesson-card strong,
+      .lesson-card small {
+        display: block;
+      }
+
+      .lesson-card small {
+        margin-top: 4px;
+        color: inherit;
+        opacity: 0.8;
+      }
+
+      .visual-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .visual-grid i,
+      .visual-grid b {
+        min-height: 42px;
+        display: grid;
+        place-items: center;
+        color: #d8e0ea;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        font-style: normal;
+        font-weight: 900;
+      }
+
+      .visual-grid i.active,
+      .visual-grid b.active {
+        color: #172033;
+        background: var(--accent);
+        box-shadow: 0 0 18px rgba(215, 255, 100, 0.28);
+      }
+
+      .lesson-rubric div {
+        display: grid;
+        grid-template-columns: 86px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+      }
+
+      .lesson-rubric em {
+        height: 8px;
+        display: block;
+        background: var(--accent);
+        border-radius: 999px;
+        font-style: normal;
+      }
+
+      .controls {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .controls button {
+        min-height: 38px;
+        padding: 0 14px;
+        color: var(--ink);
+        background: #f5f8fb;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font-weight: 900;
+      }
+
+      .controls button:hover {
+        background: var(--accent);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .chapter-strip,
+      .lesson-strip {
+        display: grid;
+        gap: 10px;
+      }
+
+      .chapter-strip {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .lesson-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .chapter-strip button,
+      .lesson-strip button {
+        min-height: 74px;
+        padding: 12px;
+        color: var(--ink);
+        text-align: left;
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .chapter-strip button.active,
+      .lesson-strip button.active {
+        color: #f7fbff;
+        background: #172033;
+        border-color: #172033;
+      }
+
+      .chapter-strip strong,
+      .lesson-strip strong,
+      .chapter-strip small,
+      .lesson-strip small {
+        display: block;
+      }
+
+      .chapter-strip small,
+      .lesson-strip small {
+        margin-top: 6px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .chapter-strip button.active small,
+      .lesson-strip button.active small {
+        color: #c6d0df;
+      }
+
+      .card {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        padding: 18px;
+      }
+
+      .card h3 {
+        margin: 0;
+      }
+
+      .card ul {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        aside {
+          min-height: 0;
+        }
+
+        .direction-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .steps,
+        .runtime,
+        .grid,
+        .chapter-strip,
+        .lesson-strip {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <aside>
+        <div class="brand">
+          <strong>智创Agent 开源课堂</strong>
+          <span>课程目录、章节导航与交互课节</span>
+        </div>
+        <nav class="direction-list" id="directionList"></nav>
+      </aside>
+
+      <section class="content">
+        <section class="hero">
+          <h1>让抽象课程过程在课堂上动起来</h1>
+          <p>
+            教师可以选择课程、章节和小节，播放过程动画，布置实验任务，并让学生提交代码、日志、图示或报告形成可评价产出。
+          </p>
+        </section>
+
+        <section class="board">
+          <div class="board-head">
+            <div>
+              <span id="course"></span>
+              <h2 id="title"></h2>
+              <p id="scene"></p>
+            </div>
+          </div>
+
+          <div class="chapter-strip" id="chapterStrip"></div>
+          <div class="lesson-strip" id="lessonStrip"></div>
+
+          <div class="lesson-page" id="lessonPage">
+            <div class="lesson-page-head">
+              <div>
+                <span id="lessonSurface"></span>
+                <h2 id="lessonTitle"></h2>
+                <p id="lessonLead"></p>
+              </div>
+              <strong id="lessonCode"></strong>
+            </div>
+
+            <div class="lesson-workspace-grid">
+              <article class="lesson-card lesson-blackboard">
+                <span>关键问题</span>
+                <h3 id="blackboardTitle"></h3>
+                <div id="blackboard"></div>
+              </article>
+              <article class="lesson-visual">
+                <span>过程演示</span>
+                <div class="visual-grid" id="visualGrid"></div>
+              </article>
+              <article class="lesson-card lesson-code">
+                <span>实操任务</span>
+                <div id="codeStation"></div>
+              </article>
+              <article class="lesson-card lesson-data">
+                <span>课堂数据</span>
+                <div id="dataPanel"></div>
+              </article>
+              <article class="lesson-card lesson-activity">
+                <span>课堂互动</span>
+                <div id="activityPanel"></div>
+              </article>
+              <article class="lesson-card lesson-evidence">
+                <span>作品证据</span>
+                <div id="evidencePanel"></div>
+              </article>
+              <article class="lesson-card lesson-rubric">
+                <span>评价标准</span>
+                <div id="rubricPanel"></div>
+              </article>
+            </div>
+          </div>
+
+          <div class="controls">
+            <button id="prev">上一步</button>
+            <button id="play">暂停</button>
+            <button id="next">下一步</button>
+          </div>
+        </section>
+
+        <section class="grid">
+          <article class="card">
+            <span>课节范围</span>
+            <h3>96 个交互课节</h3>
+            <p>每节课都有对应的问题、演示、任务、互动、证据和评价标准。</p>
+          </article>
+          <article class="card">
+            <span>课堂路径</span>
+            <h3>课程 -> 章节 -> 小节</h3>
+            <p>教师可按教学进度切换页面，也可以用上一步/下一步播放过程动画。</p>
+          </article>
+          <article class="card">
+            <span>教学产出</span>
+            <h3>证据化课堂闭环</h3>
+            <p>学生提交代码、日志、图示或报告，教师依据量规直接讲评。</p>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const directions = [
+        {
+          title: "深度学习框架与编程",
+          course: "深度学习框架实践",
+          scene: "观察张量、计算图、loss、backward 和 optimizer 的训练过程。",
+          caption: "训练代码和梯度传播过程一一对应。",
+          steps: ["Tensor", "Operator", "Loss", "Backward", "Optimizer", "Metric"],
+          agent: "框架概念解释、代码逐行讲解、训练异常定位",
+          tasks: ["补全训练脚本", "解释张量 shape", "比较学习率变化"],
+          artifacts: ["训练代码", "loss 曲线", "实验报告"],
+          evaluation: ["代码能运行", "维度解释准确", "指标变化有分析"],
+          chapters: [
+            ["张量与计算图", "张量对象与 shape", "算子组合与计算图", "前向传播可视化"],
+            ["自动求导与优化", "loss 标量化", "backward 梯度链", "optimizer 参数更新"],
+            ["模型训练工程", "数据加载与划分", "训练循环结构", "checkpoint 与指标"],
+            ["框架编程综合实验", "手写线性层", "改造训练脚本", "实验报告生成"],
+          ],
+        },
+        {
+          title: "计算机系统导论",
+          course: "计算机系统基础",
+          scene: "展示指令、寄存器、栈帧和内存区域的同步变化。",
+          caption: "每条机器指令都会改变寄存器或内存状态。",
+          steps: ["Fetch", "Decode", "Register", "Stack", "Memory", "Return"],
+          agent: "汇编解释、寄存器状态追踪、风险代码定位",
+          tasks: ["分析函数调用栈", "定位边界写入风险", "记录模拟器状态"],
+          artifacts: ["指令日志", "栈帧图", "修复说明"],
+          evaluation: ["能解释寄存器变化", "能定位风险", "修复理由清楚"],
+          chapters: [
+            ["数据表示与机器级执行", "整数与浮点表示", "指令生命周期", "寄存器观察"],
+            ["函数调用与栈帧", "调用约定", "栈帧布局", "缓冲区越界"],
+            ["二进制程序分析", "反汇编读法", "控制流图", "简单漏洞复现"],
+            ["模拟器实验", "指令集建模", "状态转移", "执行日志"],
+          ],
+        },
+        {
+          title: "编译原理",
+          course: "编译原理课程实验",
+          scene: "把源代码逐步转换为 token、AST、符号表和中间代码。",
+          caption: "语法规则、树结构和中间表示形成完整链路。",
+          steps: ["Source", "Token", "AST", "Symbol", "IR", "Optimize"],
+          agent: "语法错误解释、AST 结构生成、符号表检查",
+          tasks: ["实现表达式解析器", "维护符号表", "生成三地址码"],
+          artifacts: ["解析器代码", "AST 输出", "IR 结果"],
+          evaluation: ["语法覆盖完整", "符号表正确", "IR 与源代码一致"],
+          chapters: [
+            ["词法与语法基础", "token 规则设计", "文法与优先级", "AST 构建"],
+            ["语义分析", "作用域规则", "符号表管理", "类型检查"],
+            ["中间代码与优化", "三地址码", "控制流生成", "局部优化"],
+            ["编译器综合实验", "表达式编译器", "错误恢复", "编译器测试与回归验证"],
+          ],
+        },
+        {
+          title: "数据库系统概论",
+          course: "数据库系统课程设计",
+          scene: "从 SQL 进入解析、优化、索引选择、执行和事务提交。",
+          caption: "SQL 结果背后有优化器、索引和执行计划。",
+          steps: ["SQL", "Parser", "Planner", "Index", "Executor", "Commit"],
+          agent: "SQL 讲解、执行计划分析、索引建议",
+          tasks: ["设计项目管理数据表", "解释执行计划", "优化慢查询"],
+          artifacts: ["ER 图", "建表 SQL", "查询脚本"],
+          evaluation: ["模型合理", "结果正确", "索引解释清楚"],
+          chapters: [
+            ["真实场景数据建模", "场景到实体", "ER 到关系表", "约束与数据质量"],
+            ["SQL 能力培养", "select 与条件查询", "join 与聚合", "窗口函数与排名"],
+            ["查询优化", "EXPLAIN 读法", "索引选择", "慢查询诊断"],
+            ["事务与应用开发", "事务隔离", "应用接口设计", "运维与备份"],
+          ],
+        },
+        {
+          title: "操作系统内核构建",
+          course: "操作系统课程实验",
+          scene: "观察进程调度、系统调用、页表映射和设备 I/O 路径。",
+          caption: "内核机制和代码路径可以被逐步追踪。",
+          steps: ["Ready", "Schedule", "CPU", "Syscall", "PageTable", "Device"],
+          agent: "内核代码导读、实验卡点定位、调用路径解释",
+          tasks: ["补全系统调用", "记录进程轮转", "解释地址映射"],
+          artifacts: ["内核补丁", "调用路径图", "调试日志"],
+          evaluation: ["系统调用可运行", "状态解释准确", "日志可复现"],
+          chapters: [
+            ["内核启动与系统调用", "内核启动路径", "trap 与系统调用", "新增系统调用"],
+            ["进程管理", "进程状态模型", "调度器", "上下文切换"],
+            ["内存管理", "虚拟地址空间", "页表映射", "缺页与分配"],
+            ["文件系统与 I/O", "文件描述符", "文件系统路径", "设备 I/O"],
+          ],
+        },
+        {
+          title: "计算思维相关方向",
+          course: "计算思维与程序设计",
+          scene: "观察输入如何经过分解、循环、分支和状态迁移得到输出。",
+          caption: "抽象算法可以拆成可见状态和可检查步骤。",
+          steps: ["Input", "Decompose", "Loop", "Branch", "State", "Output"],
+          agent: "算法过程讲解、错因提示、练习生成",
+          tasks: ["描述排序状态", "记录 BFS/DFS 轨迹", "生成同类练习"],
+          artifacts: ["状态表", "算法轨迹", "练习记录"],
+          evaluation: ["记录完整", "过程清楚", "能迁移到新题"],
+          chapters: [
+            ["问题分解与抽象", "问题边界", "抽象模型", "子任务拆解"],
+            ["算法状态与控制", "循环状态", "分支决策", "状态机"],
+            ["递归、搜索与图", "递归调用栈", "BFS 与 DFS", "剪枝与搜索边界"],
+            ["调试与迁移", "调试轨迹", "错因分类", "同类迁移"],
+          ],
+        },
+        {
+          title: "软件工程",
+          course: "软件工程项目实践",
+          scene: "学生上传项目，系统分析需求、结构、测试、文档和团队分工。",
+          caption: "项目证据驱动讲评和持续改进。",
+          steps: ["Need", "Design", "Code", "Test", "Deliver", "Review"],
+          agent: "项目分析、需求检查、测试建议、团队分工分析",
+          tasks: ["上传项目", "绑定作者和分工", "保存改进事项"],
+          artifacts: ["项目仓库", "分析报告", "班级讲评材料"],
+          evaluation: ["项目可运行", "证据充分", "改进事项可执行"],
+          chapters: [
+            ["需求工程", "用户与场景", "功能范围", "需求验收标准"],
+            ["软件设计", "原型与流程", "模块划分", "接口与数据模型"],
+            ["实现与测试", "代码结构", "测试设计", "运行与部署"],
+            ["项目管理与讲评", "团队分工", "项目分析报告", "班级讲评"],
+          ],
+        },
+        {
+          title: "AI 基础设施",
+          course: "AI 系统与基础设施实践",
+          scene: "展示算子、kernel、图优化、通信同步和吞吐率变化。",
+          caption: "大模型训练背后的系统瓶颈可以被可视化。",
+          steps: ["Op", "Kernel", "Graph", "Compile", "AllReduce", "Throughput"],
+          agent: "算子讲解、性能瓶颈定位、通信过程解释",
+          tasks: ["比较算子性能", "观察 AllReduce", "解释吞吐率下降"],
+          artifacts: ["算子代码", "性能记录", "通信示意"],
+          evaluation: ["数据可信", "瓶颈合理", "优化建议可验证"],
+          chapters: [
+            ["高性能算子基础", "算子抽象", "内存访问", "并行执行"],
+            ["AI 编译优化", "计算图表示", "算子融合", "图级优化"],
+            ["分布式通信", "数据并行", "AllReduce", "通信瓶颈"],
+            ["性能分析综合实验", "性能指标", "profiling 读法", "优化报告"],
+          ],
+        },
+      ];
+
+      let active = 0;
+      let chapter = 0;
+      let lesson = 0;
+      let step = 0;
+      let playing = true;
+      let timer;
+
+      const directionList = document.getElementById("directionList");
+      const title = document.getElementById("title");
+      const course = document.getElementById("course");
+      const scene = document.getElementById("scene");
+      const chapterStrip = document.getElementById("chapterStrip");
+      const lessonStrip = document.getElementById("lessonStrip");
+      const lessonPage = document.getElementById("lessonPage");
+      const lessonSurface = document.getElementById("lessonSurface");
+      const lessonTitle = document.getElementById("lessonTitle");
+      const lessonLead = document.getElementById("lessonLead");
+      const lessonCode = document.getElementById("lessonCode");
+      const blackboardTitle = document.getElementById("blackboardTitle");
+      const blackboard = document.getElementById("blackboard");
+      const visualGrid = document.getElementById("visualGrid");
+      const codeStation = document.getElementById("codeStation");
+      const dataPanel = document.getElementById("dataPanel");
+      const activityPanel = document.getElementById("activityPanel");
+      const evidencePanel = document.getElementById("evidencePanel");
+      const rubricPanel = document.getElementById("rubricPanel");
+      const surfaces = ["surface-briefing", "surface-trace", "surface-lab", "surface-review"];
+      const surfaceNames = ["概念导入", "过程追踪", "动手实操", "作品讲评"];
+
+      function compact(text, size = 34) {
+        return text.length > size ? `${text.slice(0, size)}...` : text;
+      }
+
+      function renderCards(target, items, tag = "p") {
+        target.innerHTML = items.map((item, index) => `<${tag} class="${index === step % items.length ? "active" : ""}">${item}</${tag}>`).join("");
+      }
+
+      function renderDirections() {
+        directionList.innerHTML = directions
+          .map(
+            (item, index) =>
+              `<button class="${index === active ? "active" : ""}" data-index="${index}">${index + 1}. ${item.title}</button>`,
+          )
+          .join("");
+        directionList.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            active = Number(button.dataset.index);
+            chapter = 0;
+            lesson = 0;
+            step = 0;
+            render();
+          });
+        });
+      }
+
+      function renderChapters(item) {
+        chapterStrip.innerHTML = item.chapters
+          .map(
+            (entry, index) =>
+              `<button class="${index === chapter ? "active" : ""}" data-chapter="${index}"><strong>第 ${index + 1} 章 ${entry[0]}</strong><small>${entry.slice(1).join(" / ")}</small></button>`,
+          )
+          .join("");
+        chapterStrip.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            chapter = Number(button.dataset.chapter);
+            lesson = 0;
+            step = 0;
+            render();
+          });
+        });
+      }
+
+      function renderLessons(item) {
+        const current = item.chapters[chapter];
+        lessonStrip.innerHTML = current
+          .slice(1)
+          .map(
+            (name, index) =>
+              `<button class="${index === lesson ? "active" : ""}" data-lesson="${index}"><strong>第 ${chapter + 1}.${index + 1} 节 ${name}</strong><small>问题、动画、任务、互动与作品证据</small></button>`,
+          )
+          .join("");
+        lessonStrip.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            lesson = Number(button.dataset.lesson);
+            step = 0;
+            render();
+          });
+        });
+      }
+
+      function render() {
+        const item = directions[active];
+        const chapterName = item.chapters[chapter][0];
+        const lessonName = item.chapters[chapter][lesson + 1];
+        const surfaceIndex = (chapter * 3 + lesson) % surfaces.length;
+        const currentStep = item.steps[step];
+        const lessonId = `OPEN-${String(active + 1).padStart(2, "0")}-${String(chapter + 1).padStart(2, "0")}-${String(lesson + 1).padStart(2, "0")}`;
+
+        title.textContent = item.title;
+        course.textContent = `${item.course} · 4 章 12 节`;
+        scene.textContent = `${item.scene} 当前进入：第 ${chapter + 1} 章《${chapterName}》第 ${lesson + 1} 节《${lessonName}》。`;
+        lessonPage.className = `lesson-page ${surfaces[surfaceIndex]}`;
+        lessonSurface.textContent = `第 ${chapter + 1} 章第 ${lesson + 1} 节 · ${surfaceNames[surfaceIndex]}`;
+        lessonTitle.textContent = `${item.title} · ${chapterName} · ${lessonName}`;
+        lessonLead.textContent = `围绕“${lessonName}”呈现关键问题、过程演示、实操任务、课堂互动、作品证据和评价标准。`;
+        lessonCode.textContent = lessonId;
+        blackboardTitle.textContent = currentStep;
+        renderCards(blackboard, [
+          `核心问题：${compact(item.caption, 42)}`,
+          `过程演示：${item.steps.join(" -> ")}`,
+          `课堂追问：${compact(item.tasks[lesson % item.tasks.length], 42)}`,
+          `实验落点：${compact(item.artifacts[(chapter + lesson) % item.artifacts.length], 42)}`,
+        ]);
+        visualGrid.innerHTML = item.steps
+          .map((name, index) => `<i class="${index === step ? "active" : ""}">${name}</i>`)
+          .join("");
+        codeStation.innerHTML = [
+          `<code class="active">${lessonId.toLowerCase()}("${lessonName}")</code>`,
+          `<code>${item.steps[0]} -> ${currentStep} -> ${item.steps[item.steps.length - 1]}</code>`,
+          `<code>agent.assist("${item.agent}")</code>`,
+        ].join("");
+        dataPanel.innerHTML = [
+          `<div><b>课节</b><strong>${chapter + 1}.${lesson + 1}</strong><small>${lessonName}</small></div>`,
+          `<div><b>路径</b><strong>${chapterName}</strong><small>${item.course}</small></div>`,
+          `<div><b>状态</b><strong>${currentStep}</strong><small>${item.caption}</small></div>`,
+        ].join("");
+        renderCards(activityPanel, [
+          `课堂互动：${item.tasks[lesson % item.tasks.length]}`,
+          `学生操作：${item.tasks[(lesson + 1) % item.tasks.length]}`,
+          `系统支持：${item.agent}`,
+        ], "div");
+        renderCards(evidencePanel, [
+          `提交材料：${item.artifacts[lesson % item.artifacts.length]}`,
+          `课堂观察：${item.evaluation[(chapter + lesson) % item.evaluation.length]}`,
+          `讲评出口：根据《${lessonName}》生成下一节前置练习。`,
+        ], "div");
+        rubricPanel.innerHTML = item.evaluation
+          .map((entry, index) => `<div><b>${entry}</b><em style="width:${62 + index * 11}%"></em><small>${lessonName} 的评价证据 ${index + 1}</small></div>`)
+          .join("");
+        renderDirections();
+        renderChapters(item);
+        renderLessons(item);
+      }
+
+      function tick() {
+        step = (step + 1) % directions[active].steps.length;
+        render();
+      }
+
+      document.getElementById("prev").addEventListener("click", () => {
+        step = step === 0 ? directions[active].steps.length - 1 : step - 1;
+        render();
+      });
+      document.getElementById("next").addEventListener("click", tick);
+      document.getElementById("play").addEventListener("click", (event) => {
+        playing = !playing;
+        event.target.textContent = playing ? "暂停" : "播放";
+        if (playing) {
+          timer = window.setInterval(tick, 1500);
+        } else {
+          window.clearInterval(timer);
+        }
+      });
+
+      render();
+      timer = window.setInterval(tick, 1500);
+    </script>
+  </body>
+</html>
